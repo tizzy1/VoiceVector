@@ -58,7 +58,20 @@ def latency(eng: "RulesEngine") -> dict[str, Any]:
             if reply_to in eng.tx_time:
                 response.append(e.t - eng.tx_time[reply_to])
     machine, perceived = [], []
-    for timings in eng.tx_timings:
+    # t_play only exists once the pilot speaks, so the full stage timings ride on the
+    # pilot_transmission event (controller stamps t_ptt_up/t_final + pilot t_play).
+    # Count each controller transmission once; blocked replies were never heard.
+    seen: set[str] = set()
+    replies = []
+    for e in eng.events:
+        if e.type != "pilot_transmission" or e.data.get("blocked"):
+            continue
+        timings = e.data.get("timings") or {}
+        key = e.data.get("in_reply_to") or e.tx_id
+        if "t_play" in timings and key not in seen:
+            seen.add(key)
+            replies.append(timings)
+    for timings in replies:
         up, play, final = timings.get("t_ptt_up"), timings.get("t_play"), timings.get("t_final")
         if up is not None and play is not None:
             perceived.append(play - up)

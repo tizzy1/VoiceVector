@@ -175,3 +175,17 @@ def test_incomplete_readback_not_challenged_is_d3(world, bus, data_dir):
     bus.emit(Event(t=40, type="error_missed", actor="PILOT", callsign="T1",
                    data={**_err("missed", mode="readback_only"), "kind": "omitted_element"}))
     assert [(f.rule_id, f.severity) for f in rules.findings] == [("D3", "MEDIUM")]
+
+
+def test_latency_uses_pilot_transmission_timings(world, bus, data_dir):
+    rules = setup(world, bus, data_dir)
+    place(world, "T1", x=20, y=0, alt=6000)
+    say(bus, world, "T1", Instruction(type="heading", value=270), text="t1 turn left heading 270")
+    base = {"t_ptt_up": 100.0, "t_final": 100.4}
+    for tx, play, blocked in (("t1", 101.6, False), ("t1", 105.0, False), ("t2", 200.0, True)):
+        bus.emit(Event(t=world.t + 1, type="pilot_transmission", actor="PILOT", callsign="T1",
+                       tx_id="p", data={"in_reply_to": tx, "blocked": blocked,
+                                        "timings": {**base, "t_play": play}}))
+    lat = rules.report("L").stats["latency"]
+    assert lat["perceived_s"]["n"] == 1 and abs(lat["perceived_s"]["p50"] - 1.6) < 1e-6
+    assert abs(lat["machine_s"]["p50"] - 1.2) < 1e-6
