@@ -1,0 +1,35 @@
+#!/bin/sh
+# SweatboxAI ownership guard. Blocks commits that touch files you don't own.
+# Install:  sh tools/git/install-hook.sh <tudor|sanju|bhavin>
+OWNER=$(git config --get sweatbox.owner)
+
+TUDOR='^(data/|server/sim/|server/rules/|server/pilot/(engine|decision|errors|clearance)\.py|server/tests/(sim|pilot|rules)/|server/tests/voice/golden_parse\.jsonl)'
+SANJU='^(server/voice/|server/agents/|server/pilot/(readback|validator|variants_build)\.py|web/src/audio/|server/tests/voice/|data/(readback_variants|voices)\.json)'
+
+staged=$(git diff --cached --name-only)
+[ -z "$staged" ] && exit 0
+
+case "$OWNER" in
+  tudor)  bad=$(echo "$staged" | grep -Ev "$TUDOR" | grep -v '^data/(readback_variants|voices)\.json$') ;;
+  sanju)  bad=$(echo "$staged" | grep -Ev "$SANJU" | grep -v '^server/tests/voice/golden_parse\.jsonl$') ;;
+  bhavin) bad=$(echo "$staged" | grep -E "$TUDOR|$SANJU") ;;
+  *) echo "sweatbox: owner not set. Run: sh tools/git/install-hook.sh <tudor|sanju|bhavin>"; exit 1 ;;
+esac
+
+# Tudor must not commit Sanju's generated files; Sanju must not commit Tudor's golden set.
+if [ "$OWNER" = "tudor" ]; then
+  extra=$(echo "$staged" | grep -E '^data/(readback_variants|voices)\.json$')
+  bad=$(printf "%s\n%s" "$bad" "$extra" | sed '/^$/d')
+fi
+if [ "$OWNER" = "sanju" ]; then
+  extra=$(echo "$staged" | grep -E '^server/tests/voice/golden_parse\.jsonl$')
+  bad=$(printf "%s\n%s" "$bad" "$extra" | sed '/^$/d')
+fi
+
+if [ -n "$bad" ]; then
+  echo "sweatbox: BLOCKED — these files belong to someone else:"
+  echo "$bad" | sed 's/^/  /'
+  echo "Unstage them (git restore --staged <file>) and ask the owner in the group chat."
+  exit 1
+fi
+exit 0

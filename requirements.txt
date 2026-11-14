@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+pydantic
+anthropic
+elevenlabs
+fal-client
+httpx[http2]
+rapidfuzz
+numpy
+python-dotenv
+pytest
+pytest-asyncio
+websockets
