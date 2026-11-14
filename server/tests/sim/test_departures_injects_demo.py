@@ -222,3 +222,30 @@ def test_demo_script_fires_timed_injects_once():
     for _ in range(30):
         w.tick(1.0); pe.tick(w.t)
     assert sum(1 for e in bus.events if getattr(e, "type", None) == "inject") == n == 1
+
+
+def test_wake_alert_on_final_medium_behind_heavy(world, bus):
+    empty(world)
+    hx, hy = on_final(world, 6.0)
+    fx, fy = on_final(world, 10.0)       # 4 NM behind a Heavy: H>M needs 5 NM
+    place(world, "HVY1", x=hx, y=hy, alt=1900, ias=160, actype="B77W",
+          lat_mode="LOC", established=True).wake = "H"
+    place(world, "MED1", x=fx, y=fy, alt=3000, ias=160, lat_mode="LOC", established=True)
+    world.tick(1.0)
+    wake = [a for a in world.public_state().alerts if a.kind == "WAKE"]
+    assert len(wake) == 1 and wake[0].callsigns == ["HVY1", "MED1"]
+    assert wake[0].severity == "MEDIUM" and "needs 5 NM" in wake[0].message
+    assert [e.data["kind"] for e in bus.of("alert_start")].count("WAKE") == 1
+    world.aircraft["MED1"].x, world.aircraft["MED1"].y = on_final(world, 12.0)   # 6 NM: legal
+    world.tick(1.0)
+    assert not [a for a in world.public_state().alerts if a.kind == "WAKE"]
+    assert "WAKE" in [e.data["kind"] for e in bus.of("alert_end")]
+
+
+def test_no_wake_alert_for_medium_pair_at_4nm(world, bus):
+    empty(world)
+    for cs, d in (("M1", 6.0), ("M2", 10.0)):
+        x, y = on_final(world, d)
+        place(world, cs, x=x, y=y, alt=2500, ias=160, lat_mode="LOC", established=True)
+    world.tick(1.0)
+    assert not [a for a in world.public_state().alerts if a.kind == "WAKE"]

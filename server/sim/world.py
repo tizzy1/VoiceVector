@@ -48,6 +48,8 @@ class World:
         sep = self.traffic["separation"]
         self.min_sep_nm = float(sep["radar_min_nm"])
         self.min_sep_ft = float(sep["vertical_min_ft"])
+        self.wake_final_nm = {k: float(v) for k, v in sep.get("final_approach_wake_nm", {}).items()
+                              if k != "default"}
 
         self.settings = SessionSettings()
         self.seed = self.settings.seed
@@ -272,6 +274,15 @@ class World:
             key = (c["kind"], a, b)
             old = self.alerts.get(key)
             now[key] = Alert(kind=c["kind"], callsigns=[a, b], severity=sev, message=msg,
+                             since=old.since if old else self.t)
+        for w in stca.wake_on_final(self.aircraft.values(),
+                                    lambda ac: modes.loc_geometry(self, ac)[0], self.wake_final_nm):
+            lead, foll = w["callsigns"]
+            key = ("WAKE", lead, foll)
+            old = self.alerts.get(key)
+            now[key] = Alert(kind="WAKE", callsigns=[lead, foll], severity="MEDIUM",
+                             message=(f"{foll} {w['gap_nm']:.1f} NM behind {lead}, "
+                                      f"wake {w['cat']} needs {w['need_nm']:.0f} NM"),
                              since=old.since if old else self.t)
         for cs, ac in self.aircraft.items():
             if ac.emergency:

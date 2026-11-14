@@ -71,3 +71,25 @@ def detect(aircraft: Iterable[AircraftState], min_nm: float,
                 out.append({"kind": "STCA_PRED", "callsigns": pair, "dist_nm": d,
                             "dalt_ft": dalt, "in_s": t})
     return out
+
+
+def wake_on_final(aircraft: Iterable[AircraftState], along_nm, table: dict[str, float]) -> list[dict]:
+    """Wake spacing on final: consecutive arrivals established on the localiser, in order
+    from the threshold. One entry per leader>follower pair closer than the table minimum
+    for "<lead wake>><follower wake>" (pairs not in the table fall back to radar minimum,
+    which STCA already covers). along_nm(ac) = distance from threshold along the localiser."""
+    final = []
+    for a in aircraft:
+        if a.flow != "ARR" or not (a.established or a.lat_mode == "LOC"):
+            continue
+        along = along_nm(a)
+        if along > 0:
+            final.append((along, a))
+    final.sort(key=lambda p: p[0])
+    out: list[dict] = []
+    for (la, lead), (fa, foll) in zip(final, final[1:]):
+        need = table.get(f"{lead.wake}>{foll.wake}")
+        if need is not None and fa - la < need:
+            out.append({"callsigns": [lead.callsign, foll.callsign], "gap_nm": fa - la,
+                        "need_nm": float(need), "cat": f"{lead.wake}>{foll.wake}"})
+    return out
