@@ -15,6 +15,7 @@ from server.contracts import (
     EventType, InjectKind, Instruction, SessionSettings, StateMsg, Transmission, WorldSnapshot,
 )
 from server.sim import kinematics, modes, registry, runway as rwy_mgr, stca, weather
+from server.sim.forecast import Forecaster
 from server.sim.aircraft import AircraftState
 from server.sim.geo import Projection, heading_for_track, norm_hdg, wind_vector
 from server.sim.evaluate import evaluate as evaluate_tx
@@ -58,6 +59,7 @@ class World:
         self.aircraft: dict[str, AircraftState] = {}
         self.used_callsigns: set[str] = set()
         self.alerts: dict[tuple[str, ...], Alert] = {}
+        self.forecaster = Forecaster()       # advisory conflict probabilities (sim/forecast.py)
         self.wind: tuple[float, float] = (0.0, 0.0)
         self.qnh = 1013
         self._pending: list[tuple[float, int, str, ClearanceElement]] = []
@@ -100,6 +102,7 @@ class World:
         self.dep_generator = rwy_mgr.DepartureGenerator(self, seed, first + 60.0)
         self.last_departure, self.last_takeoff_t, self.last_landing_t = None, None, None
         self.script: list[dict[str, Any]] = []   # timed scenario injects, fired once each
+        self.forecaster.reset()
         if name != "demo":
             return                      # other scenarios start empty; the generator fills them
         scenario = self._load("scenario_demo")
@@ -180,6 +183,7 @@ class World:
         self.generator.tick()
         self.dep_generator.tick()
         self._update_alerts()
+        self.forecaster.update(self)
 
     def _arrival_calls(self, ac: AircraftState) -> None:
         """SIM_SPEC §1.7: ask for the expected approach 2 min after check-in with no expect."""
@@ -384,6 +388,12 @@ class World:
                     self.pilot_call(ac, "request", what="expected_approach")
                     callers.append(ac.callsign)
         return callers
+
+    @property
+    def forecasts(self) -> list[dict[str, Any]]:
+        """ADVISORY conflict probabilities per nearby pair (sim/forecast.py), refreshed every
+        2 sim s. Not an STCA alert and never used for legality or aircraft control."""
+        return self.forecaster.results
 
     def departure_list(self) -> list[dict[str, Any]]:
         return rwy_mgr.release_info(self)
