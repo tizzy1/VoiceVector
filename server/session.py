@@ -3,12 +3,14 @@ import asyncio
 import importlib
 import logging
 import secrets
+from collections import Counter
 from pathlib import Path
 
 from server.contracts import (
-    CaptionMsg, ControlMsg, Event, ReportMsg, SessionMsg, SessionSettings, StateMsg,
+    CaptionMsg, ControlMsg, Event, ReportMsg, SessionMsg, SessionSettings, StateMsg, LiveImportStatus,
 )
 from server.hub import Hub
+from tools.traffic_snapshot import SnapshotFetcher, SnapshotError, demo_snapshot
 
 logger = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parents[1]
@@ -81,6 +83,10 @@ class Session:
         self.controller = None
         self.report = None
         self.lock = asyncio.Lock()
+        self.snapshot_fetcher = SnapshotFetcher()
+        self.live_import = None
+        self.import_provenance = {}
+        self.importing = False
 
     @property
     def ready(self) -> bool:
@@ -100,8 +106,14 @@ class Session:
         if self.world is None:
             return StateMsg(t=0, paused=True, sim_speed=1, runway=self.settings.runway,
                             aircraft=[], alerts=[])
-        return self.world.public_state().model_copy(update={
+        state = self.world.public_state()
+        self.import_provenance = {ac.callsign: self.import_provenance[ac.callsign]
+                                  for ac in state.aircraft if ac.callsign in self.import_provenance}
+        return state.model_copy(update={
             "paused": self.settings.paused, "sim_speed": self.settings.sim_speed,
+            "live_import_available": callable(getattr(self.world, "import_live", None)),
+            "live_import": self.live_import,
+            "aircraft": [ac.model_copy(update=self.import_provenance.get(ac.callsign, {})) for ac in state.aircraft],
         })
 
     def emit(self, kind: str) -> None:
@@ -159,6 +171,9 @@ class Session:
             self.bus.close()
             self.bus = None
         self.world = self.pilot = self.rules = self.voice = self.narrative = None
+        self.live_import = None
+        self.import_provenance = {}
+        self.importing = False
         self.loop_task = None
 
     async def run(self) -> None:
@@ -178,6 +193,9 @@ class Session:
         ))
 
     async def handle_control(self, message: ControlMsg) -> None:
+        if message.action == "import_live":
+            await self.import_snapshot(message.params)
+            return
         if message.action == "beat":
             key = message.params.get("key")
             beats = {
@@ -256,3 +274,47 @@ class Session:
             raise ValueError("Simulation speed must be 1 or 2")
         if not (0 <= settings.arr_per_hr <= 60 and 0 <= settings.dep_per_hr <= 60):
             raise ValueError("Traffic rates must be between 0 and 60")
+
+    async def import_snapshot(self, params: dict) -> None:
+        source = params.get("source", "demo")
+        if source not in ("demo", "vatsim") or set(params) - {"source"}:
+            await self.notice("Choose a demo or VATSIM snapshot; custom URLs and raw payloads are not accepted.")
+            return
+        if self.importing:
+            await self.notice("A snapshot import is already in progress.")
+            return
+        world = self.world
+        if world is None or not callable(getattr(world, "import_live", None)):
+            await self.notice("Snapshot import is unavailable in this simulator.")
+            return
+        self.importing = True
+        attribution = ("Synthetic demo snapshot · no live traffic" if source == "demo" else
+                       "Traffic snapshot: VATSIM network data (data.vatsim.net), read-only")
+        self.live_import = LiveImportStatus(source=source, phase="fetching", attribution=attribution, sim_t=world.t)
+        try:
+            await self.hub.send(self.state())
+            snapshot = demo_snapshot(world) if source == "demo" else await self.snapshot_fetcher.fetch()
+            async with self.lock:
+                if world is not self.world:
+                    return
+                result = world.import_live(snapshot)
+                result["attribution"] = attribution
+                skipped = result.get("skipped", [])
+                result["counts"] = dict(imported=len(result.get("imported", [])), skipped=len(skipped),
+                                        skipped_by_reason=dict(Counter(item["reason"] for item in skipped)))
+                result["skipped"] = skipped[:20]
+                self.live_import = LiveImportStatus.model_validate(result)
+                for imported in self.live_import.imported:
+                    self.import_provenance[imported.callsign] = dict(traffic_source=source,
+                        source_time=self.live_import.source_time, fetched_at=self.live_import.fetched_at,
+                        source_attribution=attribution)
+                await self.hub.send(self.state())
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:
+            message = str(error) if isinstance(error, SnapshotError) else "Snapshot could not be imported. Try the demo snapshot."
+            self.live_import = LiveImportStatus(source=source, attribution=attribution, error=message,
+                                               sim_t=world.t)
+            await self.hub.send(self.state())
+        finally:
+            self.importing = False

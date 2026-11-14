@@ -14,6 +14,7 @@ import { updateCaptions } from "../ui/captions";
 import { SessionControls, type TrafficConfig } from "../ui/SessionControls";
 import { PresenterConsole } from "../ui/PresenterConsole";
 import { ReportDialog, ReportPage } from "../report/ReportView";
+import { SnapshotPanel } from "../ui/SnapshotPanel";
 
 interface Health { ready: boolean; simulation_ready: boolean; missing_modules: string[] }
 
@@ -335,6 +336,8 @@ export function App() {
               selected={selected} enabled={connected && Boolean(health?.simulation_ready)}
               radioReady={Boolean(health?.ready)} send={sendControl} />
           </details>
+          <SnapshotPanel state={state} enabled={connected && Boolean(health?.simulation_ready)}
+            controls={role === "radar"} send={sendControl} />
           <h2>Integration status</h2>
           <p className={health?.simulation_ready ? "success" : "muted"}>
             {health?.simulation_ready ? "Simulator loaded" : "Awaiting simulator"}

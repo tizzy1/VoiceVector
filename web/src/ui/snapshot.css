@@ -1,0 +1,18 @@
+.snapshot-panel { padding: 12px 0; border-top: 1px solid #2b3a40; margin-top: 14px; }
+.snapshot-panel summary { color: #a7bbc3; font-size: 11px; cursor: pointer; }
+.snapshot-panel p { color: #7c8b90; font-size: 11px; line-height: 1.6; }
+.snapshot-panel > label { display: block; color: #a7bbc3; font-size: 10px; margin-bottom: 6px; }
+.snapshot-panel select { width: 100%; background: #0e1417; color: #e8eef0; padding: 7px; font: 11px Inter, sans-serif; border: 1px solid #3c515a; border-radius: 3px; }
+.snapshot-panel > button { margin-top: 8px; padding: 7px 10px; font-size: 11px; border: 1px solid #3c515a; background: #171c20; color: #a7bbc3; }
+.snapshot-result { margin-top: 14px; }
+.snapshot-result strong { color: #a7bbc3; font-size: 10px; font-weight: 500; }
+.snapshot-panel .snapshot-warning { color: #f2b544; }
+.snapshot-result dl { margin: 10px 0; }
+.snapshot-result dt { font-size: 10px; color: #7c8b90; }
+.snapshot-result dd { margin: 4px 0 10px; font: 10px "JetBrains Mono", ui-monospace, monospace; overflow-wrap: anywhere; }
+.snapshot-result ul { padding-left: 14px; color: #7c8b90; font-size: 10px; }
+.snapshot-panel .snapshot-note { font-size: 10px; }
+.aircraft-details .aircraft-provenance { color: #f2b544; font-size: 10px; }
+.aircraft-provenance details { margin-top: 6px; }
+.aircraft-provenance summary { cursor: pointer; }
+.aircraft-provenance p { font-size: 10px; color: #7c8b90; }

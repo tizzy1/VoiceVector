@@ -12,6 +12,12 @@ export function AircraftDetails({ aircraft: ac, alerts }: {
   return <section className="aircraft-details" aria-label="Selected aircraft">
     <h2>Selected aircraft <span>{ac.callsign}</span></h2>
     <p className="aircraft-name">{ac.spoken_plain} · {ac.actype} · Wake {ac.wake}</p>
+    {ac.traffic_source && <div className="aircraft-provenance">
+      Imported simulation · {ac.traffic_source === "demo" ? "SYNTHETIC DEMO" : ac.traffic_source.toUpperCase()}
+      <details><summary>Snapshot provenance</summary><p>{ac.source_attribution}</p>
+        <p>Source time · {ac.source_time ?? "Unavailable"}</p><p>Fetched · {ac.fetched_at ?? "Unavailable"}</p>
+      </details>
+    </div>}
     <table>
       <caption>Observed state and assigned clearance</caption>
       <thead><tr><th scope="col">Parameter</th><th scope="col">Observed</th>

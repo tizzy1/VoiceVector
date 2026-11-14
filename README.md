@@ -82,6 +82,13 @@ radio pipeline. Departures are generated and managed by the simulator.
 Use Show/Hide traffic panels to slide the sidebar from the right. Close panels
 or Escape returns focus to the toggle; reduced-motion preferences disable the
 transition.
+Expand Traffic snapshots in the controller sidebar to add synthetic demo traffic
+(default, offline) or a one-time read-only VATSIM snapshot. Imported aircraft become
+simulated AI pilots; subsequent motion does not follow the external feed. SNAP tags
+and aircraft details identify their source, timestamps and attribution. Both screens
+show import results, skipped counts, stale data and failures. Reset clears the result.
+The app makes no source-network login or control connection. See
+[snapshot integration and provider-use notes](docs/LIVE_IMPORT.md).
 Flight lists default to session order, with a case-insensitive callsign filter
 and callsign/observed-altitude sorting in either direction. Sorting stays within
 arrival and departure phase groups; it does not alter simulator sequencing.

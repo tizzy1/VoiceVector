@@ -178,7 +178,7 @@ export function Radar({ state, data, selected, onSelect, activeSpeakers = [] }: 
           ac.tgt_hdg == null ? "" : `H${headingLabel(ac.tgt_hdg)}`,
           ac.tgt_ias == null ? "" : `S${Math.round(ac.tgt_ias)}`,
         ].filter(Boolean).join(" ");
-        const lines = [ac.callsign,
+        const lines = [ac.callsign + (ac.traffic_source ? " · SNAP" : ""),
           `${levelLabel(ac.alt)}${trend}${levelLabel(ac.cleared_alt)} ${Math.round(ac.gs)}kt`, assigned];
         const width = Math.max(...lines.map(text => ctx.measureText(text).width));
         const labelX = Math.max(4, Math.min(x + 16, size.width - width - 4));

@@ -55,3 +55,9 @@ test("clearing selection removes previous aircraft details", () => {
   assert.ok(!html.includes("BAW117"));
   assert.ok(!html.includes("<table"));
 });
+test("imported aircraft remain labelled as simulation with source and timestamps", () => {
+  const html = render({ ...aircraft, traffic_source: "vatsim", source_time: "2026-11-14T23:00:00Z",
+    fetched_at: "2026-11-14T23:00:15Z", source_attribution: "VATSIM network snapshot" });
+  for (const text of ["Imported simulation", "VATSIM", "2026-11-14T23:00:00Z",
+    "2026-11-14T23:00:15Z", "VATSIM network snapshot"]) assert.ok(html.includes(text), text);
+});

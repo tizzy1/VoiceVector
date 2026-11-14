@@ -90,6 +90,9 @@ def create_app(factories: dict | None = None, runs_dir: Path | None = None) -> F
                         raise ValueError("Message too large")
                     message = CLIENT_MESSAGE.validate_json(text)
                     if isinstance(message, ControlMsg):
+                        if message.action == "import_live":
+                            session.start_operation(session.handle_control(message))
+                            continue
                         await session.handle_control(message)
                         await hub.send(session.message(lan_url()))
                         continue

@@ -30,6 +30,7 @@ function FlightStrip({ aircraft: ac, selected, onSelect }: {
       {ac.next_fix && <span> · Next {ac.next_fix}</span>}
       {ac.emergency && <strong> · Emergency</strong>}
       {ac.transmitting && <span> · Transmitting</span>}
+      {ac.traffic_source && <span> · Imported simulation</span>}
     </span>
   </button>;
 }
