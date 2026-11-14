@@ -86,8 +86,8 @@ Derived values the sim uses:
 |---|---|
 | Arrival on STAR | Follows the STAR laterally, **holds cleared level** (descends only when instructed), 250 kt below FL100, otherwise descent speed |
 | Reaches STAR end (WILLO / TIMBA) with no vectors | Enters the simplified hold at that fix — classic trainee failure mode, visible on radar |
-| Departure after takeoff | Runway track → SID, climb to **4,000 ft** (initial SID altitude) and **level off**; accelerate to 250 kt above 3,000 ft |
-| Departure reaches end of SID or 25 NM without "contact London" | Continues on last track at 4,000 ft → finding "departure not transferred" |
+| Departure after takeoff | Runway track → SID, climb to **6,000 ft** (initial SID altitude) and **level off**; accelerate to 250 kt above 3,000 ft |
+| Departure reaches end of SID or 25 NM without "contact London" | Continues on last track at 6,000 ft → finding "departure not transferred" |
 | Cleared ILS, on heading | Keeps heading until LOC capture, then descends on GS after capture |
 | Established on LOC, cleared approach | Speed schedule: 180 kt until 8 NM, **160 kt until 4 NM** ⚠ VERIFY Gatwick standard, then Vapp |
 | Final, < 0.5 NM, on GS | Lands → `LANDED`, removed after 30 s (runway occupied for `runway_occupancy_s`) |
@@ -101,13 +101,13 @@ ARR: (spawn at STAR entry) STAR ──vectors──► VECTORS ──cleared ILS
 DEP: QUEUED ──release──► TAKEOFF ──Vr, 35 ft──► SID ──"contact London"──► HANDED_OFF
 ```
 - **Takeoff:** accelerate on runway 3 kt/s to Vr (Vapp + 10), rotate, climb at `climb_fpm_low`, V2+10 to 1,500 ft, then accelerate.
-- **Check-in calls:** arrivals on spawn ("Gatwick Director, Speedbird 117, flight level 90, WILLO 1G, information Kilo"); departures passing 2,000 ft ("…passing 2,000 climbing 4,000, BOGNA 1X").
+- **Check-in calls:** arrivals on spawn ("Gatwick Director, Speedbird 117, flight level 90, WILLO 1G, information Kilo"); departures passing 2,000 ft ("…passing 2,000 climbing 6,000, BOGNA 1X").
 - **Reports:** "established" when the LOC is captured, if asked to report.
 
 ### 1.7 Pilot-initiated behaviour
 | Behaviour | Trigger |
 |---|---|
-| Request higher | Departure levelled at 4,000 for > 60 s |
+| Request higher | Departure levelled at 6,000 for > 60 s |
 | Ask expected approach | Arrival 2 min after check-in with no `expect` set |
 | "Approaching WILLO, no further clearance" | Arrival within 3 NM of STAR end, no vectors |
 | Unable / query | §2.3 |
@@ -126,7 +126,7 @@ All pilot speech goes through the voice pipeline's reply scheduler (frequency di
 | **Heading** | turn left heading 240 / fly heading 240 | `HDG`, tgt_hdg, turn_dir; cancels LNAV | — | heading (+ direction if given) |
 | **Turn by** | turn right 20 degrees | tgt = hdg ± n | — | direction + degrees |
 | **Present heading** | continue / fly present heading | tgt = current | — | "present heading" |
-| **Climb/descend altitude** | descend altitude 4000 | cleared_alt, `LVL_CHG` | below min altitude without approach clearance → query; ≥ transition altitude in "altitude" form → query (§3.3) | level + verb |
+| **Climb/descend altitude** | descend altitude 4000 | cleared_alt, `LVL_CHG` | below min altitude without approach clearance → query; above transition altitude in "altitude" form → query (§3.3) | level + verb |
 | **Climb/descend FL** | climb flight level 70 | as above | FL below transition level → query; above ceiling → unable | FL + verb |
 | **Maintain** | maintain 5000 / stop descent at FL80 | cleared_alt = value (stop at) | — | level |
 | **Rate / expedite** | descend at 1000 fpm or less / expedite descent | vs_constraint / ×1.5 | rate > type max → unable | rate / "expediting" |
@@ -201,7 +201,7 @@ Findings are **deterministic code**. The LLM only narrates them (§3.5).
 | B3 Level outside jurisdiction | Cleared level above Director airspace (KKAPP 0–5,500; SPT 5,500–6,500) without being a handoff level ⚠ VERIFY intent |
 | B4 Bad ILS intercept | Approach clearance/intercept heading gives an intercept angle > 30° (warn) / > 45° (fail), aircraft above the glidepath at intercept, or intercept < 2 NM before FI26L ⚠ VERIFY |
 | B5 Speed instruction outside envelope | Below min clean (not configured) or > 250 below FL100 without "no ATC speed restriction" |
-| B6 Transition altitude/level misuse | "Altitude" ≥ transition altitude (**6,000 ft** ⚠ VERIFY) or "flight level" below the transition level; first altitude clearance without QNH |
+| B6 Transition altitude/level misuse | "Altitude" above transition altitude (**6,000 ft** ⚠ VERIFY; altitude 6,000 itself is valid — it is the SID initial altitude) or "flight level" below the transition level; first altitude clearance without QNH |
 | B7 Wrong-position instruction | Cleared to land/take-off; instructions to an aircraft already handed off |
 | B8 Conflicting instruction set | Same-type instructions contradict within one transmission without "correction" |
 | B9 Instruction into conflict | The instructed level/heading creates a predicted LoS within 2 min (sim projects it) |
@@ -383,7 +383,7 @@ Sim time = wall time (pause supported). Transmission processing is async; applic
 6. Intercept from above the glidepath → no GS capture; pilot "unable, too high".
 7. 60° intercept → overshoots the localiser; pilot calls it; B4 finding.
 8. STAR flown to WILLO with no vectors → enters hold; "no further clearance" call.
-9. Departure on BOGNA1X levels at 4,000; requests higher after 60 s; B10 if not transferred.
+9. Departure on BOGNA1X levels at 6,000; requests higher after 60 s; B10 if not transferred.
 10. Two arrivals converging at the same level → A1 with start/end/min distance.
 11. "Descend altitude 2000" 20 NM out, not cleared approach → B1 finding + pilot query.
 12. "Reduce 150" at FL90 → unable; B5 finding.
@@ -401,7 +401,7 @@ Sim time = wall time (pause supported). Transmission processing is async; applic
 | ILS intercept limits | 30° warn / 45° fail; intercept ≥ 2 NM before FI26L |
 | Missed approach 26L / 08R | runway track, 3,000 ft |
 | Hold details (WILLO, TIMBA) | right turns, 1-min legs, inbound = track from the previous STAR fix |
-| SID initial altitude | 4,000 ft |
+| SID initial altitude | 6,000 ft |
 | CTR/CTA vertical limits | CTR SFC–2,500, CTA 1,500–2,500 |
 | Readback-correction phraseology | "negative … I say again …" |
 | Director vertical limits / SPT use | KKAPP 0–5,500, SPT 5,500–6,500 |

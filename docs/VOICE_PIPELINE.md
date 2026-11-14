@@ -99,7 +99,7 @@ Tu+~1.2 playback        at max(first_audio, persona reaction delay) → radio fi
 
 ### Scribe Realtime setup
 - Model `scribe_v2_realtime`, PCM 16 kHz, **manual commit** strategy.
-- **Keyterms (max 50, ≤ 20 chars each in realtime):** telephony words of airlines in `traffic.json` (Speedbird, Easy, Wizz Air, Ryanair, Tomson, Vueling, Alpine, Emirates, Qatari, Turkish, Lufthansa…), active fix names (WILLO, TIMBA, MAY, SFD, BOGNA…), "niner", "QNH", "localiser", "Gatwick", "Director", "Tower", "flight level", "squawk". If keyterms can only be set at connect, pick the static top 50; else refresh as traffic changes.
+- **Keyterms (max 50, ≤ 20 chars each in realtime):** telephony words of airlines in `traffic.json` (Speedbird, Easy, Wizz Air, Ryanair, Tomjet, Vueling, Alpine, Emirates, Qatari, Turkish, Lufthansa…), active fix names (WILLO, TIMBA, MAY, SFD, BOGNA…), "niner", "QNH", "localiser", "Gatwick", "Director", "Tower", "flight level", "squawk". If keyterms can only be set at connect, pick the static top 50; else refresh as traffic changes.
 - Keep partials (for speculation) and the committed final.
 
 ### Normaliser (`server/voice/normalise.py`) — runs on partials and final

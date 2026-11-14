@@ -87,7 +87,7 @@ Emit each finding as a `finding` event too (the feed shows them).
 9. **Rules (MUST set)**: A1 LoS, A3 wake on final, B1 descent below minimum, B4 bad intercept, D1/D2 readback errors caught/missed, E1/E2 execution caught/missed; `report()` with score.
 
 ### SHOULD (by 02:00)
-10. **Departures** + runway manager: queue, release conditions (runway occupancy, arrival gap ≥ 6 NM, departure separation incl. wake), takeoff → `RWY_TRACK` → SID (start with **BOGNA1X, NOVMA1X, SFD1X**), level off 4,000 ft, `request higher` after 60 s, handoff on "contact London".
+10. **Departures** + runway manager: queue, release conditions (runway occupancy, arrival gap ≥ 6 NM, departure separation incl. wake), takeoff → `RWY_TRACK` → SID (start with **BOGNA1X, NOVMA1X, SFD1X**), level off 6,000 ft, `request higher` after 60 s, handoff on "contact London".
 11. **Execution errors**: wrong_turn_direction, wrong_value_flown, level_bust_overshoot, delayed_compliance; corrected by "I say again …" (VOICE §14 B).
 12. **Injects**: mayday, go_around, spawn_conflict, force_overlap, radio_failure.
 13. **Rules**: A2, A4 (placeholder minima), B5, B6 (TA 6,000 ft), B10, C1, C2, D3, D5.
@@ -97,7 +97,7 @@ Emit each finding as a `finding` event too (the feed shows them).
 15. Remaining rules (B2, B3, B7–B9, C3–C6, E3, F-group); holds with published inbound; conditionals; similar_callsign_takeover / omitted_element / wrong_callsign errors; easterly 08R config; VATSIM import.
 
 ### Data & content tasks
-- Add `airline_names` (ICAO → "British Airways", "easyJet", …) to `telephony.json` for `spoken_plain`.
+- Add `_airline_names` (ICAO → "British Airways", "easyJet", …) to `telephony.json` (done) for `spoken_plain`.
 - Write the **parser golden set** `server/tests/voice/golden_parse.jsonl` (60–100 lines: real controller phrasing incl. sloppy variants → expected `Transmission.instructions`) — give to Sanju by **19:00** (first 30 lines by 16:00).
 - Review `data/readback_variants.json` (Sanju generates ~22:00) for phraseology legality; mark bad variant ids.
 - Fill the ⚠ VERIFY table (SIM_SPEC §9) and update `traffic.json` separation/wake values by 09:00.
@@ -107,7 +107,7 @@ Emit each finding as a `finding` event too (the feed shows them).
 - `registry.py`: one `InstructionSpec` per `InstrType` with `evaluate()` and `apply()`; Sanju's parser keeps its own patterns but the **type list and field meanings** are fixed by `contracts.py`. If you need a field, follow CONTRACTS §7.
 - Keep `World.tick` O(n²) STCA fine for ≤ 40 aircraft.
 - All randomness: `random.Random(seed + salt)` per subsystem (traffic, personas, errors, delays).
-- `plain_status` examples: "descending to 4,000 ft · 210 kt", "established ILS 26L · 160 kt", "climbing to 4,000 ft · BOGNA 1X", "holding at WILLO".
+- `plain_status` examples: "descending to 4,000 ft · 210 kt", "established ILS 26L · 160 kt", "climbing to 6,000 ft · BOGNA 1X", "holding at WILLO".
 - Emit `instruction_applied` with `{element_type, value}` when each element takes effect (the viz uses it for "BA117 turning left" flashes).
 
 ## 7. Acceptance tests (put in `server/tests/`)
