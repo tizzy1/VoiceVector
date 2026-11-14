@@ -132,3 +132,17 @@ def test_real_module_set_has_no_missing_modules():
     from server.session import load_factories
     _, missing = load_factories()
     assert missing == []
+
+
+def test_force_overlap_inject_produces_two_simultaneous_streams_in_one_group(tmp_path):
+    fac, created = factories()
+    with TestClient(create_app(fac, tmp_path)) as client:
+        with client.websocket_connect("/ws?role=viz") as viz:
+            collect(viz, lambda s: has(s, "state"))
+            viz.send_json({"type": "control", "action": "inject", "params": {"kind": "force_overlap"}})
+            seen = collect(viz, lambda s: sum(bool(m["type"] == "audio_start" and m.get("overlap_group")) for m in s) >= 2
+                           and any(m["type"] == "event" and m["event"]["type"] == "overlap" for m in s), limit=3000)
+            pair = [m for m in seen if m["type"] == "audio_start" and m.get("overlap_group")]
+            assert pair[0]["overlap_group"] == pair[1]["overlap_group"] and pair[0]["callsign"] != pair[1]["callsign"]
+            overlap = next(m["event"] for m in seen if m["type"] == "event" and m["event"]["type"] == "overlap")
+            assert overlap["data"]["with_ctrl"] is False and len(overlap["data"]["tx_ids"]) == 2

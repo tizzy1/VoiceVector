@@ -47,6 +47,21 @@ class _Ptt:
     last_partial: float = 0.0
 
 
+@dataclass
+class _OverlapGroup:
+    """Deliberate overlap (force_overlap inject): these callers transmit at the same instant."""
+    id: str
+    members: set[str]
+    created: float = field(default_factory=time.monotonic)
+    arrived: set[str] = field(default_factory=set)
+    tx_ids: list[str] = field(default_factory=list)
+    released: asyncio.Event = field(default_factory=asyncio.Event)
+    dead: bool = False          # a caller gave up waiting: everyone talks normally
+
+
+OVERLAP_WAIT_S = 6.0      # how long one caller waits for its partner before talking alone
+OVERLAP_TTL_S = 20.0
+
 STTFactory = Callable[[list[str], Callable[[str], None]], ScribeStream]
 
 
@@ -73,7 +88,11 @@ class VoicePipeline:
         self.reveal_errors = False
         self._ptt: Optional[_Ptt] = None
         self._tx_stamps: dict[str, Stamps] = {}
+        self._overlaps: dict[str, _OverlapGroup] = {}
         self._counter = 0
+        subscribe = getattr(bus, "subscribe", None)
+        if subscribe is not None:
+            subscribe(self._on_bus_event)
         if not key and tts is None:
             logger.warning("ELEVENLABS_API_KEY not set: captions only, no speech")
         self.llm_client = None                     # None -> llm.get_client() (key from env)
@@ -97,6 +116,21 @@ class VoicePipeline:
     async def _notice(self, text: str, tx_id: Optional[str] = None) -> None:
         await self.hub.send(CaptionMsg(tx_id=tx_id or self._new_id("n"), speaker="SYSTEM",
                                        stage="final", text=text))
+
+    def _on_bus_event(self, event: Event) -> None:
+        """force_overlap inject: the named callers' next transmissions start together."""
+        if event.type == "inject" and event.data.get("kind") == "force_overlap":
+            callers = [str(c) for c in event.data.get("callers") or []]
+            if len(callers) >= 2:
+                group = _OverlapGroup(self._new_id("ovl"), set(callers))
+                for cs in callers:
+                    self._overlaps[cs] = group
+
+    def _take_overlap(self, callsign: str) -> Optional[_OverlapGroup]:
+        group = self._overlaps.pop(callsign, None)
+        if group is None or time.monotonic() - group.created > OVERLAP_TTL_S:
+            return None
+        return group
 
     def is_frequency_busy(self) -> bool:
         return self.freq.is_busy()
@@ -300,17 +334,27 @@ class VoicePipeline:
 
         tx_id = self._new_id("p")
         on_air = False
+        group = self._take_overlap(cs)
         try:
-            await self.freq.wait_turn(resp.priority, not_before)
+            if group is not None:
+                group = await self._meet(group, cs, not_before)
+            if group is None:
+                await self.freq.wait_turn(resp.priority, not_before)
             self.freq.begin(tx_id, cs)
             on_air = True
             stamps.mark("t_release")
             started = stamps.mark("t_play")
             self.world.set_transmitting(cs, True)
+            if group is not None:
+                group.tx_ids.append(tx_id)
+                if len(group.tx_ids) == len(group.arrived):     # the last one on the air announces it
+                    self._emit("overlap", "SYSTEM", tx_id=tx_id, with_ctrl=False, tx_ids=list(group.tx_ids),
+                               callsigns=sorted(group.arrived), overlap_group=group.id)
             if tts_ok:
                 await self.hub.send(AudioStartMsg(
                     tx_id=tx_id, callsign=cs, format=self.tts.audio_format, sample_rate=self.tts.sample_rate,
-                    blocked=self.freq.is_blocked(tx_id), emotion="stressed" if stressed else "normal"))
+                    blocked=self.freq.is_blocked(tx_id), overlap_group=group.id if group else None,
+                    emotion="stressed" if stressed else "normal"))
             base = parent.get("t_final", stamps["t_plan"])      # stage stamps live in two dicts
             first_audio = (stamps["t_tts_first"] - base) if "t_tts_first" in stamps else 0.0
             perceived = started - parent.get("t_ptt_up", stamps["t_plan"])
@@ -344,7 +388,7 @@ class VoicePipeline:
         finally:
             if on_air:
                 self.world.set_transmitting(cs, False)
-                blocked = self.freq.end(tx_id)
+                blocked = self.freq.end(tx_id) or group is not None
             else:
                 blocked = False
                 self.freq.cancel_reservation()
@@ -352,6 +396,30 @@ class VoicePipeline:
                 producer.cancel()
                 await asyncio.gather(producer, return_exceptions=True)
         self._finish_pilot(resp, tx_id, readback, stamps, parent, blocked, tts_ok)
+        if group is not None:                                  # nobody heard either call: both re-call
+            self._emit("pilot_blocked", "PILOT", cs, tx_id, overlap_group=group.id)
+            try:
+                recall = self.pilot.on_blocked(cs, tx_id)
+            except Exception:                                  # noqa: BLE001
+                logger.exception("pilot.on_blocked failed")
+                recall = None
+            if recall is not None:
+                self.hub.spawn(self.speak(recall))
+
+    async def _meet(self, group: _OverlapGroup, cs: str, not_before: float) -> Optional[_OverlapGroup]:
+        """Wait (after the reaction delay) until every caller in the group is ready, then go together."""
+        await asyncio.sleep(max(0.0, not_before - time.monotonic()))
+        if group.dead:
+            return None
+        group.arrived.add(cs)
+        if group.arrived >= group.members:
+            group.released.set()
+        try:
+            await asyncio.wait_for(group.released.wait(), OVERLAP_WAIT_S)
+        except asyncio.TimeoutError:
+            group.dead = True
+            return None                                        # partner never came: talk normally
+        return None if group.dead else group
 
     def _finish_pilot(self, resp: PilotResponse, tx_id: str, readback, stamps: Stamps, parent: Stamps,
                       blocked: bool, spoke: bool) -> None:

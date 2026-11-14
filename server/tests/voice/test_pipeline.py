@@ -292,3 +292,62 @@ async def test_stressed_calls_are_flagged_for_the_audio_engine():
     pipe, world, pilot, hub, bus, _ = make()
     await pipe.speak(resp)
     assert hub.of("audio_start")[0].emotion == "stressed"
+
+
+# ------------------------------------------------------------ deliberate overlap
+def _inject_overlap(bus, callers):
+    from server.contracts import Event
+    bus.emit(Event(t=1.0, type="inject", actor="INSTRUCTOR", data={"kind": "force_overlap", "callers": callers}))
+
+
+@pytest.mark.asyncio
+async def test_force_overlap_releases_both_callers_together_with_a_shared_group():
+    recall = heading_response("BAW117", kind="recall", apply=False)
+    recall.plan = recall.plan.model_copy(update={"kind": "recall", "elements": []})
+    pilot = FakePilot([])
+    pilot.recall = recall
+    pipe, world, _, hub, bus, _ = make(pilot=pilot, tts=FakeTTS(chunks=6))
+    _inject_overlap(bus, ["BAW117", "EZY45AB"])
+    a = heading_response("BAW117", delay=0.0)
+    b = heading_response("EZY45AB", delay=0.3)                  # different reaction times: still released together
+    hub.spawn(pipe.speak(a))
+    hub.spawn(pipe.speak(b))
+    await hub.settle(10)
+    starts = [m for m in hub.messages if m.type == "audio_start"]
+    pair = [m for m in starts if m.overlap_group]
+    assert len(pair) == 2 and pair[0].overlap_group == pair[1].overlap_group
+    assert {m.callsign for m in pair} == {"BAW117", "EZY45AB"}
+    # audio_end only means "all data sent"; what matters is that both pilots are on the air at once
+    on_air = [(cs, on) for cs, on in world.transmitting if cs in ("BAW117", "EZY45AB")][:4]
+    assert [on for _, on in on_air] == [True, True, False, False], on_air
+    overlap = bus.of("overlap")
+    assert len(overlap) == 1 and overlap[0].data["with_ctrl"] is False
+    assert set(overlap[0].data["tx_ids"]) == {m.tx_id for m in pair}
+    assert {e.callsign for e in bus.of("pilot_blocked")} == {"BAW117", "EZY45AB"}
+    assert {cs for cs, _ in pilot.blocked_calls} == {"BAW117", "EZY45AB"}
+    assert pilot.spoken == [(r, t) for r, t in pilot.spoken if r.kind == "recall"], "garbled calls are never 'heard'"
+    assert any(r.data["kind"] == "recall" for r in bus.of("pilot_transmission"))
+
+
+@pytest.mark.asyncio
+async def test_overlap_partner_that_never_comes_lets_the_other_talk_normally(monkeypatch):
+    from server.voice import pipeline as module
+    monkeypatch.setattr(module, "OVERLAP_WAIT_S", 0.1)
+    pipe, world, pilot, hub, bus, _ = make()
+    _inject_overlap(bus, ["BAW117", "EZY45AB"])
+    await pipe.speak(heading_response("BAW117"))
+    start = hub.of("audio_start")[0]
+    assert start.overlap_group is None and not bus.of("overlap") and not bus.of("pilot_blocked")
+    assert len(pilot.spoken) == 1                               # an ordinary, heard transmission
+    await pipe.speak(heading_response("EZY45AB"))               # the late partner is not overlapped either
+    assert hub.of("audio_start")[1].overlap_group is None and not bus.of("pilot_blocked")
+
+
+@pytest.mark.asyncio
+async def test_unrelated_injects_do_not_create_overlaps():
+    from server.contracts import Event
+    pipe, world, pilot, hub, bus, _ = make()
+    bus.emit(Event(t=1.0, type="inject", actor="INSTRUCTOR", data={"kind": "mayday"}))
+    bus.emit(Event(t=1.0, type="inject", actor="INSTRUCTOR", data={"kind": "force_overlap", "callers": ["BAW117"]}))
+    await pipe.speak(heading_response("BAW117"))
+    assert hub.of("audio_start")[0].overlap_group is None
