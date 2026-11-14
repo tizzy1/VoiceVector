@@ -1,7 +1,12 @@
 {
  "_meta": {
   "what": "Pilot readback template bank (owner: Sanju; Tudor reviews phraseology). Numbers only via slots; every readback is re-parsed by validator.py.",
-  "slots": "DIR HDG N VERB ING ALT FL SPD CON RATE RWY APP FIX UNIT FREQ SQ QNH QNHW WHAT RW"
+  "slots": "DIR HDG N VERB ING ALT FL SPD CON RATE RWY APP FIX UNIT FREQ SQ QNH QNHW WHAT RW",
+  "generated": {
+   "model": "claude-haiku-5-5",
+   "accepted": 95
+  },
+  "review": "Tudor: gen.* templates passed the validator (200 random values each) and a CAP 413 judge, but are approved:false and NOT used until you set approved:true. Rejected candidates are listed for reference."
  },
  "elements": {
   "heading": [
@@ -56,6 +61,51 @@
     "needs": [
      "DIR"
     ]
+   },
+   {
+    "id": "gen.heading.1",
+    "t": "{DIR} heading {HDG}, wilco",
+    "style": "full",
+    "needs": [
+     "DIR"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.heading.2",
+    "t": "roger, {DIR} to heading {HDG}",
+    "style": "full",
+    "needs": [
+     "DIR"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.heading.3",
+    "t": "{DIR} onto heading {HDG}",
+    "style": "short",
+    "needs": [
+     "DIR"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.heading.6",
+    "t": "{DIR} turn to heading {HDG}",
+    "style": "short",
+    "needs": [
+     "DIR"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.heading.7",
+    "t": "turning {DIR} for heading {HDG}",
+    "style": "ing",
+    "needs": [
+     "DIR"
+    ],
+    "approved": false
    }
   ],
   "turn_by": [
@@ -90,6 +140,24 @@
     "needs": [
      "DIR"
     ]
+   },
+   {
+    "id": "gen.turn_by.2",
+    "t": "roger, turn {DIR} by {N} degrees",
+    "style": "full",
+    "needs": [
+     "DIR"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.turn_by.4",
+    "t": "turn {DIR} by {N} degrees, wilco",
+    "style": "full",
+    "needs": [
+     "DIR"
+    ],
+    "approved": false
    }
   ],
   "present_heading": [
@@ -164,6 +232,42 @@
     "t": "altitude {ALT}",
     "style": "full",
     "needs": []
+   },
+   {
+    "id": "gen.altitude.1",
+    "t": "{VERB} to {ALT}",
+    "style": "full",
+    "needs": [
+     "VERB"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.altitude.2",
+    "t": "{ING} to {ALT}",
+    "style": "ing",
+    "needs": [
+     "ING"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.altitude.4",
+    "t": "{VERB} and maintain {ALT}",
+    "style": "full",
+    "needs": [
+     "VERB"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.altitude.5",
+    "t": "{ING} and maintaining {ALT}",
+    "style": "ing",
+    "needs": [
+     "ING"
+    ],
+    "approved": false
    }
   ],
   "flight_level": [
@@ -210,6 +314,34 @@
     "t": "cleared flight level {FL}",
     "style": "full",
     "needs": []
+   },
+   {
+    "id": "gen.flight_level.2",
+    "t": "{ING} now flight level {FL}",
+    "style": "full",
+    "needs": [
+     "ING"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.flight_level.5",
+    "t": "{VERB} to flight level {FL}, {ING} now",
+    "style": "full",
+    "needs": [
+     "ING",
+     "VERB"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.flight_level.6",
+    "t": "flight level {FL} {ING}",
+    "style": "ing",
+    "needs": [
+     "ING"
+    ],
+    "approved": false
    }
   ],
   "vertical_rate": [
@@ -234,6 +366,72 @@
     "t": "{RATE} feet per minute {CON}",
     "style": "short",
     "needs": []
+   },
+   {
+    "id": "gen.vertical_rate.1",
+    "t": "{VERB} vertical speed {RATE} feet per minute {CON}",
+    "style": "full",
+    "needs": [
+     "VERB"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.vertical_rate.2",
+    "t": "Rate {RATE} feet per minute {CON}",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.vertical_rate.3",
+    "t": "{ING} at {RATE} feet per minute {CON}",
+    "style": "full",
+    "needs": [
+     "ING"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.vertical_rate.4",
+    "t": "{VERB} {RATE} feet per minute {CON}",
+    "style": "short",
+    "needs": [
+     "VERB"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.vertical_rate.5",
+    "t": "Vertical speed {RATE} feet per minute {CON}",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.vertical_rate.6",
+    "t": "{ING} with a rate of {RATE} feet per minute {CON}",
+    "style": "ing",
+    "needs": [
+     "ING"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.vertical_rate.7",
+    "t": "Rate of {RATE} feet per minute {CON}",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.vertical_rate.8",
+    "t": "{VERB} at a vertical speed of {RATE} feet per minute {CON}",
+    "style": "full",
+    "needs": [
+     "VERB"
+    ],
+    "approved": false
    }
   ],
   "speed": [
@@ -272,6 +470,13 @@
     "t": "speed {SPD}",
     "style": "short",
     "needs": []
+   },
+   {
+    "id": "gen.speed.5",
+    "t": "speed {SPD} knots {CON} wilco",
+    "style": "full",
+    "needs": [],
+    "approved": false
    }
   ],
   "speed_cancel": [
@@ -292,6 +497,13 @@
     "t": "no A T C speed restriction",
     "style": "short",
     "needs": []
+   },
+   {
+    "id": "gen.speed_cancel.1",
+    "t": "cancelling speed control, resuming normal speed",
+    "style": "full",
+    "needs": [],
+    "approved": false
    }
   ],
   "speed_min_clean": [
@@ -306,6 +518,20 @@
     "t": "reducing minimum clean speed",
     "style": "ing",
     "needs": []
+   },
+   {
+    "id": "gen.speed_min_clean.1",
+    "t": "Minimum clean speed, wilco",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.speed_min_clean.6",
+    "t": "Holding minimum clean speed, wilco",
+    "style": "short",
+    "needs": [],
+    "approved": false
    }
   ],
   "expedite": [
@@ -326,6 +552,62 @@
     "t": "will expedite",
     "style": "full",
     "needs": []
+   },
+   {
+    "id": "gen.expedite.1",
+    "t": "expedite departure",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.expedite.2",
+    "t": "expediting departure",
+    "style": "ing",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.expedite.3",
+    "t": "roger, expedite departure",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.expedite.4",
+    "t": "we will expedite departure",
+    "style": "full",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.expedite.5",
+    "t": "expediting the departure",
+    "style": "ing",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.expedite.6",
+    "t": "wilco, we will expedite",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.expedite.7",
+    "t": "we'll expedite our departure",
+    "style": "full",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.expedite.10",
+    "t": "understood, expediting departure now",
+    "style": "full",
+    "needs": [],
+    "approved": false
    }
   ],
   "direct": [
@@ -364,6 +646,41 @@
     "t": "going direct {FIX}",
     "style": "ing",
     "needs": []
+   },
+   {
+    "id": "gen.direct.1",
+    "t": "cleared direct {FIX}",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.direct.2",
+    "t": "cleared direct to {FIX}",
+    "style": "full",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.direct.3",
+    "t": "direct {FIX} cleared",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.direct.8",
+    "t": "direct to {FIX} now",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.direct.9",
+    "t": "cleared to track direct {FIX}",
+    "style": "full",
+    "needs": [],
+    "approved": false
    }
   ],
   "hold": [
@@ -390,6 +707,41 @@
     "t": "holding over {FIX}",
     "style": "ing",
     "needs": []
+   },
+   {
+    "id": "gen.hold.1",
+    "t": "hold at {FIX} as cleared",
+    "style": "full",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.hold.2",
+    "t": "holding at {FIX}, as cleared",
+    "style": "ing",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.hold.4",
+    "t": "hold {FIX}, as published",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.hold.8",
+    "t": "cleared to hold at {FIX}",
+    "style": "full",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.hold.10",
+    "t": "holding {FIX}, standing by",
+    "style": "ing",
+    "needs": [],
+    "approved": false
    }
   ],
   "resume_nav": [
@@ -410,6 +762,48 @@
     "t": "own navigation",
     "style": "short",
     "needs": []
+   },
+   {
+    "id": "gen.resume_nav.1",
+    "t": "resume own navigation, thank you",
+    "style": "full",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.resume_nav.2",
+    "t": "resuming own nav",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.resume_nav.3",
+    "t": "own navigation resumed",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.resume_nav.4",
+    "t": "returning to own navigation",
+    "style": "ing",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.resume_nav.7",
+    "t": "resuming own navigation now",
+    "style": "ing",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.resume_nav.9",
+    "t": "own navigation, resuming",
+    "style": "short",
+    "needs": [],
+    "approved": false
    }
   ],
   "approach_clearance": [
@@ -448,6 +842,34 @@
     "t": "cleared {APP} approach, runway {RWY}",
     "style": "full",
     "needs": []
+   },
+   {
+    "id": "gen.approach_clearance.1",
+    "t": "cleared for {APP} approach runway {RWY}",
+    "style": "full",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.approach_clearance.2",
+    "t": "cleared {APP} runway {RWY} approach",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.approach_clearance.3",
+    "t": "cleared the {APP} approach to runway {RWY}",
+    "style": "full",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.approach_clearance.7",
+    "t": "cleared for {APP} runway {RWY} approach",
+    "style": "full",
+    "needs": [],
+    "approved": false
    }
   ],
   "intercept_localiser": [
@@ -468,6 +890,20 @@
     "t": "intercept the localiser runway {RWY}",
     "style": "full",
     "needs": []
+   },
+   {
+    "id": "gen.intercept_localiser.5",
+    "t": "intercepting localiser runway {RWY}",
+    "style": "ing",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.intercept_localiser.10",
+    "t": "capturing the localiser runway {RWY}",
+    "style": "ing",
+    "needs": [],
+    "approved": false
    }
   ],
   "descend_glidepath": [
@@ -488,6 +924,20 @@
     "t": "descend on the I L S",
     "style": "short",
     "needs": []
+   },
+   {
+    "id": "gen.descend_glidepath.3",
+    "t": "going down on the glidepath",
+    "style": "ing",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.descend_glidepath.4",
+    "t": "we will descend on the glidepath",
+    "style": "full",
+    "needs": [],
+    "approved": false
    }
   ],
   "cancel_approach": [
@@ -502,6 +952,27 @@
     "t": "cancel approach clearance",
     "style": "full",
     "needs": []
+   },
+   {
+    "id": "gen.cancel_approach.1",
+    "t": "approach clearance cancelled",
+    "style": "full",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.cancel_approach.2",
+    "t": "cancelling approach",
+    "style": "ing",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.cancel_approach.5",
+    "t": "roger, approach clearance cancelled",
+    "style": "full",
+    "needs": [],
+    "approved": false
    }
   ],
   "go_around": [
@@ -516,6 +987,27 @@
     "t": "go around",
     "style": "full",
     "needs": []
+   },
+   {
+    "id": "gen.go_around.4",
+    "t": "going around, climbing away",
+    "style": "ing",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.go_around.5",
+    "t": "roger, going around",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.go_around.7",
+    "t": "going around, we'll make another approach",
+    "style": "full",
+    "needs": [],
+    "approved": false
    }
   ],
   "contact": [
@@ -566,6 +1058,76 @@
     "needs": [
      "FREQ"
     ]
+   },
+   {
+    "id": "gen.contact.2",
+    "t": "switching to {UNIT} on {FREQ}",
+    "style": "full",
+    "needs": [
+     "FREQ",
+     "UNIT"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.contact.3",
+    "t": "over to {UNIT} {FREQ}",
+    "style": "short",
+    "needs": [
+     "FREQ",
+     "UNIT"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.contact.4",
+    "t": "going to {UNIT} {FREQ}",
+    "style": "short",
+    "needs": [
+     "FREQ",
+     "UNIT"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.contact.5",
+    "t": "moving to {UNIT} on {FREQ}",
+    "style": "full",
+    "needs": [
+     "FREQ",
+     "UNIT"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.contact.6",
+    "t": "will contact {UNIT} {FREQ}",
+    "style": "full",
+    "needs": [
+     "FREQ",
+     "UNIT"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.contact.7",
+    "t": "switching {UNIT} {FREQ}, good day",
+    "style": "full",
+    "needs": [
+     "FREQ",
+     "UNIT"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.contact.9",
+    "t": "changing frequency to {UNIT} {FREQ}, good day",
+    "style": "full",
+    "needs": [
+     "FREQ",
+     "UNIT"
+    ],
+    "approved": false
    }
   ],
   "squawk": [
@@ -586,6 +1148,20 @@
     "t": "squawk code {SQ}",
     "style": "full",
     "needs": []
+   },
+   {
+    "id": "gen.squawk.1",
+    "t": "transponder {SQ}",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.squawk.2",
+    "t": "setting transponder {SQ}",
+    "style": "ing",
+    "needs": [],
+    "approved": false
    }
   ],
   "qnh": [
@@ -606,6 +1182,55 @@
     "t": "{QNH} {QNHW}",
     "style": "short",
     "needs": []
+   },
+   {
+    "id": "gen.qnh.2",
+    "t": "Set {QNHW} {QNH}",
+    "style": "full",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.qnh.3",
+    "t": "Setting {QNHW} {QNH}",
+    "style": "ing",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.qnh.4",
+    "t": "{QNH} set",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.qnh.5",
+    "t": "Set {QNH} hectopascals",
+    "style": "full",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.qnh.6",
+    "t": "Setting {QNH} hectopascals",
+    "style": "ing",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.qnh.8",
+    "t": "Altimeter {QNH} set",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.qnh.9",
+    "t": "{QNHW} {QNH} set, thank you",
+    "style": "full",
+    "needs": [],
+    "approved": false
    }
   ],
   "expect": [
@@ -620,6 +1245,34 @@
     "t": "expecting {WHAT}",
     "style": "ing",
     "needs": []
+   },
+   {
+    "id": "gen.expect.1",
+    "t": "we expect {WHAT}",
+    "style": "full",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.expect.3",
+    "t": "we will be expecting {WHAT}",
+    "style": "full",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.expect.6",
+    "t": "anticipating {WHAT}",
+    "style": "ing",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.expect.7",
+    "t": "we are expecting {WHAT}",
+    "style": "full",
+    "needs": [],
+    "approved": false
    }
   ],
   "cleared_to_land": [
@@ -628,6 +1281,34 @@
     "t": "cleared to land runway {RWY}",
     "style": "full",
     "needs": []
+   },
+   {
+    "id": "gen.cleared_to_land.1",
+    "t": "cleared land runway {RWY}",
+    "style": "short",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.cleared_to_land.3",
+    "t": "runway {RWY} cleared to land",
+    "style": "full",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.cleared_to_land.4",
+    "t": "cleared to land on runway {RWY}",
+    "style": "full",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.cleared_to_land.7",
+    "t": "roger, cleared to land runway {RWY}",
+    "style": "full",
+    "needs": [],
+    "approved": false
    }
   ],
   "cleared_takeoff": [
@@ -636,6 +1317,27 @@
     "t": "cleared for takeoff runway {RWY}",
     "style": "full",
     "needs": []
+   },
+   {
+    "id": "gen.cleared_takeoff.2",
+    "t": "cleared takeoff runway {RWY}, rolling",
+    "style": "full",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.cleared_takeoff.3",
+    "t": "runway {RWY} cleared for takeoff",
+    "style": "full",
+    "needs": [],
+    "approved": false
+   },
+   {
+    "id": "gen.cleared_takeoff.9",
+    "t": "cleared takeoff, runway {RWY}",
+    "style": "short",
+    "needs": [],
+    "approved": false
    }
   ],
   "traffic_info": [
@@ -684,6 +1386,42 @@
     "needs": [
      "RW"
     ]
+   },
+   {
+    "id": "gen.report.1",
+    "t": "will advise {RW}",
+    "style": "full",
+    "needs": [
+     "RW"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.report.2",
+    "t": "wilco, will advise {RW}",
+    "style": "full",
+    "needs": [
+     "RW"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.report.3",
+    "t": "advise {RW}",
+    "style": "short",
+    "needs": [
+     "RW"
+    ],
+    "approved": false
+   },
+   {
+    "id": "gen.report.4",
+    "t": "roger, will report {RW}",
+    "style": "full",
+    "needs": [
+     "RW"
+    ],
+    "approved": false
    }
   ]
  },
@@ -759,5 +1497,652 @@
   ", ",
   " and ",
   ", then "
+ ],
+ "rejected_for_review": [
+  {
+   "type": "heading",
+   "t": "heading {HDG}, {DIR} turn",
+   "why": "element heading 202.0 not reproduced by 'heading two zero two, left turn' (parsed [('heading', 202.0, None)])"
+  },
+  {
+   "type": "turn_by",
+   "t": "{N} degrees {DIR} turn, wilco",
+   "why": "element turn_by 20.0 not reproduced by 'two zero degrees right turn, wilco' (parsed [('turn_by', 20.0, None)])"
+  },
+  {
+   "type": "turn_by",
+   "t": "turning {DIR} by {N}",
+   "why": "element turn_by 30.0 not reproduced by 'turning right by three zero' (parsed [('heading', 30.0, 'R')])"
+  },
+  {
+   "type": "turn_by",
+   "t": "{N} degrees {DIR}, turning",
+   "why": "element turn_by 30.0 not reproduced by 'three zero degrees left, turning' (parsed [('turn_by', 30.0, None)])"
+  },
+  {
+   "type": "turn_by",
+   "t": "turning {N} degrees {DIR}",
+   "why": "element turn_by 5.0 not reproduced by 'turning five degrees right' (parsed [('turn_by', 5.0, None)])"
+  },
+  {
+   "type": "altitude",
+   "t": "{VERB} flight level {ALT}",
+   "why": "element altitude 5500.0 not reproduced by 'descend flight level five thousand five hundred' (parsed [('flight_level', 55"
+  },
+  {
+   "type": "altitude",
+   "t": "{ALT} for {VERB}",
+   "why": "element altitude 5000.0 not reproduced by 'five thousand for climb' (parsed [('altitude', 5004.0, None)])"
+  },
+  {
+   "type": "flight_level",
+   "t": "level {FL} {VERB}",
+   "why": "element flight_level 190.0 not reproduced by 'level one niner zero descend' (parsed [('altitude', 190.0, None)])"
+  },
+  {
+   "type": "flight_level",
+   "t": "{ING} flight level {FL}, flight level {FL} {VERB}",
+   "why": "slot used twice"
+  },
+  {
+   "type": "speed_cancel",
+   "t": "speed restriction cancelled, resuming own speed",
+   "why": "element speed_cancel None not reproduced by 'speed restriction cancelled, resuming own speed' (parsed [])"
+  },
+  {
+   "type": "speed_cancel",
+   "t": "speed control removed, own speed",
+   "why": "element speed_cancel None not reproduced by 'speed control removed, own speed' (parsed [])"
+  },
+  {
+   "type": "speed_cancel",
+   "t": "cancelling speed restriction, returning to normal speed",
+   "why": "element speed_cancel None not reproduced by 'cancelling speed restriction, returning to normal speed' (parsed [])"
+  },
+  {
+   "type": "speed_cancel",
+   "t": "speed restriction lifted, operating own speed",
+   "why": "element speed_cancel None not reproduced by 'speed restriction lifted, operating own speed' (parsed [])"
+  },
+  {
+   "type": "speed_cancel",
+   "t": "speed constraint cancelled, own speed",
+   "why": "element speed_cancel None not reproduced by 'speed constraint cancelled, own speed' (parsed [])"
+  },
+  {
+   "type": "speed_cancel",
+   "t": "speed restriction removed, own speed",
+   "why": "element speed_cancel None not reproduced by 'speed restriction removed, own speed' (parsed [])"
+  },
+  {
+   "type": "speed_cancel",
+   "t": "removing speed restriction, back to own speed",
+   "why": "element speed_cancel None not reproduced by 'removing speed restriction, back to own speed' (parsed [])"
+  },
+  {
+   "type": "speed_cancel",
+   "t": "cancelling speed, own speed resumed",
+   "why": "element speed_cancel None not reproduced by 'cancelling speed, own speed resumed' (parsed [])"
+  },
+  {
+   "type": "speed_cancel",
+   "t": "speed restriction cancelled, reverting to own speed",
+   "why": "element speed_cancel None not reproduced by 'speed restriction cancelled, reverting to own speed' (parsed [])"
+  },
+  {
+   "type": "speed_min_clean",
+   "t": "Speed minimum clean, roger",
+   "why": "element speed_min_clean None not reproduced by 'Speed minimum clean, roger' (parsed [])"
+  },
+  {
+   "type": "speed_min_clean",
+   "t": "Clean speed minimum, we'll do",
+   "why": "element speed_min_clean None not reproduced by 'Clean speed minimum, we'll do' (parsed [])"
+  },
+  {
+   "type": "speed_min_clean",
+   "t": "Adjusting speed to minimum clean",
+   "why": "element speed_min_clean None not reproduced by 'Adjusting speed to minimum clean' (parsed [])"
+  },
+  {
+   "type": "descend_glidepath",
+   "t": "glidepath, descend",
+   "why": "element descend_glidepath None not reproduced by 'glidepath, descend' (parsed [])"
+  },
+  {
+   "type": "descend_glidepath",
+   "t": "descending on the glideslope",
+   "why": "element descend_glidepath None not reproduced by 'descending on the glideslope' (parsed [])"
+  },
+  {
+   "type": "descend_glidepath",
+   "t": "descend and maintain glidepath",
+   "why": "element descend_glidepath None not reproduced by 'descend and maintain glidepath' (parsed [])"
+  },
+  {
+   "type": "descend_glidepath",
+   "t": "glideslope capture, descending",
+   "why": "element descend_glidepath None not reproduced by 'glideslope capture, descending' (parsed [])"
+  },
+  {
+   "type": "contact",
+   "t": "{FREQ} for {UNIT}",
+   "why": "element contact None not reproduced by 'one one niner decimal six for london control' (parsed [('contact', None, None)])"
+  },
+  {
+   "type": "squawk",
+   "t": "squawk {SQ}, ident",
+   "why": "element squawk '0421' not reproduced by 'squawk zero four two one, ident' (parsed [('squawk', 'ident', None)])"
+  },
+  {
+   "type": "squawk",
+   "t": "squawking {SQ}, ident",
+   "why": "element squawk '0421' not reproduced by 'squawking zero four two one, ident' (parsed [('squawk', 'ident', None)])"
+  },
+  {
+   "type": "squawk",
+   "t": "squawk {SQ} and ident",
+   "why": "element squawk '0421' not reproduced by 'squawk zero four two one and ident' (parsed [('squawk', 'ident', None)])"
+  },
+  {
+   "type": "squawk",
+   "t": "squawking {SQ}, will ident",
+   "why": "element squawk '0421' not reproduced by 'squawking zero four two one, will ident' (parsed [('squawk', 'ident', None)])"
+  },
+  {
+   "type": "cleared_to_land",
+   "t": "cleared land {RWY}",
+   "why": "element cleared_to_land None not reproduced by 'cleared land zero eight left' (parsed [('cleared_to_land', None, None)])"
+  },
+  {
+   "type": "heading",
+   "t": "steering heading {HDG}",
+   "why": "judge: 'Steering' is not standard readback phraseology, and the turn direction is omitted."
+  },
+  {
+   "type": "heading",
+   "t": "fly heading {HDG}, wilco",
+   "why": "judge: The turn direction is dropped, so the readback is incomplete for a directional heading instruction."
+  },
+  {
+   "type": "turn_by",
+   "t": "turning {DIR} heading change of {N} degrees",
+   "why": "judge: 'Heading change of N degrees' is clumsy and ungrammatical. It is not how a pilot reads back a turn-b"
+  },
+  {
+   "type": "turn_by",
+   "t": "{DIR} by {N} degrees, copied",
+   "why": "judge: 'Copied' is not UK RT phraseology, and a pilot would not use it as a readback acknowledgement."
+  },
+  {
+   "type": "turn_by",
+   "t": "copy {DIR} turn {N} degrees",
+   "why": "judge: 'Copy' is US-style and not used in UK RT. 'Left turn N degrees' also drops the 'by' and blurs the me"
+  },
+  {
+   "type": "turn_by",
+   "t": "{DIR} {N} degrees, rolling",
+   "why": "judge: 'Rolling' relates to take-off or line-up and is not used for a turn instruction. The phrasing is als"
+  },
+  {
+   "type": "altitude",
+   "t": "{ING} level {ALT}",
+   "why": "judge: 'Climbing level 4000' is not standard. The word 'level' before an altitude is ambiguous and clumsy, "
+  },
+  {
+   "type": "altitude",
+   "t": "level {ALT}, {VERB}",
+   "why": "judge: 'Level 4000, climb' is garbled and contradictory. It reads as level at the altitude and also climbin"
+  },
+  {
+   "type": "altitude",
+   "t": "{VERB} to altitude {ALT}, wilco",
+   "why": "judge: 'Wilco' is not a proper readback for an altitude instruction, and 'altitude' is redundant. A pilot w"
+  },
+  {
+   "type": "altitude",
+   "t": "passing {ALT}, {ING}",
+   "why": "judge: 'Passing 4000, climbing' uses the cleared altitude as the passing altitude and gives no target level"
+  },
+  {
+   "type": "flight_level",
+   "t": "flight level {FL} {VERB}",
+   "why": "judge: An imperative verb after the level ('flight level 350 climb') is unnatural. A pilot would say 'climb"
+  },
+  {
+   "type": "flight_level",
+   "t": "{VERB} flight level {FL} and maintaining",
+   "why": "judge: 'And maintaining' implies the level has already been reached, which changes the meaning. Mixing the "
+  },
+  {
+   "type": "flight_level",
+   "t": "{ING} through to flight level {FL}",
+   "why": "judge: 'Climbing through to flight level X' is awkward and ambiguous. 'Through' implies passing a level, no"
+  },
+  {
+   "type": "flight_level",
+   "t": "approaching flight level {FL}",
+   "why": "judge: 'Approaching flight level X' is a position report, not a readback. It does not acknowledge the instr"
+  },
+  {
+   "type": "flight_level",
+   "t": "passing flight level {FL}, {VERB}",
+   "why": "judge: 'Passing flight level X' is a position report that does not read back the cleared level, so it chang"
+  },
+  {
+   "type": "vertical_rate",
+   "t": "Vertical speed of {RATE} feet per minute {CON}, {VERB}",
+   "why": "judge: The verb trailing after the rate is unnatural, and the order is not one a pilot would use."
+  },
+  {
+   "type": "vertical_rate",
+   "t": "{ING} at {RATE} feet per minute {CON}, rate noted",
+   "why": "judge: 'Rate noted' is not pilot readback phraseology. Pilots do not say 'noted' in a readback."
+  },
+  {
+   "type": "speed",
+   "t": "maintaining {SPD} knots {CON}",
+   "why": "judge: 'Maintaining' is only correct for a 'maintain speed' instruction. For a reduce or increase instructi"
+  },
+  {
+   "type": "speed",
+   "t": "increasing speed to {SPD} knots {CON}",
+   "why": "judge: 'Increasing' is direction-specific and contradicts a reduce or maintain instruction."
+  },
+  {
+   "type": "speed",
+   "t": "reduce speed to {SPD} knots {CON}",
+   "why": "judge: 'Reduce speed to' is in imperative form, so it sounds like an instruction rather than a readback. It"
+  },
+  {
+   "type": "speed",
+   "t": "say again speed {SPD} {CON}",
+   "why": "judge: 'Say again' is a request for repetition, not a readback."
+  },
+  {
+   "type": "speed",
+   "t": "decreasing speed to {SPD} {CON}",
+   "why": "judge: 'Decreasing' is direction-specific and contradicts an increase or maintain instruction. 'Reducing' i"
+  },
+  {
+   "type": "speed",
+   "t": "our speed {SPD} knots {CON}",
+   "why": "judge: It reports current speed rather than acknowledging the instruction, so it is not a readback and may "
+  },
+  {
+   "type": "speed",
+   "t": "unable speed {SPD} knots {CON}",
+   "why": "judge: 'Unable' rejects the instruction, which contradicts a readback with the speed value."
+  },
+  {
+   "type": "speed",
+   "t": "speed now {SPD} knots {CON}",
+   "why": "judge: It states that the speed has already been achieved, which is not a readback of the instruction."
+  },
+  {
+   "type": "speed",
+   "t": "accelerating to {SPD} knots {CON}",
+   "why": "judge: 'Accelerating' is direction-specific and wrong for a reduce or maintain instruction. It is also non-"
+  },
+  {
+   "type": "speed_min_clean",
+   "t": "Maintaining minimum clean speed",
+   "why": "judge: 'Maintaining' implies the aircraft is already at minimum clean speed. The instruction is to fly at t"
+  },
+  {
+   "type": "speed_min_clean",
+   "t": "Flying at minimum clean speed",
+   "why": "judge: 'Flying at' is a status statement, not a readback or acceptance of the instruction. It is not standa"
+  },
+  {
+   "type": "speed_min_clean",
+   "t": "Minimum clean speed confirmed",
+   "why": "judge: 'Confirmed' is not a readback term for an instruction. It would be used to answer a confirmation req"
+  },
+  {
+   "type": "speed_min_clean",
+   "t": "Accelerating to minimum clean speed",
+   "why": "judge: 'Accelerating' contradicts the instruction. Minimum clean speed means slowing to the lowest speed in"
+  },
+  {
+   "type": "speed_min_clean",
+   "t": "Minimum clean speed, no flap extension until",
+   "why": "judge: The sentence is incomplete and ends with 'until', so it is ungrammatical. It also adds a flap restri"
+  },
+  {
+   "type": "expedite",
+   "t": "expedite, we'll get moving",
+   "why": "judge: 'We'll get moving' is slangy and vague, and it is not phraseology a professional pilot would use in "
+  },
+  {
+   "type": "expedite",
+   "t": "expediting, rolling immediately",
+   "why": "judge: 'Rolling immediately' commits to starting the take-off roll, which adds to the instruction and could"
+  },
+  {
+   "type": "direct",
+   "t": "tracking direct {FIX}",
+   "why": "judge: 'Tracking direct' describes the aircraft's current action and does not acknowledge the clearance. It"
+  },
+  {
+   "type": "direct",
+   "t": "heading direct to {FIX}",
+   "why": "judge: 'Heading direct to' implies a heading and is not standard phraseology. It could be confused with a h"
+  },
+  {
+   "type": "direct",
+   "t": "joining direct {FIX}",
+   "why": "judge: 'Joining direct' is not phraseology a pilot would use. Joining implies a procedure or airway join, w"
+  },
+  {
+   "type": "direct",
+   "t": "resuming direct {FIX}",
+   "why": "judge: 'Resuming direct' implies returning to a previous route or navigation and changes the meaning of the"
+  },
+  {
+   "type": "direct",
+   "t": "direct {FIX} at this time",
+   "why": "judge: 'At this time' is not standard phraseology and is unnatural in a readback. It adds a timing qualifie"
+  },
+  {
+   "type": "hold",
+   "t": "to hold at {FIX}",
+   "why": "judge: A bare infinitive fragment is not something a pilot would say as a readback."
+  },
+  {
+   "type": "hold",
+   "t": "holding {FIX}, will report",
+   "why": "judge: 'Will report' is open-ended and adds a commitment the instruction did not contain."
+  },
+  {
+   "type": "hold",
+   "t": "entering hold at {FIX}",
+   "why": "judge: 'Entering hold' reports an action rather than reading back the instruction, and implies the aircraft"
+  },
+  {
+   "type": "hold",
+   "t": "hold at {FIX}, will advise when ready to depart",
+   "why": "judge: 'Ready to depart' contradicts an airborne hold at a fix and adds unrelated content."
+  },
+  {
+   "type": "hold",
+   "t": "hold {FIX}, expect further clearance",
+   "why": "judge: 'Expect further clearance' is given without a time, so the readback is incomplete and vague."
+  },
+  {
+   "type": "resume_nav",
+   "t": "roger, we will resume own navigation",
+   "why": "judge: 'Roger' is not a readback acknowledgement for an instruction that needs a readback; also 'we will' i"
+  },
+  {
+   "type": "resume_nav",
+   "t": "back to own navigation",
+   "why": "judge: 'Back to own navigation' is too colloquial/ambiguous and not phraseology a pilot would use."
+  },
+  {
+   "type": "resume_nav",
+   "t": "understood, resuming own navigation",
+   "why": "judge: 'Understood' is not standard RT readback phraseology, although the content is correct; it implies ac"
+  },
+  {
+   "type": "approach_clearance",
+   "t": "cleared {APP} approach to land runway {RWY}",
+   "why": "judge: 'to land' adds a landing clearance that was not part of the approach clearance; it changes the meani"
+  },
+  {
+   "type": "approach_clearance",
+   "t": "approach cleared {APP} runway {RWY}",
+   "why": "judge: 'approach cleared' is an unusual, ungrammatical order; pilots would not say it."
+  },
+  {
+   "type": "approach_clearance",
+   "t": "cleared {APP} runway {RWY} approach, wilco",
+   "why": "judge: 'wilco' is not used for a clearance readback, and it is redundant after a readback."
+  },
+  {
+   "type": "approach_clearance",
+   "t": "established {APP} runway {RWY} cleared",
+   "why": "judge: 'established' is a pilot report, not a readback; it changes the meaning and implies a state not yet "
+  },
+  {
+   "type": "intercept_localiser",
+   "t": "established localiser runway {RWY}",
+   "why": "judge: 'Established' reports being on the localiser. It does not read back an instruction to intercept, so "
+  },
+  {
+   "type": "intercept_localiser",
+   "t": "localiser established runway {RWY}",
+   "why": "judge: This is an established report, not a readback of an intercept instruction."
+  },
+  {
+   "type": "intercept_localiser",
+   "t": "established on the localiser runway {RWY}",
+   "why": "judge: This claims the aircraft is already established, which changes the meaning from 'intercept'."
+  },
+  {
+   "type": "intercept_localiser",
+   "t": "localiser runway {RWY} established",
+   "why": "judge: This is an established report, not a readback."
+  },
+  {
+   "type": "intercept_localiser",
+   "t": "localiser capture runway {RWY}",
+   "why": "judge: 'Localiser capture' is a fragmentary autopilot-mode phrase and is not standard readback phraseology."
+  },
+  {
+   "type": "intercept_localiser",
+   "t": "established on localiser for runway {RWY}",
+   "why": "judge: This claims the aircraft is established, which changes the instruction."
+  },
+  {
+   "type": "intercept_localiser",
+   "t": "localiser alive runway {RWY}",
+   "why": "judge: 'Localiser alive' is not ATC phraseology and does not read back the instruction."
+  },
+  {
+   "type": "intercept_localiser",
+   "t": "runway {RWY} localiser established",
+   "why": "judge: This is an established report, not a readback of the intercept instruction."
+  },
+  {
+   "type": "descend_glidepath",
+   "t": "established on the glidepath, descending",
+   "why": "judge: 'Established' reports a state (established on the glidepath) rather than reading back the instructio"
+  },
+  {
+   "type": "descend_glidepath",
+   "t": "down on the glidepath",
+   "why": "judge: Fragmentary and non-standard. It has no verb and a pilot would not use it as a readback."
+  },
+  {
+   "type": "descend_glidepath",
+   "t": "continuing descent on the glidepath",
+   "why": "judge: 'Continuing descent' implies the aircraft is already descending, which is not what the instruction s"
+  },
+  {
+   "type": "descend_glidepath",
+   "t": "on the glidepath, down",
+   "why": "judge: Truncated and unnatural word order. It is not phraseology a pilot would use."
+  },
+  {
+   "type": "cancel_approach",
+   "t": "approach cancelled, going around",
+   "why": "judge: Adds 'going around', an action ATC did not instruct. Being cancelled does not itself mean a go-aroun"
+  },
+  {
+   "type": "cancel_approach",
+   "t": "cancel approach, going around",
+   "why": "judge: Adds 'going around', which is not in the instruction. 'Cancel approach' is also an imperative, not a"
+  },
+  {
+   "type": "cancel_approach",
+   "t": "approach clearance cancelled, we will climb",
+   "why": "judge: Adds an unrequested climb intention that is not part of the instruction."
+  },
+  {
+   "type": "cancel_approach",
+   "t": "cancelling approach, climbing",
+   "why": "judge: Adds 'climbing', an action that was not instructed."
+  },
+  {
+   "type": "cancel_approach",
+   "t": "approach cancel",
+   "why": "judge: 'Approach cancel' is a truncated, ungrammatical fragment that could be confused with the Approach un"
+  },
+  {
+   "type": "cancel_approach",
+   "t": "abandoning approach, cancel clearance",
+   "why": "judge: Makes the pilot the one abandoning the approach and asks to cancel the clearance, which reverses the"
+  },
+  {
+   "type": "go_around",
+   "t": "going around, runway ready again",
+   "why": "judge: 'runway ready again' is meaningless and not phraseology."
+  },
+  {
+   "type": "go_around",
+   "t": "going around, we'll rejoin the circuit",
+   "why": "judge: Adds an unrequested circuit rejoin, which an airline pilot would not volunteer on an IFR go-around."
+  },
+  {
+   "type": "go_around",
+   "t": "go around, will re-approach",
+   "why": "judge: 'Go around' is the instruction, not the readback, and 'will re-approach' is unnatural."
+  },
+  {
+   "type": "go_around",
+   "t": "going around, unable to land, we'll try again",
+   "why": "judge: 'Unable to land' implies the pilot cannot comply or is giving a reason, which muddles the readback."
+  },
+  {
+   "type": "go_around",
+   "t": "going around, traffic on the runway",
+   "why": "judge: The pilot assumes a reason for the go-around that ATC may not have given."
+  },
+  {
+   "type": "go_around",
+   "t": "going around, we'll be back in the sequence",
+   "why": "judge: 'Back in the sequence' is non-standard and presumes ATC actions."
+  },
+  {
+   "type": "go_around",
+   "t": "go around, will go around again",
+   "why": "judge: 'Will go around again' is self-contradictory and confusing."
+  },
+  {
+   "type": "contact",
+   "t": "frequency change approved, {UNIT} {FREQ}",
+   "why": "judge: 'Frequency change approved' is a controller phrase, not a pilot readback of a contact instruction."
+  },
+  {
+   "type": "contact",
+   "t": "monitoring {UNIT} on {FREQ}",
+   "why": "judge: 'Monitoring' changes the meaning: it means listening only, not contacting."
+  },
+  {
+   "type": "squawk",
+   "t": "transponder set to {SQ}",
+   "why": "judge: 'Transponder set to {SQ}' reads as a report that the code is already set rather than a readback, so "
+  },
+  {
+   "type": "qnh",
+   "t": "{QNHW} {QNH} confirmed",
+   "why": "judge: 'Confirmed' is not a standard readback; it sounds like confirming a query rather than reading back t"
+  },
+  {
+   "type": "qnh",
+   "t": "Altimeter {QNHW} {QNH}",
+   "why": "judge: 'Altimeter QNH 1013' mixes US 'altimeter' usage with the QNH term. It is not UK phraseology."
+  },
+  {
+   "type": "qnh",
+   "t": "Checking {QNHW} {QNH}",
+   "why": "judge: 'Checking' implies verifying the setting rather than setting it, so it does not clearly acknowledge "
+  },
+  {
+   "type": "expect",
+   "t": "anticipate {WHAT}",
+   "why": "judge: 'Anticipate X' is an imperative that sounds like an instruction to someone else, with no subject; it"
+  },
+  {
+   "type": "expect",
+   "t": "expect to be given {WHAT}",
+   "why": "judge: 'Expect to be given X' changes the meaning and is awkward; the instruction was to expect X, not to e"
+  },
+  {
+   "type": "expect",
+   "t": "looking for {WHAT}",
+   "why": "judge: 'Looking for X' implies the pilot is seeking or requesting it, which changes the meaning from expect"
+  },
+  {
+   "type": "expect",
+   "t": "understood expect {WHAT}",
+   "why": "judge: 'Understood' is not CAP 413 readback phraseology; 'Roger' or a plain readback is used. 'Understood e"
+  },
+  {
+   "type": "expect",
+   "t": "copy, we expect {WHAT}",
+   "why": "judge: 'Copy' is not UK CAP 413 phraseology; 'Roger' would be used, though the meaning is unchanged."
+  },
+  {
+   "type": "cleared_to_land",
+   "t": "landing runway {RWY}",
+   "why": "judge: Omits 'cleared', so it reads as a statement of intent rather than a readback of the landing clearanc"
+  },
+  {
+   "type": "cleared_to_land",
+   "t": "runway {RWY} cleared to land, Gatwick",
+   "why": "judge: The added fixed aerodrome name 'Gatwick' is not part of a readback and may not match the actual airf"
+  },
+  {
+   "type": "cleared_to_land",
+   "t": "clearing to land runway {RWY}",
+   "why": "judge: 'Clearing to land' is ungrammatical and changes the meaning; a pilot would not say it."
+  },
+  {
+   "type": "cleared_to_land",
+   "t": "landing on runway {RWY}",
+   "why": "judge: Omits 'cleared', so it does not confirm the clearance and sounds like an intention."
+  },
+  {
+   "type": "cleared_takeoff",
+   "t": "takeoff clearance runway {RWY}",
+   "why": "judge: 'takeoff clearance runway X' is a noun phrase, not a standard readback; does not clearly confirm 'cl"
+  },
+  {
+   "type": "cleared_takeoff",
+   "t": "rolling runway {RWY}",
+   "why": "judge: 'Rolling runway X' omits the clearance and does not read back 'cleared for takeoff'; the clearance m"
+  },
+  {
+   "type": "cleared_takeoff",
+   "t": "lining up and taking off runway {RWY}",
+   "why": "judge: 'Lining up and taking off' implies line-up and take-off, which is not what a takeoff clearance state"
+  },
+  {
+   "type": "cleared_takeoff",
+   "t": "takeoff runway {RWY}",
+   "why": "judge: 'Takeoff runway X' does not confirm clearance and could be mistaken for a statement of intent; not a"
+  },
+  {
+   "type": "cleared_takeoff",
+   "t": "runway {RWY} cleared, taking off",
+   "why": "judge: 'Runway X cleared, taking off' is not standard; omits 'for takeoff' and 'taking off' is a statement "
+  },
+  {
+   "type": "cleared_takeoff",
+   "t": "entering runway {RWY} for takeoff",
+   "why": "judge: 'Entering runway X for takeoff' describes entering the runway, which is a different action and does "
+  },
+  {
+   "type": "report",
+   "t": "reporting {RW}",
+   "why": "judge: 'Reporting' sounds like the report is being made now rather than promised for later, which changes t"
+  },
+  {
+   "type": "report",
+   "t": "will call you with {RW}",
+   "why": "judge: 'Will call you with' is awkward and grammatically doubtful when followed by the report content, and "
+  }
  ]
 }

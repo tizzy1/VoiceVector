@@ -256,5 +256,242 @@ def write_default_bank(path: Path) -> None:
     logger.info("wrote %s", path)
 
 
+# ======================================================================================
+# Claude-generated additions (SHOULD tier): generate -> lint -> property-test -> keep
+# ======================================================================================
+import asyncio      # noqa: E402  (generation only)
+import random       # noqa: E402
+import re           # noqa: E402
+
+SLOT_MEANINGS = {
+    "DIR": "turn direction word: left / right", "HDG": "heading, spoken digit by digit",
+    "N": "number of degrees for a relative turn", "VERB": "climb / descend / maintain",
+    "ING": "climbing / descending / maintaining", "ALT": "altitude in feet, e.g. four thousand",
+    "FL": "flight level number only; the template itself must say 'flight level' before it",
+    "SPD": "speed in knots, digit by digit", "CON": "speed/rate constraint 'or greater'/'or less' (may be empty)",
+    "RATE": "vertical rate in feet per minute (template must say 'feet per minute')", "RWY": "runway, e.g. two six left (template must say 'runway' before it)",
+    "APP": "approach type, e.g. I L S", "FIX": "waypoint name", "UNIT": "tower / london control / director",
+    "FREQ": "radio frequency", "SQ": "transponder code or 'ident'", "QNH": "pressure value",
+    "QNHW": "the word QNH", "WHAT": "what to expect, e.g. I L S runway two six left", "RW": "what to report",
+}
+OPTIONAL_SLOTS = {"DIR", "VERB", "ING", "FREQ", "UNIT", "RW"}
+GEN_SYSTEM = """You write radio readback phrase templates for simulated airline pilots at London Gatwick.
+Each template is the phrase a pilot says to read back ONE instruction element. Variety is good, but every
+template must be correct, realistic CAP 413 / ICAO-style pilot phraseology (non-standard but realistic is fine,
+incorrect is not). Never include the callsign. Never write a number, digit, or the words left/right:
+numbers and directions come ONLY from {SLOTS}. Use only the slot names you are given, each at most once,
+and include every slot marked required. Reply with ONLY JSON:
+{"templates": [{"t": "template text", "style": "full" | "short" | "ing"}]}
+style: full = complete standard phrase, short = clipped, ing = present-participle ("turning ...")."""
+
+
+def sample_element(rng: random.Random, etype: str):
+    """Random but valid element of one type (used to property-test templates)."""
+    from server.contracts import Instruction
+    verb = rng.choice(["climb", "descend", None])
+    fixes = ["WILLO", "TIMBA", "HOLLY", "BOGNA", "MAY", "SFD"]
+    runway = rng.choice(["26L", "26R", "08L", "08R"])
+    make = {
+        "heading": lambda: Instruction(type="heading", value=rng.randint(1, 360), turn_dir=rng.choice(["L", "R", None])),
+        "turn_by": lambda: Instruction(type="turn_by", value=rng.choice([5, 10, 20, 30]), turn_dir=rng.choice(["L", "R"])),
+        "altitude": lambda: Instruction(type="altitude", value=rng.choice(range(1000, 12500, 500)), verb=verb),
+        "flight_level": lambda: Instruction(type="flight_level", value=rng.choice(range(30, 251, 10)), verb=verb),
+        "vertical_rate": lambda: Instruction(type="vertical_rate", value=rng.choice([500, 1000, 1500, 2000]),
+                                             verb=rng.choice(["climb", "descend"]), constraint=rng.choice(["max", "min", None])),
+        "speed": lambda: Instruction(type="speed", value=rng.randrange(130, 330, 10),
+                                     constraint=rng.choice(["or_greater", "or_less", None])),
+        "direct": lambda: Instruction(type="direct", fix=rng.choice(fixes)),
+        "hold": lambda: Instruction(type="hold", fix=rng.choice(fixes)),
+        "approach_clearance": lambda: Instruction(type="approach_clearance", approach_type="ILS", runway=runway),
+        "intercept_localiser": lambda: Instruction(type="intercept_localiser", runway=runway),
+        "cleared_to_land": lambda: Instruction(type="cleared_to_land", runway=runway),
+        "cleared_takeoff": lambda: Instruction(type="cleared_takeoff", runway=runway),
+        "contact": lambda: Instruction(type="contact", unit=rng.choice(["tower", "london", "director"]),
+                                       frequency=rng.choice(["124.225", "134.125", "119.6", None])),
+        "squawk": lambda: Instruction(type="squawk", value=rng.choice(["ident", "4521", "0421", "7350"])),
+        "qnh": lambda: Instruction(type="qnh", value=rng.randint(980, 1040)),
+        "expect": lambda: Instruction(type="expect", expect_what=rng.choice(["ILS 26L", "ILS 08R", "FL70", "vectors"])),
+        "report": lambda: Instruction(type="report", report_what=rng.choice(["established", "heading", "speed", "level"])),
+    }
+    return make[etype]() if etype in make else Instruction(type=etype)
+
+
+_NUMBER_WORDS = {"zero", "one", "two", "three", "tree", "four", "five", "six", "seven", "eight", "nine", "niner",
+                 "ten", "hundred", "thousand", "left", "right"}
+
+
+def lint(template: str, allowed: set[str]) -> str | None:
+    used = re.findall(r"\{(\w+)\}", template)
+    if any(u not in allowed for u in used):
+        return "unknown slot"
+    if len(used) != len(set(used)):
+        return "slot used twice"
+    if re.search(r"\}\w|\w\{", template):
+        return "slot glued to text"
+    literal = re.sub(r"\{\w+\}", " ", template).lower()
+    if re.search(r"\d", literal) or set(re.findall(r"[a-z]+", literal)) & _NUMBER_WORDS:
+        return "literal number or direction"
+    if len(template) > 80 or "{" in literal or "}" in literal:
+        return "malformed"
+    return None
+
+
+def property_test(etype: str, template: dict, samples: int = 200, seed: int = 7) -> str | None:
+    """Fill with ``samples`` random values; the validator must reproduce every one."""
+    from server.contracts import Instruction  # noqa: F401
+    from server.pilot import validator as V
+    from server.pilot.readback import Composer, _usable
+    composer = _composer()
+    rng = random.Random(f"{seed}|{etype}|{template['t']}")
+    used = 0
+    for _ in range(samples):
+        el = sample_element(rng, etype)
+        slots = composer.slots_for(el)
+        if not _usable(template, slots):
+            continue
+        used += 1
+        _, speech, _ = Composer.render_phrase(template["t"], slots)
+        problems = V.check_element(el, speech)
+        if problems:
+            return problems[0]
+    return None if used >= 10 else "rarely usable"
+
+
+_COMPOSER = None
+
+
+def _composer():
+    global _COMPOSER
+    if _COMPOSER is None:
+        from server.pilot.readback import Composer
+        _COMPOSER = Composer(Path(__file__).resolve().parents[2] / "data")
+    return _COMPOSER
+
+
+def _norm(t: str) -> str:
+    return " ".join(t.lower().replace(",", " ").split())
+
+
+async def _generate_type(client, etype: str, existing: list[dict], model: str, count: int) -> list[dict]:
+    from server.agents import llm
+    allowed = set(re.findall(r"\{(\w+)\}", " ".join(t["t"] for t in existing)))
+    required = sorted(allowed - OPTIONAL_SLOTS - {"CON", "QNHW"})
+    prompt = {
+        "element_type": etype,
+        "slots": {s: SLOT_MEANINGS.get(s, s) for s in sorted(allowed)},
+        "required_slots": required,
+        "existing_templates_do_not_repeat": [t["t"] for t in existing],
+        "how_many": count,
+    }
+    response = await asyncio.wait_for(client.messages.create(
+        model=model, max_tokens=1200, system=GEN_SYSTEM, timeout=30,
+        messages=[{"role": "user", "content": json.dumps(prompt)}], **llm.model_kwargs(model)), 35)
+    out = llm.json_output(response) or {}
+    return [t for t in out.get("templates", []) if isinstance(t, dict) and isinstance(t.get("t"), str)]
+
+
+JUDGE_SYSTEM = """You are a strict UK air traffic phraseology examiner (CAP 413). For each pilot readback template
+(slots in braces are filled with correct values), decide if a real airline pilot could say it as the readback
+of the given instruction type WITHOUT changing its meaning. Reject anything that changes the instruction
+(e.g. "monitoring" for contact), contradicts itself, is ungrammatical, or is phraseology a pilot would not use.
+Non-standard but realistic is fine. Reply with ONLY JSON: {"verdicts": [{"i": index, "ok": true|false, "why": "..."}]}"""
+
+
+async def judge(client, etype: str, templates: list[dict], model: str) -> dict[int, str]:
+    """Indices the examiner rejects -> reason. Any failure rejects everything (fail closed)."""
+    from server.agents import llm
+    if not templates:
+        return {}
+    try:
+        response = await asyncio.wait_for(client.messages.create(
+            model=model, max_tokens=1500, system=JUDGE_SYSTEM, timeout=55,
+            messages=[{"role": "user", "content": json.dumps(
+                {"instruction_type": etype, "templates": [{"i": i, "t": t["t"]} for i, t in enumerate(templates)]})}],
+            **llm.model_kwargs(model)), 60)
+        verdicts = (llm.json_output(response) or {}).get("verdicts", [])
+        ok = {int(v["i"]) for v in verdicts if isinstance(v, dict) and v.get("ok") is True}
+        why = {int(v["i"]): str(v.get("why", ""))[:100] for v in verdicts if isinstance(v, dict) and "i" in v}
+        return {i: f"judge: {why.get(i, 'no verdict')}" for i in range(len(templates)) if i not in ok}
+    except Exception as error:                                       # noqa: BLE001
+        return {i: f"judge unavailable: {type(error).__name__}" for i in range(len(templates))}
+
+
+async def generate_bank(count: int = 10, model: str | None = None, judge_model: str = "claude-sonnet-5-5") -> dict:
+    """Ask Claude for extra phrasings per element type; keep only those that pass lint + property test."""
+    from server.agents import llm
+    client = llm.get_client()
+    if client is None:
+        raise RuntimeError("ANTHROPIC_API_KEY is not set")
+    model = model or llm.FAST_MODEL
+    bank = {k: [dict(t) for t in v] for k, v in DEFAULT_BANK.items()}
+    report = {"model": model, "accepted": 0, "rejected": []}
+    slots = asyncio.Semaphore(5)
+
+    async def one(etype: str):
+        async with slots:
+            try:
+                return etype, await _generate_type(client, etype, bank[etype], model, count)
+            except Exception as error:                               # noqa: BLE001
+                logger.warning("generation failed for %s: %r", etype, error)
+                return etype, []
+
+    targets = [e for e in bank if e not in ("traffic_info",)]
+    passed: dict[str, list[dict]] = {}
+    for etype, candidates in await asyncio.gather(*(one(e) for e in targets)):
+        allowed = set(re.findall(r"\{(\w+)\}", " ".join(t["t"] for t in bank[etype])))
+        seen = {_norm(t["t"]) for t in bank[etype]}
+        n = 0
+        for cand in candidates:
+            text = " ".join(cand["t"].split())
+            style = cand.get("style") if cand.get("style") in ("full", "short", "ing") else "full"
+            if _norm(text) in seen:
+                continue
+            used = set(re.findall(r"\{(\w+)\}", text))
+            template = {"id": f"gen.{etype}.{n + 1}", "t": text, "style": style,
+                        "needs": sorted(used & OPTIONAL_SLOTS)}
+            reason = lint(text, allowed) or property_test(etype, template)
+            if reason:
+                report["rejected"].append({"type": etype, "t": text, "why": reason[:120]})
+                continue
+            passed.setdefault(etype, []).append(template)
+            seen.add(_norm(text))
+            n += 1
+
+    async def examine(etype: str):
+        async with slots:
+            return etype, await judge(client, etype, passed[etype], judge_model)
+
+    for etype, verdicts in await asyncio.gather(*(examine(e) for e in passed)):
+        for i, template in enumerate(passed[etype]):
+            if i in verdicts:
+                report["rejected"].append({"type": etype, "t": template["t"], "why": verdicts[i]})
+                continue
+            template["approved"] = False          # Tudor flips to true after phraseology review
+            bank[etype].append(template)
+            report["accepted"] += 1
+    return {"bank": bank, "report": report}
+
+
+def write_generated_bank(path: Path, count: int = 10) -> dict:
+    result = asyncio.run(generate_bank(count))
+    payload = json.loads(bank_to_json(result["bank"]))
+    payload["_meta"]["generated"] = {k: v for k, v in result["report"].items() if k != "rejected"}
+    payload["_meta"]["review"] = ("Tudor: gen.* templates passed the validator (200 random values each) and a "
+                                  "CAP 413 judge, but are approved:false and NOT used until you set approved:true. "
+                                  "Rejected candidates are listed for reference.")
+    payload["rejected_for_review"] = result["report"]["rejected"]
+    path.write_text(json.dumps(payload, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    return result["report"]
+
+
 if __name__ == "__main__":
-    write_default_bank(Path(__file__).resolve().parents[2] / "data" / "readback_variants.json")
+    import sys
+    target = Path(__file__).resolve().parents[2] / "data" / "readback_variants.json"
+    if "--generate" in sys.argv:
+        from dotenv import load_dotenv
+        load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+        logging.basicConfig(level=logging.INFO)
+        rep = write_generated_bank(target)
+        print(f"accepted {rep['accepted']}, rejected {len(rep['rejected'])} -> {target}")
+    else:
+        write_default_bank(target)

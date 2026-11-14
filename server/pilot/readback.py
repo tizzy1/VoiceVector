@@ -119,7 +119,8 @@ class Composer:
                              if k in bank})
                 merged = {k: list(v) for k, v in DEFAULT_BANK.items()}
                 for etype, templates in bank["elements"].items():
-                    merged[etype] = list(templates)
+                    # generated phrasings stay out until a human approves them (approved: false)
+                    merged[etype] = [t for t in templates if t.get("approved", True) is not False]
                 bank["elements"] = merged
             except (OSError, ValueError):
                 logger.exception("variant bank unreadable; using built-in defaults")

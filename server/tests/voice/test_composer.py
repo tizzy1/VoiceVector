@@ -313,3 +313,92 @@ def test_spoken_callsigns():
     assert comp.callsign_speech("EZY45AB")[1] == "easy four five alpha bravo"
     assert comp.callsign_speech("DLH4KA")[1] == "lufthansa four kilo alpha"
     assert comp.callsign_speech("WZZ4471")[1] == "wizz air four four seven one"
+
+
+# ------------------------------------------------------------- generated variants
+def test_unapproved_generated_templates_are_never_used(tmp_path):
+    import json
+    import shutil
+    from server.pilot.variants_build import bank_to_json
+    for name in ("telephony.json",):
+        shutil.copy(DATA / name, tmp_path / name)
+    payload = json.loads(bank_to_json())
+    payload["elements"]["heading"] = [
+        {"id": "gen.heading.1", "t": "{DIR} heading {HDG} unapproved", "style": "full", "needs": ["DIR"], "approved": False},
+        {"id": "gen.heading.2", "t": "{DIR} onto heading {HDG}", "style": "full", "needs": ["DIR"], "approved": True},
+    ]
+    (tmp_path / "readback_variants.json").write_text(json.dumps(payload))
+    comp = Composer(tmp_path)
+    ids = {t["id"] for t in comp.bank["elements"]["heading"]}
+    assert "gen.heading.1" not in ids and "gen.heading.2" in ids
+    texts = {comp.compose(ReadbackPlan(callsign="BAW117", persona="crisp_airline", kind="full", seed=s,
+             elements=[Instruction(type="heading", value=240, turn_dir="L")])).tts_text for s in range(60)}
+    assert not any("unapproved" in t for t in texts) and any("onto heading" in t for t in texts)
+
+
+def test_shipped_bank_generated_entries_are_pending_review():
+    import json
+    data = json.loads((DATA / "readback_variants.json").read_text())
+    generated = [t for v in data["elements"].values() for t in v if t["id"].startswith("gen.")]
+    assert all(t.get("approved") is False or t.get("approved") is True for t in generated)
+    live = Composer(DATA)
+    used = {t["id"] for v in live.bank["elements"].values() for t in v}
+    assert not any(t["id"] in used for t in generated if t.get("approved") is False)
+
+
+def test_generation_gates_offline():
+    import asyncio
+    import json as _json
+    from types import SimpleNamespace
+    from server.pilot import variants_build as vb
+
+    assert vb.lint("{VERB}ing {ALT}", {"VERB", "ALT"}) == "slot glued to text"
+    assert vb.lint("turn {DIR} two four zero", {"DIR"}) == "literal number or direction"
+    assert vb.lint("{FIX} {FIX}", {"FIX"}) == "slot used twice"
+    assert vb.lint("{NOPE} heading", {"HDG"}) == "unknown slot"
+    assert vb.lint("{DIR} heading {HDG}", {"DIR", "HDG"}) is None
+    assert vb.property_test("heading", {"id": "x", "t": "heading {HDG} {DIR}", "style": "full", "needs": ["DIR"]})
+    assert vb.property_test("heading", {"id": "x", "t": "{DIR} onto heading {HDG}", "style": "full", "needs": ["DIR"]}) is None
+
+    class Client:
+        def __init__(self):
+            self.messages = SimpleNamespace(create=self.create)
+
+        async def create(self, **kw):
+            payload = _json.loads(kw["messages"][0]["content"])
+            if "instruction_type" in payload:          # judge: reject anything containing "copy"
+                out = {"verdicts": [{"i": t["i"], "ok": "copy" not in t["t"], "why": "US style"} for t in payload["templates"]]}
+            elif payload["element_type"] == "heading":
+                out = {"templates": [{"t": "{DIR} onto heading {HDG}", "style": "full"},
+                                     {"t": "copy {DIR} heading {HDG}", "style": "short"},
+                                     {"t": "heading {HDG} {DIR}", "style": "short"},
+                                     {"t": "{DIR} heading {HDG}", "style": "full"}]}    # duplicate of the bank
+            else:
+                out = {"templates": []}
+            return SimpleNamespace(content=[SimpleNamespace(type="text", text=_json.dumps(out))])
+
+    import server.agents.llm as llm_module
+    original = llm_module.get_client
+    llm_module.get_client = lambda: Client()
+    try:
+        result = asyncio.run(vb.generate_bank(count=4))
+    finally:
+        llm_module.get_client = original
+    added = [t for t in result["bank"]["heading"] if t["id"].startswith("gen.")]
+    assert [t["t"] for t in added] == ["{DIR} onto heading {HDG}"] and added[0]["approved"] is False
+    reasons = {r["t"]: r["why"] for r in result["report"]["rejected"]}
+    assert reasons["copy {DIR} heading {HDG}"].startswith("judge:")
+    assert "not reproduced" in reasons["heading {HDG} {DIR}"]
+
+
+def test_judge_fails_closed():
+    import asyncio
+    from types import SimpleNamespace
+    from server.pilot.variants_build import judge
+
+    async def boom(**kw):
+        raise TimeoutError
+
+    verdicts = asyncio.run(judge(SimpleNamespace(messages=SimpleNamespace(create=boom)), "heading",
+                                 [{"t": "a"}, {"t": "b"}], "m"))
+    assert set(verdicts) == {0, 1} and all("unavailable" in v for v in verdicts.values())
