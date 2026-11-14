@@ -62,8 +62,11 @@ def _heading(w, ac, ins):
 
 @register("turn_by")
 def _turn_by(w, ac, ins):
-    if ins.value is None or not ins.turn_dir:
+    if ins.value is None:
         return False
+    if not ins.turn_dir:                # no direction = an absolute heading, shortest turn
+        _to_heading(w, ac, float(ins.value), None)
+        return True
     sign = 1.0 if ins.turn_dir == "R" else -1.0
     _to_heading(w, ac, ac.hdg + sign * float(ins.value), ins.turn_dir)
     return True

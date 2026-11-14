@@ -313,3 +313,10 @@ def test_vertically_separated_and_in_trail_pairs_do_not_alert(bus, data_dir):
         give(w, cs, el(type="approach_clearance", approach_type="ILS", runway="26L"))
     run(w, 150)
     assert not w.alerts and not bus.of("alert_start")
+
+
+def test_undirected_turn_by_reaching_the_sim_flies_the_shortest_way(world):
+    a = world.aircraft["BAW117"]                                  # heading 075
+    give(world, "BAW117", el(type="turn_by", value=40))
+    run(world, 30)
+    assert a.hdg == 40 and a.phase == "VECTORS"

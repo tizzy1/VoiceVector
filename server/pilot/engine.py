@@ -32,6 +32,18 @@ NOT_ERROR_ELIGIBLE = ("confirm", "report", "traffic_info", "expect", "contact", 
                       "cleared_to_land", "cleared_takeoff", "squawk", "qnh")
 
 
+def undirected_turns_as_headings(tx: Transmission) -> Transmission:
+    """A relative turn needs a direction ("turn left 20 degrees"). Without one, the controller
+    gave an absolute heading ("heading one two zero degrees"): fly it by the shortest turn."""
+    if not any(i.type == "turn_by" and not i.turn_dir for i in tx.instructions):
+        return tx
+    fixed = [i.model_copy(update={"type": "heading"})
+             if i.type == "turn_by" and not i.turn_dir and i.value is not None
+             and 0 < float(i.value) <= 360 else i
+             for i in tx.instructions]
+    return tx.model_copy(update={"instructions": fixed})
+
+
 class PilotEngine:
     def __init__(self, world: WorldAPI, bus: EventBus, data_dir: Path) -> None:
         self.world = world
@@ -97,6 +109,7 @@ class PilotEngine:
     # ------------------------------------------------------------- API
     def handle_transmission(self, tx: Transmission,
                             evaluations: list[Evaluation]) -> list[PilotResponse]:
+        tx = undirected_turns_as_headings(tx)
         on_freq = self._on_freq()
         cs = tx.receiver
         if cs is None or cs not in on_freq:

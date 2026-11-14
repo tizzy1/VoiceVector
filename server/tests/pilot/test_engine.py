@@ -212,3 +212,53 @@ def test_omission_never_planned_for_single_element(world, bus, data_dir):
     p.force_error("readback_only", "omitted_element", "BAW117")
     [r] = say(p, world, tx("BAW117", ALT))
     assert not r.errors and len(r.plan.elements) == 1
+
+
+# ---- headings without a turn direction (Tudor, 14 Nov): shortest turn, never "say again"
+def _heading_tx(ins, receiver="BAW117"):
+    from server.contracts import Transmission
+    return Transmission(tx_id="hd1", t=0, receiver=receiver, instructions=ins)
+
+
+def test_heading_without_direction_is_read_back_and_flown_shortest_way(world, bus, data_dir):
+    from server.contracts import Instruction
+    from server.pilot.engine import PilotEngine
+    p = PilotEngine(world, bus, data_dir)
+    p.set_error_rate("off")
+    a = world.aircraft["BAW117"]                                  # heading 075
+    tx = _heading_tx([Instruction(type="heading", value=300)])    # shortest = left via 360
+    [r] = p.handle_transmission(tx, world.evaluate(tx))
+    assert r.kind == "full" and r.plan.elements[0].turn_dir is None
+    world.schedule_apply(r.callsign, r.apply, at=world.t)
+    seen = []
+    for _ in range(90):
+        world.tick(1.0)
+        seen.append(a.hdg)
+    assert a.hdg == 300 and any(h < 30 or h > 330 for h in seen)
+    assert not any(100 < h < 280 for h in seen)                   # never went the long way
+
+
+def test_heading_n_degrees_without_direction_is_an_absolute_heading(world, bus, data_dir):
+    from server.contracts import Instruction
+    from server.pilot.engine import PilotEngine
+    p = PilotEngine(world, bus, data_dir)
+    p.set_error_rate("off")
+    a = world.aircraft["BAW117"]
+    tx = _heading_tx([Instruction(type="turn_by", value=120)])    # "heading 120 degrees"
+    [r] = p.handle_transmission(tx, world.evaluate(tx))
+    assert r.kind == "full"
+    assert [(e.type, e.value, e.turn_dir) for e in r.plan.elements] == [("heading", 120, None)]
+    world.schedule_apply(r.callsign, r.apply, at=world.t)
+    for _ in range(40):
+        world.tick(1.0)
+    assert a.hdg == 120
+
+
+def test_relative_turn_with_direction_is_unchanged(world, bus, data_dir):
+    from server.contracts import Instruction
+    from server.pilot.engine import PilotEngine
+    p = PilotEngine(world, bus, data_dir)
+    p.set_error_rate("off")
+    tx = _heading_tx([Instruction(type="turn_by", value=20, turn_dir="R")])
+    [r] = p.handle_transmission(tx, world.evaluate(tx))
+    assert [(e.type, e.value, e.turn_dir) for e in r.plan.elements] == [("turn_by", 20, "R")]
