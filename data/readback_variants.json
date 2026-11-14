@@ -1,7 +1,7 @@
 {
  "_meta": {
   "what": "Pilot readback template bank (owner: Sanju; Tudor reviews phraseology). Numbers only via slots; every readback is re-parsed by validator.py.",
-  "slots": "DIR HDG N VERB ING ALT FL SPD CON RATE RWY APP FIX UNIT FREQ SQ QNH QNHW WHAT RW",
+  "slots": "DIR HDG N VERB ING TO ALT FL SPD CON RATE RWY APP FIX UNIT FREQ SQ QNH QNHW HPA WHAT RW EXPN",
   "generated": {
    "model": "claude-haiku-5-5",
    "accepted": 95
@@ -183,7 +183,7 @@
   "altitude": [
    {
     "id": "alt.1",
-    "t": "{VERB} altitude {ALT}",
+    "t": "{VERB} {TO} altitude {ALT}",
     "style": "full",
     "needs": [
      "VERB"
@@ -191,7 +191,7 @@
    },
    {
     "id": "alt.2",
-    "t": "{ING} altitude {ALT}",
+    "t": "{ING} {TO} altitude {ALT}",
     "style": "ing",
     "needs": [
      "ING"
@@ -199,29 +199,21 @@
    },
    {
     "id": "alt.3",
-    "t": "{VERB} {ALT}",
-    "style": "short",
+    "t": "{VERB} {TO} altitude {ALT} feet",
+    "style": "full",
     "needs": [
      "VERB"
     ]
    },
    {
     "id": "alt.4",
-    "t": "{ALT}",
+    "t": "altitude {ALT}",
     "style": "short",
     "needs": []
    },
    {
     "id": "alt.5",
-    "t": "{ING} {ALT}",
-    "style": "ing",
-    "needs": [
-     "ING"
-    ]
-   },
-   {
-    "id": "alt.6",
-    "t": "{ING} to altitude {ALT}",
+    "t": "{ING} {TO} altitude {ALT} feet",
     "style": "ing",
     "needs": [
      "ING"
@@ -229,51 +221,15 @@
    },
    {
     "id": "alt.7",
-    "t": "altitude {ALT}",
+    "t": "altitude {ALT} feet",
     "style": "full",
     "needs": []
-   },
-   {
-    "id": "gen.altitude.1",
-    "t": "{VERB} to {ALT}",
-    "style": "full",
-    "needs": [
-     "VERB"
-    ],
-    "approved": false
-   },
-   {
-    "id": "gen.altitude.2",
-    "t": "{ING} to {ALT}",
-    "style": "ing",
-    "needs": [
-     "ING"
-    ],
-    "approved": false
-   },
-   {
-    "id": "gen.altitude.4",
-    "t": "{VERB} and maintain {ALT}",
-    "style": "full",
-    "needs": [
-     "VERB"
-    ],
-    "approved": false
-   },
-   {
-    "id": "gen.altitude.5",
-    "t": "{ING} and maintaining {ALT}",
-    "style": "ing",
-    "needs": [
-     "ING"
-    ],
-    "approved": false
    }
   ],
   "flight_level": [
    {
     "id": "fl.1",
-    "t": "{VERB} flight level {FL}",
+    "t": "{VERB} {TO} flight level {FL}",
     "style": "full",
     "needs": [
      "VERB"
@@ -281,7 +237,7 @@
    },
    {
     "id": "fl.2",
-    "t": "{ING} flight level {FL}",
+    "t": "{ING} {TO} flight level {FL}",
     "style": "ing",
     "needs": [
      "ING"
@@ -294,26 +250,12 @@
     "needs": []
    },
    {
-    "id": "fl.4",
-    "t": "{VERB} to flight level {FL}",
-    "style": "full",
-    "needs": [
-     "VERB"
-    ]
-   },
-   {
     "id": "fl.5",
-    "t": "{ING} to flight level {FL}",
+    "t": "{ING} {TO} flight level {FL} now",
     "style": "ing",
     "needs": [
      "ING"
     ]
-   },
-   {
-    "id": "fl.6",
-    "t": "cleared flight level {FL}",
-    "style": "full",
-    "needs": []
    },
    {
     "id": "gen.flight_level.2",
@@ -326,7 +268,7 @@
    },
    {
     "id": "gen.flight_level.5",
-    "t": "{VERB} to flight level {FL}, {ING} now",
+    "t": "{VERB} {TO} flight level {FL}, {ING} now",
     "style": "full",
     "needs": [
      "ING",
@@ -454,12 +396,6 @@
     "needs": []
    },
    {
-    "id": "spd.4",
-    "t": "reducing speed {SPD} {CON}",
-    "style": "ing",
-    "needs": []
-   },
-   {
     "id": "spd.5",
     "t": "maintain speed {SPD} {CON}",
     "style": "full",
@@ -537,77 +473,33 @@
   "expedite": [
    {
     "id": "exp.1",
-    "t": "expediting",
+    "t": "expediting {EXPN}",
     "style": "ing",
-    "needs": []
+    "needs": [
+     "EXPN"
+    ]
    },
    {
     "id": "exp.2",
-    "t": "expedite",
+    "t": "expedite {EXPN}",
     "style": "short",
-    "needs": []
+    "needs": [
+     "EXPN"
+    ]
    },
    {
     "id": "exp.3",
-    "t": "will expedite",
+    "t": "will expedite {EXPN}",
     "style": "full",
+    "needs": [
+     "EXPN"
+    ]
+   },
+   {
+    "id": "exp.4",
+    "t": "expediting",
+    "style": "ing",
     "needs": []
-   },
-   {
-    "id": "gen.expedite.1",
-    "t": "expedite departure",
-    "style": "short",
-    "needs": [],
-    "approved": false
-   },
-   {
-    "id": "gen.expedite.2",
-    "t": "expediting departure",
-    "style": "ing",
-    "needs": [],
-    "approved": false
-   },
-   {
-    "id": "gen.expedite.3",
-    "t": "roger, expedite departure",
-    "style": "short",
-    "needs": [],
-    "approved": false
-   },
-   {
-    "id": "gen.expedite.4",
-    "t": "we will expedite departure",
-    "style": "full",
-    "needs": [],
-    "approved": false
-   },
-   {
-    "id": "gen.expedite.5",
-    "t": "expediting the departure",
-    "style": "ing",
-    "needs": [],
-    "approved": false
-   },
-   {
-    "id": "gen.expedite.6",
-    "t": "wilco, we will expedite",
-    "style": "short",
-    "needs": [],
-    "approved": false
-   },
-   {
-    "id": "gen.expedite.7",
-    "t": "we'll expedite our departure",
-    "style": "full",
-    "needs": [],
-    "approved": false
-   },
-   {
-    "id": "gen.expedite.10",
-    "t": "understood, expediting departure now",
-    "style": "full",
-    "needs": [],
-    "approved": false
    }
   ],
   "direct": [
@@ -920,12 +812,6 @@
     "needs": []
    },
    {
-    "id": "gp.3",
-    "t": "descend on the I L S",
-    "style": "short",
-    "needs": []
-   },
-   {
     "id": "gen.descend_glidepath.3",
     "t": "going down on the glidepath",
     "style": "ing",
@@ -1173,9 +1059,11 @@
    },
    {
     "id": "qnh.2",
-    "t": "{QNHW} {QNH} hectopascals",
+    "t": "{QNHW} {QNH} {HPA}",
     "style": "full",
-    "needs": []
+    "needs": [
+     "HPA"
+    ]
    },
    {
     "id": "qnh.3",
@@ -1201,20 +1089,6 @@
     "id": "gen.qnh.4",
     "t": "{QNH} set",
     "style": "short",
-    "needs": [],
-    "approved": false
-   },
-   {
-    "id": "gen.qnh.5",
-    "t": "Set {QNH} hectopascals",
-    "style": "full",
-    "needs": [],
-    "approved": false
-   },
-   {
-    "id": "gen.qnh.6",
-    "t": "Setting {QNH} hectopascals",
-    "style": "ing",
     "needs": [],
     "approved": false
    },
@@ -1364,14 +1238,6 @@
     ]
    },
    {
-    "id": "rpt.2",
-    "t": "wilco, will report {RW}",
-    "style": "full",
-    "needs": [
-     "RW"
-    ]
-   },
-   {
     "id": "rpt.3",
     "t": "report {RW}",
     "style": "short",
@@ -1390,15 +1256,6 @@
    {
     "id": "gen.report.1",
     "t": "will advise {RW}",
-    "style": "full",
-    "needs": [
-     "RW"
-    ],
-    "approved": false
-   },
-   {
-    "id": "gen.report.2",
-    "t": "wilco, will advise {RW}",
     "style": "full",
     "needs": [
      "RW"
@@ -1495,8 +1352,7 @@
  "connectors": [
   ", ",
   ", ",
-  " and ",
-  ", then "
+  " and "
  ],
  "rejected_for_review": [
   {
@@ -2143,6 +1999,81 @@
    "type": "report",
    "t": "will call you with {RW}",
    "why": "judge: 'Will call you with' is awkward and grammatically doubtful when followed by the report content, and "
+  },
+  {
+   "type": "altitude",
+   "t": "{VERB} to {ALT}",
+   "why": "rules: altitude value without the word 'altitude'"
+  },
+  {
+   "type": "altitude",
+   "t": "{ING} to {ALT}",
+   "why": "rules: altitude value without the word 'altitude'"
+  },
+  {
+   "type": "altitude",
+   "t": "{VERB} and maintain {ALT}",
+   "why": "rules: altitude value without the word 'altitude'"
+  },
+  {
+   "type": "altitude",
+   "t": "{ING} and maintaining {ALT}",
+   "why": "rules: altitude value without the word 'altitude'"
+  },
+  {
+   "type": "expedite",
+   "t": "expedite departure",
+   "why": "rules: expedite without saying what (climb/descent)"
+  },
+  {
+   "type": "expedite",
+   "t": "expediting departure",
+   "why": "rules: expedite without saying what (climb/descent)"
+  },
+  {
+   "type": "expedite",
+   "t": "roger, expedite departure",
+   "why": "rules: expedite without saying what (climb/descent)"
+  },
+  {
+   "type": "expedite",
+   "t": "we will expedite departure",
+   "why": "rules: expedite without saying what (climb/descent)"
+  },
+  {
+   "type": "expedite",
+   "t": "expediting the departure",
+   "why": "rules: expedite without saying what (climb/descent)"
+  },
+  {
+   "type": "expedite",
+   "t": "wilco, we will expedite",
+   "why": "rules: 'wilco' and 'will …' say the same thing twice"
+  },
+  {
+   "type": "expedite",
+   "t": "we'll expedite our departure",
+   "why": "rules: expedite without saying what (climb/descent)"
+  },
+  {
+   "type": "expedite",
+   "t": "understood, expediting departure now",
+   "why": "rules: expedite without saying what (climb/descent)"
+  },
+  {
+   "type": "qnh",
+   "t": "Set {QNH} hectopascals",
+   "why": "rules: 'hectopascals' only below 1000 (use {HPA})"
+  },
+  {
+   "type": "qnh",
+   "t": "Setting {QNH} hectopascals",
+   "why": "rules: 'hectopascals' only below 1000 (use {HPA})"
+  },
+  {
+   "type": "report",
+   "t": "wilco, will advise {RW}",
+   "why": "rules: 'wilco' and 'will …' say the same thing twice"
   }
  ]
 }

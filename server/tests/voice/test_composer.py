@@ -60,6 +60,8 @@ def random_element(rng: random.Random, etype: str) -> Instruction:
         return Instruction(type="expect", expect_what=rng.choice(["ILS 26L", "ILS 08R", "FL70", "FL90", "vectors"]))
     if etype == "report":
         return Instruction(type="report", report_what=rng.choice(["established", "heading", "speed", "level"]))
+    if etype == "expedite":
+        return Instruction(type="expedite", verb=rng.choice(["climb", "descend", None]))
     return Instruction(type=etype)
 
 
@@ -113,9 +115,13 @@ def test_bank_literals_never_contain_numbers_or_directions():
         assert not re.search(r"\d", literal), text
 
 
-def test_bank_has_at_least_six_phrasings_for_common_elements():
-    for etype in ("heading", "altitude", "flight_level", "speed", "direct", "approach_clearance", "contact"):
-        assert len(DEFAULT_BANK[etype]) >= 6, etype
+def test_bank_has_enough_phrasings_for_common_elements():
+    # >= 6 where correct phraseology allows it; Tudor's review (14 Nov) removed incorrect
+    # flight-level and speed phrasings, and correctness wins over the count
+    minimum = {"heading": 6, "altitude": 6, "direct": 6, "approach_clearance": 6, "contact": 6,
+               "speed": 5, "flight_level": 4}
+    for etype, n in minimum.items():
+        assert len(DEFAULT_BANK[etype]) >= n, etype
 
 
 @pytest.mark.parametrize("etype", ["heading", "altitude", "flight_level", "speed", "direct", "hold",
@@ -402,3 +408,114 @@ def test_judge_fails_closed():
     verdicts = asyncio.run(judge(SimpleNamespace(messages=SimpleNamespace(create=boom)), "heading",
                                  [{"t": "a"}, {"t": "b"}], "m"))
     assert set(verdicts) == {0, 1} and all("unavailable" in v for v in verdicts.values())
+
+
+
+# ------------------------------------------------- Tudor's phraseology review (14 Nov)
+def test_every_shipped_template_follows_the_phraseology_rules():
+    import json
+    from server.pilot.variants_build import CONNECTORS, phraseology_problem
+    for etype, templates in DEFAULT_BANK.items():
+        for t in templates:
+            assert phraseology_problem(etype, t["t"]) is None, (t["id"], t["t"])
+    data = json.loads((DATA / "readback_variants.json").read_text())
+    for etype, templates in data["elements"].items():
+        for t in templates:
+            assert phraseology_problem(etype, t["t"]) is None, (t["id"], t["t"])
+    for kind, options in REPLIES.items():
+        for t in options:
+            assert phraseology_problem(kind, t) is None, t
+    for code, options in REASON_PHRASES.items():
+        for t, _ in options:
+            assert phraseology_problem(code, t) is None, t
+    assert all("then" not in c for c in CONNECTORS)
+
+
+def _all_types_rng(seed):
+    return random.Random(seed), [t for t in ELEMENT_TYPES if t not in ("expect",)] + ["maintain_level", "expedite"]
+
+
+def test_composed_readbacks_follow_the_rules():
+    """Property check on real output, not just templates: 3000 random readbacks."""
+    rng, types = _all_types_rng("tudor")
+    number_words = set(N.DIGIT_WORDS) | set(N.TENS_WORDS) | set(N.MULTIPLIERS)
+    for i in range(3000):
+        elements = [random_element(rng, rng.choice(types)) for _ in range(rng.randint(1, 3))]
+        if rng.random() < 0.3:
+            elements.append(Instruction(type="expedite", verb=rng.choice(["climb", "descend"])))
+        r = composer_live().compose(plan_for(rng, elements, kind=rng.choice(["full", "partial_correction"])))
+        words = r.tts_text.lower().replace(",", " ").split()
+        assert "then" not in words, r.tts_text
+        for a, b in zip(words, words[1:]):
+            assert not (a == "to" and b in number_words), f"'to' before a number: {r.tts_text}"
+        if any(e.type in V.LEVEL_TYPES for e in elements):
+            assert "cleared altitude" not in r.tts_text and "cleared flight level" not in r.tts_text
+        assert "maintain to" not in r.tts_text and "maintaining to" not in r.tts_text
+        assert "wilco, will" not in r.tts_text and "wilco will" not in r.tts_text, r.tts_text
+        assert "reducing speed" not in r.tts_text and "increasing speed" not in r.tts_text
+
+
+_LIVE = None
+
+
+def composer_live():
+    global _LIVE
+    if _LIVE is None:
+        _LIVE = Composer(DATA)
+    return _LIVE
+
+
+def test_levels_always_name_altitude_or_flight_level():
+    rng = random.Random("levels")
+    for i in range(400):
+        el = random_element(rng, rng.choice(["altitude", "flight_level", "maintain_level"]))
+        text = composer_live().compose(plan_for(rng, [el])).tts_text
+        spoken = N.altitude_to_speech(int(el.value)) if not V._is_fl(el) else N.digits_to_speech(str(int(el.value)))
+        before = text[:text.index(spoken)].split()
+        assert before and before[-1] in ("altitude", "level"), text
+
+
+def test_climb_and_descend_say_to_but_maintain_does_not():
+    comp = composer_live()
+    texts = {comp.compose(ReadbackPlan(callsign="BAW117", persona="crisp_airline", kind="full", seed=s,
+                                       elements=[Instruction(type="altitude", value=4000, verb="descend")])).tts_text
+             for s in range(60)}
+    assert any("descend to altitude" in t or "descending to altitude" in t for t in texts)
+    held = {comp.compose(ReadbackPlan(callsign="BAW117", persona="crisp_airline", kind="full", seed=s,
+                                      elements=[Instruction(type="maintain_level", value=5000, verb="maintain")])).tts_text
+            for s in range(60)}
+    assert all(" to " not in t for t in held)
+
+
+def test_hectopascals_only_below_1000():
+    comp = composer_live()
+    for value, expect in ((998, True), (987, True), (1000, False), (1013, False)):
+        texts = {comp.compose(ReadbackPlan(callsign="BAW117", persona="crisp_airline", kind="full", seed=s,
+                                           elements=[Instruction(type="qnh", value=value)])).tts_text for s in range(40)}
+        assert all(("hectopascals" in t) == expect for t in texts), (value, texts)
+
+
+def test_expedite_says_what_is_expedited():
+    comp = composer_live()
+    for verb, noun in (("descend", "descent"), ("climb", "climb")):
+        texts = {comp.compose(ReadbackPlan(callsign="BAW117", persona="crisp_airline", kind="full", seed=s,
+                                           elements=[Instruction(type="expedite", verb=verb)])).tts_text for s in range(40)}
+        assert all(f"expedit" in t and noun in t for t in texts), texts
+
+
+def test_contact_without_frequency_is_never_used_when_a_frequency_was_given():
+    comp = composer_live()
+    for s in range(300):
+        r = comp.compose(ReadbackPlan(callsign="BAW117", persona=PERSONAS[s % 5], kind="full", seed=s,
+                                      elements=[Instruction(type="contact", unit="tower", frequency="124.225")]))
+        assert "con.5" not in r.variant_ids and "one two four decimal two two five" in r.tts_text
+
+
+def test_confirm_reply_states_the_level_without_cleared():
+    comp = composer_live()
+    alt = comp.compose(ReadbackPlan(callsign="BAW117", persona="crisp_airline", kind="report", seed=1,
+                                    report_values={"cleared_alt": 5000})).tts_text
+    fl = comp.compose(ReadbackPlan(callsign="BAW117", persona="crisp_airline", kind="report", seed=1,
+                                   report_values={"cleared_fl": 80})).tts_text
+    assert alt.startswith("altitude five thousand") and fl.startswith("flight level eight zero")
+    assert "cleared" not in alt + fl

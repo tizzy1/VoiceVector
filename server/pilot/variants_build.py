@@ -5,7 +5,7 @@ as literals) and the validator re-parses every composed readback. This module wr
 ``data/readback_variants.json``; ``Composer`` reads it (falling back to ``DEFAULT_BANK``).
 
 Slots (display form / speech form are produced by ``readback.slots_for``):
-  DIR HDG N | VERB ING ALT FL | SPD CON | RATE | RWY APP FIX UNIT FREQ SQ QNH QNHW WHAT | RW
+  DIR HDG N | VERB ING TO ALT FL | SPD CON | RATE | RWY APP FIX UNIT FREQ SQ QNH QNHW HPA WHAT | RW EXPN
 Template ``needs`` lists slots that must be non-empty for the template to be usable.
 """
 from __future__ import annotations
@@ -44,21 +44,20 @@ DEFAULT_BANK: dict[str, list[dict]] = {
         v("pre.3", "continuing present heading", "ing"),
     ],
     "altitude": [
-        v("alt.1", "{VERB} altitude {ALT}", "full", ("VERB",)),
-        v("alt.2", "{ING} altitude {ALT}", "ing", ("ING",)),
-        v("alt.3", "{VERB} {ALT}", "short", ("VERB",)),
-        v("alt.4", "{ALT}", "short"),
-        v("alt.5", "{ING} {ALT}", "ing", ("ING",)),
-        v("alt.6", "{ING} to altitude {ALT}", "ing", ("ING",)),
-        v("alt.7", "altitude {ALT}", "full"),
+        # Tudor: always "altitude"/"flight level" before the value, and "to" only before that word
+        # (never directly before a number, where it can be heard as "two"). {TO} is "" for maintain.
+        v("alt.1", "{VERB} {TO} altitude {ALT}", "full", ("VERB",)),
+        v("alt.2", "{ING} {TO} altitude {ALT}", "ing", ("ING",)),
+        v("alt.3", "{VERB} {TO} altitude {ALT} feet", "full", ("VERB",)),
+        v("alt.4", "altitude {ALT}", "short"),
+        v("alt.5", "{ING} {TO} altitude {ALT} feet", "ing", ("ING",)),
+        v("alt.7", "altitude {ALT} feet", "full"),
     ],
     "flight_level": [
-        v("fl.1", "{VERB} flight level {FL}", "full", ("VERB",)),
-        v("fl.2", "{ING} flight level {FL}", "ing", ("ING",)),
+        v("fl.1", "{VERB} {TO} flight level {FL}", "full", ("VERB",)),
+        v("fl.2", "{ING} {TO} flight level {FL}", "ing", ("ING",)),
         v("fl.3", "flight level {FL}", "short"),
-        v("fl.4", "{VERB} to flight level {FL}", "full", ("VERB",)),
-        v("fl.5", "{ING} to flight level {FL}", "ing", ("ING",)),
-        v("fl.6", "cleared flight level {FL}", "full"),
+        v("fl.5", "{ING} {TO} flight level {FL} now", "ing", ("ING",)),
     ],
     "vertical_rate": [
         v("vr.1", "{VERB} at {RATE} feet per minute {CON}", "full", ("VERB",)),
@@ -69,7 +68,6 @@ DEFAULT_BANK: dict[str, list[dict]] = {
         v("spd.1", "speed {SPD} {CON}", "full"),
         v("spd.2", "speed {SPD} knots {CON}", "full"),
         v("spd.3", "{SPD} knots {CON}", "short"),
-        v("spd.4", "reducing speed {SPD} {CON}", "ing"),
         v("spd.5", "maintain speed {SPD} {CON}", "full"),
         v("spd.6", "speed {SPD}", "short"),   # rejected by the validator when a constraint is present
     ],
@@ -83,9 +81,10 @@ DEFAULT_BANK: dict[str, list[dict]] = {
         v("smc.2", "reducing minimum clean speed", "ing"),
     ],
     "expedite": [
-        v("exp.1", "expediting", "ing"),
-        v("exp.2", "expedite", "short"),
-        v("exp.3", "will expedite", "full"),
+        v("exp.1", "expediting {EXPN}", "ing", ("EXPN",)),
+        v("exp.2", "expedite {EXPN}", "short", ("EXPN",)),
+        v("exp.3", "will expedite {EXPN}", "full", ("EXPN",)),
+        v("exp.4", "expediting", "ing"),          # only when the instruction itself did not say climb/descent
     ],
     "direct": [
         v("dir.1", "direct {FIX}", "full"),
@@ -122,7 +121,6 @@ DEFAULT_BANK: dict[str, list[dict]] = {
     "descend_glidepath": [
         v("gp.1", "descend on the glidepath", "full"),
         v("gp.2", "descending on the glidepath", "ing"),
-        v("gp.3", "descend on the I L S", "short"),
     ],
     "cancel_approach": [
         v("can.1", "cancelling approach clearance", "ing"),
@@ -147,7 +145,7 @@ DEFAULT_BANK: dict[str, list[dict]] = {
     ],
     "qnh": [
         v("qnh.1", "{QNHW} {QNH}", "full"),
-        v("qnh.2", "{QNHW} {QNH} hectopascals", "full"),
+        v("qnh.2", "{QNHW} {QNH} {HPA}", "full", ("HPA",)),
         v("qnh.3", "{QNH} {QNHW}", "short"),
     ],
     "expect": [
@@ -160,7 +158,6 @@ DEFAULT_BANK: dict[str, list[dict]] = {
     # controller asked "report established/speed/..." -> pilot acknowledges (RW = what to report)
     "report": [
         v("rpt.1", "will report {RW}", "full", ("RW",)),
-        v("rpt.2", "wilco, will report {RW}", "full", ("RW",)),
         v("rpt.3", "report {RW}", "short", ("RW",)),
         v("rpt.4", "wilco, report {RW}", "short", ("RW",)),
     ],
@@ -184,7 +181,7 @@ PERSONA_SUFFIX = {
     "student": ["", ", thank you"],
 }
 PARTIAL_LEADS = ["", "", "correction, ", "sorry about that, ", "my mistake, "]
-CONNECTORS = [", ", ", ", " and ", ", then "]
+CONNECTORS = [", ", ", ", " and "]          # never ", then ": ATC gave no order
 
 # Non-readback replies. {CALLSIGN} is always spoken by the template itself.
 REASON_PHRASES: dict[str, list[tuple[str, tuple[str, ...]]]] = {
@@ -194,8 +191,7 @@ REASON_PHRASES: dict[str, list[tuple[str, tuple[str, ...]]]] = {
     "UNABLE_SPEED_HIGH": [("unable to maintain more than {max_speed} knots", ("max_speed",)),
                           ("unable, maximum speed is {max_speed}", ("max_speed",)),
                           ("unable that speed, too fast", ())],
-    "UNABLE_CEILING": [("unable, our ceiling is {ceiling_ft}", ("ceiling_ft",)),
-                       ("unable, that is above our ceiling", ()), ("unable to climb that high", ())],
+    "UNABLE_CEILING": [("unable, that is above our ceiling", ()), ("unable to climb that high", ())],
     "UNABLE_RATE": [("unable more than {max_rate} feet per minute", ("max_rate",)),
                     ("unable that rate of descent", ()), ("unable to descend that fast", ())],
     "UNABLE_INTERCEPT_ANGLE": [("unable, the intercept angle is too large", ()),
@@ -204,7 +200,7 @@ REASON_PHRASES: dict[str, list[tuple[str, tuple[str, ...]]]] = {
     "UNABLE_TOO_HIGH_GS": [("unable, we are too high to capture the glideslope", ()),
                            ("unable, too high for the glideslope", ())],
     "UNABLE_NOT_MODELLED": [("unable", ()), ("unable that", ())],
-    "QUERY_LEVEL_BELOW_MIN": [("confirm altitude, our minimum is {min_alt}", ("min_alt",)),
+    "QUERY_LEVEL_BELOW_MIN": [("confirm altitude, minimum altitude is {min_alt}", ("min_alt",)),
                               ("confirm that altitude", ()), ("say again the altitude", ())],
     "QUERY_AMBIGUOUS": [("say again", ()), ("say again please", ())],
     "QUERY_UNKNOWN_FIX": [("say again the waypoint", ()), ("confirm the waypoint", ())],
@@ -239,7 +235,7 @@ def bank_to_json(bank: dict | None = None) -> str:
         "_meta": {
             "what": "Pilot readback template bank (owner: Sanju; Tudor reviews phraseology). "
                     "Numbers only via slots; every readback is re-parsed by validator.py.",
-            "slots": "DIR HDG N VERB ING ALT FL SPD CON RATE RWY APP FIX UNIT FREQ SQ QNH QNHW WHAT RW",
+            "slots": "DIR HDG N VERB ING TO ALT FL SPD CON RATE RWY APP FIX UNIT FREQ SQ QNH QNHW HPA WHAT RW EXPN",
         },
         "elements": bank or DEFAULT_BANK,
         "persona_style_weights": PERSONA_STYLE_WEIGHTS,
@@ -273,8 +269,10 @@ SLOT_MEANINGS = {
     "APP": "approach type, e.g. I L S", "FIX": "waypoint name", "UNIT": "tower / london control / director",
     "FREQ": "radio frequency", "SQ": "transponder code or 'ident'", "QNH": "pressure value",
     "QNHW": "the word QNH", "WHAT": "what to expect, e.g. I L S runway two six left", "RW": "what to report",
+    "TO": "'to' for climb/descend, empty for maintain; put it before 'altitude'/'flight level'",
+    "EXPN": "what is expedited: descent / climb", "HPA": "'hectopascals' when QNH < 1000, else empty",
 }
-OPTIONAL_SLOTS = {"DIR", "VERB", "ING", "FREQ", "UNIT", "RW"}
+OPTIONAL_SLOTS = {"DIR", "VERB", "ING", "FREQ", "UNIT", "RW", "EXPN", "HPA"}
 GEN_SYSTEM = """You write radio readback phrase templates for simulated airline pilots at London Gatwick.
 Each template is the phrase a pilot says to read back ONE instruction element. Variety is good, but every
 template must be correct, realistic CAP 413 / ICAO-style pilot phraseology (non-standard but realistic is fine,
@@ -282,7 +280,10 @@ incorrect is not). Never include the callsign. Never write a number, digit, or t
 numbers and directions come ONLY from {SLOTS}. Use only the slot names you are given, each at most once,
 and include every slot marked required. Reply with ONLY JSON:
 {"templates": [{"t": "template text", "style": "full" | "short" | "ing"}]}
-style: full = complete standard phrase, short = clipped, ing = present-participle ("turning ...")."""
+style: full = complete standard phrase, short = clipped, ing = present-participle ("turning ...").
+House rules: always say "altitude" before {ALT} and "flight level" before {FL}; put {TO} (not a literal
+"to") before "altitude"/"flight level" when {VERB}/{ING} is used; never "cleared" with a level; never
+"then"; never "wilco" together with "will …"; no reduce/increase for speed; expedite must say {EXPN}."""
 
 
 def sample_element(rng: random.Random, etype: str):
@@ -318,6 +319,38 @@ def sample_element(rng: random.Random, etype: str):
 
 _NUMBER_WORDS = {"zero", "one", "two", "three", "tree", "four", "five", "six", "seven", "eight", "nine", "niner",
                  "ten", "hundred", "thousand", "left", "right"}
+
+
+LEVEL_TYPES = ("altitude", "flight_level", "maintain_level")
+
+
+def phraseology_problem(etype: str, template: str) -> str | None:
+    """Tudor's phraseology rules (review of 14 Nov), as code. None = acceptable."""
+    low = template.lower()
+    words = re.findall(r"[a-z]+", re.sub(r"\{\w+\}", " ", low))
+    if "then" in words:
+        return "'then' implies an order ATC never gave"
+    if "{alt}" in low and not re.search(r"altitude \{alt\}", low):
+        return "altitude value without the word 'altitude'"
+    if "{fl}" in low and "flight level {fl}" not in low:
+        return "flight level value without 'flight level'"
+    if etype in LEVEL_TYPES and "cleared" in words:
+        return "'cleared' is only for take-off, landing, approach and routes"
+    if "wilco" in words and "will" in words:
+        return "'wilco' and 'will …' say the same thing twice"
+    if etype == "speed" and set(words) & {"reduce", "reducing", "increase", "increasing"}:
+        return "speed direction verb (the instruction's direction is not known)"
+    if "hectopascals" in words:
+        return "'hectopascals' only below 1000 (use {HPA})"
+    if etype == "descend_glidepath" and re.search(r"\bi l s\b|\bils\b", low):
+        return "say 'glidepath', not 'ILS'"
+    if etype == "expedite" and "{expn}" not in low and " ".join(low.split()) != "expediting":
+        return "expedite without saying what (climb/descent)"
+    if re.search(r"\bto \{(alt|fl|spd|hdg|qnh|n|rate|sq|freq)\}", low):
+        return "'to' directly before a number (heard as 'two')"
+    if re.search(r"\{(verb|ing)\}", low) and re.search(r"\bto (altitude|flight level)", low):
+        return "use {TO}, not a literal 'to' ('maintain to altitude' is wrong)"
+    return None
 
 
 def lint(template: str, allowed: set[str]) -> str | None:
@@ -449,7 +482,7 @@ async def generate_bank(count: int = 10, model: str | None = None, judge_model: 
             used = set(re.findall(r"\{(\w+)\}", text))
             template = {"id": f"gen.{etype}.{n + 1}", "t": text, "style": style,
                         "needs": sorted(used & OPTIONAL_SLOTS)}
-            reason = lint(text, allowed) or property_test(etype, template)
+            reason = lint(text, allowed) or phraseology_problem(etype, text) or property_test(etype, template)
             if reason:
                 report["rejected"].append({"type": etype, "t": text, "why": reason[:120]})
                 continue
@@ -472,6 +505,36 @@ async def generate_bank(count: int = 10, model: str | None = None, judge_model: 
     return {"bank": bank, "report": report}
 
 
+def refilter_generated(path: Path) -> dict:
+    """Re-check stored gen.* templates against the current rules; rewrite literal 'to' to {TO} where safe."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    kept, dropped = 0, 0
+    rejected = list(data.get("rejected_for_review", []))
+    bank = {k: [dict(t) for t in v] for k, v in DEFAULT_BANK.items()}
+    for etype, templates in data.get("elements", {}).items():
+        for t in templates:
+            if not t.get("id", "").startswith("gen."):
+                continue
+            text = t["t"]
+            if re.search(r"\{(VERB|ING)\}", text):
+                text = re.sub(r"\bto (altitude|flight level)", r"{TO} \1", text)
+            allowed = set(re.findall(r"\{(\w+)\}", " ".join(x["t"] for x in bank.get(etype, [])))) | {"TO", "EXPN", "HPA"}
+            used = set(re.findall(r"\{(\w+)\}", text))
+            template = {**t, "t": text, "needs": sorted(used & (OPTIONAL_SLOTS | {"EXPN", "HPA"}))}
+            reason = lint(text, allowed) or phraseology_problem(etype, text) or property_test(etype, template)
+            if reason:
+                rejected.append({"type": etype, "t": t["t"], "why": f"rules: {reason}"[:120]})
+                dropped += 1
+                continue
+            bank.setdefault(etype, []).append(template)
+            kept += 1
+    payload = json.loads(bank_to_json(bank))
+    payload["_meta"].update({k: v for k, v in data.get("_meta", {}).items() if k in ("generated", "review")})
+    payload["rejected_for_review"] = rejected
+    path.write_text(json.dumps(payload, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    return {"kept": kept, "dropped": dropped}
+
+
 def write_generated_bank(path: Path, count: int = 10) -> dict:
     result = asyncio.run(generate_bank(count))
     payload = json.loads(bank_to_json(result["bank"]))
@@ -487,7 +550,9 @@ def write_generated_bank(path: Path, count: int = 10) -> dict:
 if __name__ == "__main__":
     import sys
     target = Path(__file__).resolve().parents[2] / "data" / "readback_variants.json"
-    if "--generate" in sys.argv:
+    if "--refilter" in sys.argv:
+        print(refilter_generated(target))
+    elif "--generate" in sys.argv:
         from dotenv import load_dotenv
         load_dotenv(Path(__file__).resolve().parents[2] / ".env")
         logging.basicConfig(level=logging.INFO)

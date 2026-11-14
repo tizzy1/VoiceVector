@@ -44,6 +44,11 @@ def parse(text: str, callsigns: Optional[list[CallsignInfo]] = None,
         if hit:
             receiver, confidence = hit.info.icao, hit.ratio
             rest = tokens[:hit.start] + tokens[hit.end:]
+            for _ in range(2):          # the same callsign said again ("..., Lufthansa 4KA") is not content
+                again = resolve_callsign(rest, [hit.info])
+                if again is None or again.ratio < RESOLVED:
+                    break
+                rest = rest[:again.start] + rest[again.end:]
             if hit.ratio < RESOLVED:
                 ambiguities.append("callsign_low_conf")
 

@@ -41,7 +41,7 @@ Slots = dict[str, tuple[str, str]]
 _ALTITUDE_KEYS = {"alt", "ceiling_ft", "min_alt", "rate", "max_rate"}
 # slots whose value carries meaning: a template that drops one would change the readback
 _SIGNIFICANT = ("DIR", "HDG", "N", "ALT", "FL", "SPD", "CON", "RATE", "RWY", "APP", "FIX",
-                "UNIT", "FREQ", "SQ", "QNH", "WHAT", "RW")
+                "UNIT", "FREQ", "SQ", "QNH", "WHAT", "RW", "EXPN", "HPA")
 
 
 def _usable(template: dict, slots: dict) -> bool:
@@ -149,13 +149,17 @@ class Composer:
     def slots_for(self, el: Instruction) -> Slots:
         s: Slots = {k: _empty() for k in (
             "DIR", "HDG", "N", "VERB", "ING", "ALT", "FL", "SPD", "CON", "RATE", "RWY", "APP",
-            "FIX", "UNIT", "FREQ", "SQ", "QNH", "WHAT", "RW")}
+            "FIX", "UNIT", "FREQ", "SQ", "QNH", "WHAT", "RW", "EXPN", "HPA", "TO")}
         s["QNHW"] = ("QNH", "Q N H")
         if el.turn_dir:
             word = "left" if el.turn_dir == "L" else "right"
             s["DIR"] = (word, word)
         if el.verb in _VERBS:
             s["VERB"], s["ING"] = ((_VERBS[el.verb][0],) * 2, (_VERBS[el.verb][1],) * 2)
+            if el.verb in ("climb", "descend"):
+                s["TO"] = ("to", "to")                  # "descend to altitude"; "maintain altitude"
+        if el.type == "expedite" and el.verb in ("climb", "descend"):
+            s["EXPN"] = ("climb",) * 2 if el.verb == "climb" else ("descent",) * 2
         value = el.value
         if el.type == "heading" and value is not None:
             s["HDG"] = (f"{int(value) % 360 or 360:03d}", N.heading_to_speech(value))
@@ -178,6 +182,8 @@ class Composer:
             s["SQ"] = (code, "ident" if code == "ident" else N.squawk_to_speech(code))
         elif el.type == "qnh" and value is not None:
             s["QNH"] = (str(int(value)), N.qnh_to_speech(int(value)))
+            if int(value) < 1000:                       # below 1000 the unit is said, to avoid inHg confusion
+                s["HPA"] = ("hectopascals", "hectopascals")
         if el.runway:
             s["RWY"] = (el.runway, N.runway_to_speech(el.runway))
         if el.approach_type:
@@ -343,10 +349,10 @@ class Composer:
                 parts.append("flight level {FLV}")
             elif isinstance(rv.get("alt"), (int, float)):
                 slots["ALTV"] = (str(int(rv["alt"])), N.altitude_to_speech(int(rv["alt"])))
-                parts.append("passing {ALTV}" if rv.get("passing") else "altitude {ALTV}")
+                parts.append("passing altitude {ALTV}" if rv.get("passing") else "altitude {ALTV}")
                 if rv.get("passing") and isinstance(rv.get("cleared_alt"), (int, float)):
                     slots["CLRV"] = (str(int(rv["cleared_alt"])), N.altitude_to_speech(int(rv["cleared_alt"])))
-                    parts.append("climbing {CLRV}")
+                    parts.append("climbing to altitude {CLRV}")
             if rv.get("star") or rv.get("route"):
                 star = str(rv.get("star") or rv.get("route")).upper()
                 m = re.fullmatch(r"([A-Z]+)(\d)([A-Z]?)", star)
@@ -370,13 +376,14 @@ class Composer:
             if isinstance(rv.get("speed"), (int, float)):
                 slots["SPDV"] = (str(int(rv["speed"])), N.speed_to_speech(int(rv["speed"])))
                 parts.append("speed {SPDV}")
-            for key, phrase in (("cleared_alt", "cleared altitude"), ("cleared_ft", "cleared altitude"),
+            # "cleared" is for take-off, landing, approach and routes only (Tudor): state the level itself
+            for key, phrase in (("cleared_alt", "altitude"), ("cleared_ft", "altitude"),
                                 ("passing_ft", "passing altitude"), ("level_ft", "altitude")):
                 if isinstance(rv.get(key), (int, float)):
                     slots["ALTV"] = (str(int(rv[key])), N.altitude_to_speech(int(rv[key])))
                     parts.append(phrase + " {ALTV}")
                     break
-            for key, phrase in (("cleared_fl", "cleared flight level"), ("passing_fl", "passing flight level"),
+            for key, phrase in (("cleared_fl", "flight level"), ("passing_fl", "passing flight level"),
                                 ("level_fl", "flight level")):
                 if isinstance(rv.get(key), (int, float)):
                     slots["FLV"] = (str(int(rv[key])), N.digits_to_speech(str(int(rv[key]))))

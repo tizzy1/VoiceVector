@@ -207,8 +207,8 @@ def test_departure_checkin_is_spoken_as_passing_and_climbing():
                           callsign="WZZ8BF")
     readback = composer.compose(resp.plan)
     assert readback.validated and not readback.fallback_used
-    assert readback.tts_text == ("Gatwick Director, wizz air eight bravo foxtrot, passing two thousand, "
-                                 "climbing six thousand, novma one xray")
+    assert readback.tts_text == ("Gatwick Director, wizz air eight bravo foxtrot, passing altitude two thousand, "
+                                 "climbing to altitude six thousand, novma one xray")
 
 
 def pilot_response(kind, data, callsign="BAW117"):
