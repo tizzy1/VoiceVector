@@ -54,3 +54,13 @@ class AircraftState(BaseModel):
     in_jurisdiction: bool = True
     emergency: bool = False
     transmitting: bool = False
+    # internal guidance state (not part of the spec's public model)
+    auto_ias: Optional[float] = None            # speed the aircraft manages itself (hold, final)
+    gp_alt: Optional[float] = None              # glidepath altitude target while vert_mode == GS
+    expedite: bool = False
+    hold: Optional[dict[str, Any]] = None       # {"fix", "inbound", "leg", "t", "prev_d"}
+    hold_fix: Optional[str] = None              # instructed to hold at this fix on arrival
+    report_established: bool = False
+    nfc_called: bool = False                    # "no further clearance" already transmitted
+    spawn_t: float = 0.0
+    landed_t: Optional[float] = None

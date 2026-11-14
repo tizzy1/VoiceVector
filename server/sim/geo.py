@@ -49,3 +49,21 @@ def bearing(x0: float, y0: float, x1: float, y1: float) -> float:
 
 def dist(x0: float, y0: float, x1: float, y1: float) -> float:
     return math.hypot(x1 - x0, y1 - y0)
+
+
+def wind_vector(dir_from: float, kt: float) -> tuple[float, float]:
+    """Air-mass velocity (east, north) in kt for a wind FROM `dir_from`."""
+    r = math.radians(dir_from)
+    return -kt * math.sin(r), -kt * math.cos(r)
+
+
+def heading_for_track(track: float, tas: float, wind: tuple[float, float]) -> float:
+    """Heading to fly so the ground track equals `track` (wind correction angle applied)."""
+    r = math.radians(track)
+    cross = wind[0] * math.cos(r) - wind[1] * math.sin(r)     # wind component to the right
+    ratio = max(-0.5, min(0.5, cross / max(tas, 1.0)))
+    return norm_hdg(track - math.degrees(math.asin(ratio)))
+
+
+def turn_radius_nm(tas: float, bank_deg: float) -> float:
+    return tas * tas / (11.26 * math.tan(math.radians(bank_deg))) / 6076.12

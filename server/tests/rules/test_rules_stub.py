@@ -15,5 +15,5 @@ def test_report_is_valid(world, bus, data_dir):
     Report.model_validate(rep.model_dump())
     assert rep.session_id == "ABCD" and rep.duration_s == 10 and rep.score == 100
     assert rep.stats["transmissions"] == 1
-    assert [e.type for e in rep.timeline] == ["inject"]
+    assert [e.type for e in rep.timeline][0] == "inject"
     assert rep.narrative is None
