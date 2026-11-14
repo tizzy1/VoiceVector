@@ -282,7 +282,11 @@ async def test_voices_and_settings_are_deterministic_per_callsign():
     await pipe.speak(heading_response("BAW117", persona="crisp_airline"))
     requests = pipe.tts.requests
     assert requests[0][1] == requests[2][1] and requests[0][1] != requests[1][1]
-    assert requests[1][2]["speed"] > requests[0][2]["speed"]
+    # Voices are pace-calibrated: a naturally fast voice gets a LOWER speed setting, so compare the
+    # resulting pace (speed x the voice's natural words/s), which is what the listener hears.
+    natural = {v.id: v.natural_wps or 3.0 for v in pipe.voices.pool}
+    pace = [r[2]["speed"] * natural[r[1]] for r in requests]
+    assert pace[1] > pace[0], "the rushed pilot speaks faster than the crisp one"
 
 
 @pytest.mark.asyncio
