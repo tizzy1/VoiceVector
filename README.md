@@ -65,7 +65,14 @@ radio pipeline. Departures are generated and managed by the simulator.
 Use Show/Hide traffic panels to slide the sidebar from the right. Close panels
 or Escape returns focus to the toggle; reduced-motion preferences disable the
 transition.
-Lists preserve server order, omit landed/handed-off flights and show current
+Flight lists default to session order, with a case-insensitive callsign filter
+and callsign/observed-altitude sorting in either direction. Sorting stays within
+arrival and departure phase groups; it does not alter simulator sequencing.
+Filtered counts show matching/total flights. Filtering affects lists only, and
+the selected aircraft remains selected on the radar and in its details. Selecting
+a new radar track clears an excluding filter and reveals the matching row;
+Show selected restores a selection hidden by a manually entered filter.
+Lists omit landed/handed-off flights and show current
 level, cleared level, ground speed, aircraft type, wake category and route.
 Tags show current and cleared level, ground speed, type and assigned targets.
 Altitude 6,000 ft and below uses A-prefix labels; higher levels use FL.

@@ -12,3 +12,12 @@
 .traffic-panel dd { margin: 3px 0 0; font: 12px ui-monospace, monospace; overflow-wrap: anywhere; }
 .traffic-panel .flight-strip-status { display: block; color: #a7bbc3; font-size: 10px; line-height: 1.5; }
 .traffic-panel .flight-strip-status strong { color: #f2b544; }
+.traffic-list-controls { display: grid; gap: 7px; padding-top: 14px; }
+.traffic-list-controls label { color: #a7bbc3; font-size: 10px; }
+.traffic-search { display: flex; gap: 6px; min-width: 0; }
+.traffic-list-controls input, .traffic-list-controls select { width: 100%; padding: 7px; border: 1px solid #3c515a; border-radius: 3px; background: #0e1417; color: #e8eef0; font: 11px Inter, sans-serif; }
+.traffic-list-controls button { padding: 6px 9px; border: 1px solid #3c515a; background: #171c20; color: #a7bbc3; font-size: 10px; }
+.traffic-list-controls button:disabled { opacity: .5; }
+.traffic-list-controls .traffic-filter-note, .traffic-filter-selection p { margin: 0; color: #7c8b90; font-size: 10px; line-height: 1.5; }
+.traffic-filter-selection { display: grid; gap: 6px; }
+.traffic-filter-selection button { justify-self: start; }

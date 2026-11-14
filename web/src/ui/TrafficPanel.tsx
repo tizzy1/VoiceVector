@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { AircraftPublic, StateMsg } from "../protocol";
 import { levelLabel } from "../radar/geometry";
-import { groupTraffic } from "./trafficGroups";
+import { groupTraffic, matchesCallsign, type TrafficSort } from "./trafficGroups";
 import "./traffic.css";
 
 interface Props {
@@ -36,9 +36,21 @@ function FlightStrip({ aircraft: ac, selected, onSelect }: {
 
 export function TrafficPanel({ state, selected, onSelect }: Props) {
   const panel = useRef<HTMLElement>(null);
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<TrafficSort>("session");
+  const filterId = useId();
+  const sortId = useId();
+  const scrollSelection = useRef(false);
+  // A newly selected radar track must be visible even if the old search excludes it.
   useEffect(() => {
+    scrollSelection.current = Boolean(selected);
+    if (selected) setQuery(current => matchesCallsign(selected, current) ? current : "");
+  }, [selected]);
+  useEffect(() => {
+    if (!scrollSelection.current) return;
     const row = panel.current?.querySelector<HTMLElement>('[aria-pressed="true"]');
     if (!row) return;
+    scrollSelection.current = false;
     const containers = [row.closest("ul"), row.closest(".sidebar-content")];
     for (const container of containers) {
       if (!(container instanceof HTMLElement)) continue;
@@ -50,21 +62,55 @@ export function TrafficPanel({ state, selected, onSelect }: Props) {
       if (target.top < top) container.scrollTop += target.top - top;
       else if (target.bottom > bounds.bottom) container.scrollTop += target.bottom - bounds.bottom;
     }
-  }, [selected]);
-  const groups = groupTraffic(state?.aircraft ?? []);
+  }, [selected, query, sort, state]);
+  const allGroups = groupTraffic(state?.aircraft ?? []);
+  const groups = groupTraffic(state?.aircraft ?? [], query, sort);
+  const filtering = Boolean(query.trim());
+  const selectedHidden = filtering && selected && !matchesCallsign(selected, query);
   const departureCount = groups.queued.length + groups.departing.length + groups.airborne.length;
+  const totalDepartures = allGroups.queued.length + allGroups.departing.length + allGroups.airborne.length;
   const strips = (aircraft: AircraftPublic[]) => aircraft.map(ac => (
     <li key={ac.callsign}><FlightStrip aircraft={ac} selected={selected} onSelect={onSelect} /></li>
   ));
   return <section ref={panel} className="traffic-panel" aria-label="Traffic lists">
-    <h2>Arrivals <span>{groups.arrivals.length}</span></h2>
+    <div className="traffic-list-controls">
+      <label htmlFor={filterId}>Filter callsign</label>
+      <div className="traffic-search">
+        <input id={filterId} type="search" value={query} placeholder="e.g. BAW"
+          maxLength={32} autoComplete="off" spellCheck={false}
+          onChange={event => setQuery(event.target.value)} />
+        <button type="button" disabled={!query} onClick={() => setQuery("")}>Clear</button>
+      </div>
+      <label htmlFor={sortId}>Sort flights</label>
+      <select id={sortId} value={sort} onChange={event => {
+        scrollSelection.current = Boolean(selected);
+        setSort(event.target.value as TrafficSort);
+      }}>
+        <option value="session">Session order</option>
+        <option value="callsign-asc">Callsign A–Z</option>
+        <option value="callsign-desc">Callsign Z–A</option>
+        <option value="altitude-asc">Altitude low–high</option>
+        <option value="altitude-desc">Altitude high–low</option>
+      </select>
+      <p className="traffic-filter-note">Lists only · radar traffic stays visible</p>
+      {selectedHidden && <div className="traffic-filter-selection">
+        <p>Selected {selected} is hidden by this filter.</p>
+        <button type="button" onClick={() => {
+          scrollSelection.current = true;
+          setQuery("");
+        }}>Show selected</button>
+      </div>}
+    </div>
+    <h2>Arrivals <span>{groups.arrivals.length}{filtering ? ` / ${allGroups.arrivals.length}` : ""}</span></h2>
     {!state ? <p className="muted">Waiting for aircraft state.</p>
-      : groups.arrivals.length === 0 ? <p className="muted">No active arrivals.</p>
+      : groups.arrivals.length === 0 ? <p className="muted">{filtering && allGroups.arrivals.length
+        ? "No arrivals match this callsign." : "No active arrivals."}</p>
       : <ul aria-label="Arrivals">{strips(groups.arrivals)}</ul>}
-    <h2>Departures <span>{departureCount}</span></h2>
+    <h2>Departures <span>{departureCount}{filtering ? ` / ${totalDepartures}` : ""}</span></h2>
     {!state ? <p className="muted">Waiting for aircraft state.</p>
       : departureCount === 0
-        ? <p className="muted">No departures in this session.</p>
+        ? <p className="muted">{filtering && totalDepartures
+          ? "No departures match this callsign." : "No departures in this session."}</p>
         : <>
           <h3>Queued · {groups.queued.length}</h3>
           {groups.queued.length > 0
