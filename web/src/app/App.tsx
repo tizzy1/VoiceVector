@@ -102,7 +102,6 @@ export function App() {
               <p>The scope will display live aircraft when the simulator is available.</p>
             </div>
           )}
-          <div className="scope-label">GATWICK · 5 NM RANGE RINGS</div>
         </section>
         <aside>
           <h2>Integration status</h2>

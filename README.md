@@ -29,6 +29,12 @@ use a shared hotspot or open /viz on an extended display.
 
 The foundation view serves the Gatwick map, session and connection status,
 caption feed and typed input. /viz currently shows the same 2D foundation.
+Drag the scope to pan, scroll to zoom around the cursor, or choose a
+10/20/40/80 NM range. Map layers can be toggled individually. Click a track or
+choose its callsign to select it; double-click a track or use Centre selected
+to centre it. With the scope focused, arrows pan, +/- zoom and C resets the view.
+Tags show current and cleared level, ground speed, type and assigned targets.
+Altitude 6,000 ft and below uses A-prefix labels; higher levels use FL.
 3D, browser audio integration, camera controls and the report UI are subsequent
 tasks. /report currently serves the foundation application.
 
@@ -58,6 +64,12 @@ Vite proxies /api and /ws to port 8000.
 python -m pytest server/tests/integration
 python server/tests/integration/smoke_test.py
 cd web && npm run build
+```
+
+Radar coordinate and formatting regression checks use the existing TypeScript dependency:
+
+```sh
+node --test web/tests/radar-geometry.test.mjs
 ```
 
 The default smoke test starts an actual TCP server and connects two WebSocket

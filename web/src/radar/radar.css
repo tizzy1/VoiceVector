@@ -1,0 +1,13 @@
+.radar { display: flex; flex-direction: column; height: 100%; min-height: 460px; }
+.radar-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #2b3a40; }
+.radar-toolbar label { display: flex; align-items: center; gap: 8px; }
+.radar-toolbar button, .radar-toolbar select { background: #171c20; color: #e8eef0; border: 1px solid #3c515a; padding: 6px 8px; border-radius: 3px; font-size: 12px; }
+.radar-toolbar button:disabled { color: #7c8b90; }
+.radar-toolbar details { position: relative; font-size: 12px; }
+.radar-toolbar summary { cursor: pointer; padding: 7px; }
+.radar-layers { position: absolute; z-index: 2; top: 100%; right: 0; width: 190px; padding: 12px; background: #171c20; border: 1px solid #3c515a; display: grid; gap: 10px; }
+.radar-layers input { flex: none; width: 16px; margin: 0; accent-color: #4fd1e8; }
+.radar-viewport { position: relative; flex: 1; min-height: 360px; overflow: hidden; touch-action: none; cursor: crosshair; }
+.radar-viewport canvas { inset: 0; }
+.radar-help { position: absolute; pointer-events: none; left: 12px; bottom: 10px; color: #7c8b90; background: #0e1417; font: 10px ui-monospace, monospace; padding: 3px; }
+.radar-selection { padding: 10px 14px; min-height: 38px; border-top: 1px solid #2b3a40; color: #4fd1e8; font-size: 12px; }
