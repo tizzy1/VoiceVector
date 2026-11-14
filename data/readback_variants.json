@@ -1,7 +1,7 @@
 {
  "_meta": {
   "what": "Pilot readback template bank (owner: Sanju; Tudor reviews phraseology). Numbers only via slots; every readback is re-parsed by validator.py.",
-  "slots": "DIR HDG N VERB ING ALT FL SPD CON RATE RWY APP FIX UNIT FREQ SQ QNH QNHW WHAT"
+  "slots": "DIR HDG N VERB ING ALT FL SPD CON RATE RWY APP FIX UNIT FREQ SQ QNH QNHW WHAT RW"
  },
  "elements": {
   "heading": [
@@ -650,6 +650,40 @@
     "t": "looking",
     "style": "short",
     "needs": []
+   }
+  ],
+  "report": [
+   {
+    "id": "rpt.1",
+    "t": "will report {RW}",
+    "style": "full",
+    "needs": [
+     "RW"
+    ]
+   },
+   {
+    "id": "rpt.2",
+    "t": "wilco, will report {RW}",
+    "style": "full",
+    "needs": [
+     "RW"
+    ]
+   },
+   {
+    "id": "rpt.3",
+    "t": "report {RW}",
+    "style": "short",
+    "needs": [
+     "RW"
+    ]
+   },
+   {
+    "id": "rpt.4",
+    "t": "wilco, report {RW}",
+    "style": "short",
+    "needs": [
+     "RW"
+    ]
    }
   ]
  },

@@ -58,6 +58,8 @@ def random_element(rng: random.Random, etype: str) -> Instruction:
         return Instruction(type="qnh", value=rng.randint(980, 1040))
     if etype == "expect":
         return Instruction(type="expect", expect_what=rng.choice(["ILS 26L", "ILS 08R", "FL70", "FL90", "vectors"]))
+    if etype == "report":
+        return Instruction(type="report", report_what=rng.choice(["established", "heading", "speed", "level"]))
     return Instruction(type=etype)
 
 

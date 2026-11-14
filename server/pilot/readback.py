@@ -5,9 +5,10 @@ numbers only enter the text through slots, and ``validator.validate`` re-parses 
 before it is accepted. On repeated failure the canonical template is used (``fallback_used``).
 
 ``report_values`` keys understood (reply kinds):
-  checkin   level_fl, star ("WILLO1G"), atis ("K")
-  report    heading, speed, level_ft, level_fl, cleared_ft, cleared_fl, passing_ft, passing_fl,
-            established (bool)
+  checkin   level_fl or alt (ft), route/star ("WILLO1G"), atis ("K")   [as emitted by World]
+  report    heading, speed, cleared_alt (ft), cleared_fl, level_ft, level_fl, passing_ft,
+            passing_fl, established (bool)   [cleared_alt/cleared_fl/heading/speed/established are
+            what PilotEngine emits]
   request   request (numeric-free text, e.g. "direct" / "descent")
   mayday/pan  nature (numeric-free text)
   established  runway ("26L")
@@ -36,9 +37,11 @@ _ELEMENT_KINDS = ("full", "partial_correction")
 _VERBS = {"climb": ("climb", "climbing"), "descend": ("descend", "descending"),
           "maintain": ("maintain", "maintaining")}
 Slots = dict[str, tuple[str, str]]
+# reason-value keys spoken as altitudes/rates ("four thousand"); every other number is digit by digit
+_ALTITUDE_KEYS = {"alt", "ceiling_ft", "min_alt", "rate", "max_rate"}
 # slots whose value carries meaning: a template that drops one would change the readback
 _SIGNIFICANT = ("DIR", "HDG", "N", "ALT", "FL", "SPD", "CON", "RATE", "RWY", "APP", "FIX",
-                "UNIT", "FREQ", "SQ", "QNH", "WHAT")
+                "UNIT", "FREQ", "SQ", "QNH", "WHAT", "RW")
 
 
 def _usable(template: dict, slots: dict) -> bool:
@@ -144,7 +147,7 @@ class Composer:
     def slots_for(self, el: Instruction) -> Slots:
         s: Slots = {k: _empty() for k in (
             "DIR", "HDG", "N", "VERB", "ING", "ALT", "FL", "SPD", "CON", "RATE", "RWY", "APP",
-            "FIX", "UNIT", "FREQ", "SQ", "QNH", "WHAT")}
+            "FIX", "UNIT", "FREQ", "SQ", "QNH", "WHAT", "RW")}
         s["QNHW"] = ("QNH", "Q N H")
         if el.turn_dir:
             word = "left" if el.turn_dir == "L" else "right"
@@ -186,6 +189,8 @@ class Composer:
             s["UNIT"] = (el.unit, {"london": "london control"}.get(el.unit, el.unit))
         if el.frequency:
             s["FREQ"] = (el.frequency, N.frequency_to_speech(el.frequency))
+        if el.type in ("report", "confirm") and el.report_what:
+            s["RW"] = (el.report_what, {"level": "level"}.get(el.report_what, el.report_what))
         if el.type == "expect" and el.expect_what:
             what = el.expect_what
             if what.upper().startswith("ILS") and el.expect_what[3:].strip():
@@ -293,13 +298,16 @@ class Composer:
         options = REASON_PHRASES.get(plan.reason_code or "", [("say again", ())])
         usable = []
         for tpl, needs in options:
-            if all(isinstance(plan.reason_values.get(n), (int, float)) for n in needs):
+            if all(isinstance(plan.reason_values.get(n), (int, float)) and plan.reason_values.get(n)
+                   for n in needs):
                 usable.append(tpl)
         if not usable:
             return None
         for key, val in plan.reason_values.items():
-            if isinstance(val, (int, float)):
-                slots[key] = (str(int(val)), N.digits_to_speech(str(int(val))))
+            if isinstance(val, (int, float)) and not isinstance(val, bool):
+                speech = (N.altitude_to_speech(int(val)) if key in _ALTITUDE_KEYS
+                          else N.digits_to_speech(str(int(val))))
+                slots[key] = (str(int(val)), speech)
         return usable[0] if canonical else rng.choice(usable)
 
     @staticmethod
@@ -323,8 +331,11 @@ class Composer:
             if isinstance(rv.get("level_fl"), (int, float)):
                 slots["FLV"] = (str(int(rv["level_fl"])), N.digits_to_speech(str(int(rv["level_fl"]))))
                 parts.append("flight level {FLV}")
-            if rv.get("star"):
-                star = str(rv["star"]).upper()
+            elif isinstance(rv.get("alt"), (int, float)):
+                slots["ALTV"] = (str(int(rv["alt"])), N.altitude_to_speech(int(rv["alt"])))
+                parts.append("altitude {ALTV}")
+            if rv.get("star") or rv.get("route"):
+                star = str(rv.get("star") or rv.get("route")).upper()
                 m = re.fullmatch(r"([A-Z]+)(\d)([A-Z]?)", star)
                 if m:
                     word = m.group(1).lower()
@@ -346,8 +357,8 @@ class Composer:
             if isinstance(rv.get("speed"), (int, float)):
                 slots["SPDV"] = (str(int(rv["speed"])), N.speed_to_speech(int(rv["speed"])))
                 parts.append("speed {SPDV}")
-            for key, phrase in (("cleared_ft", "cleared altitude"), ("passing_ft", "passing altitude"),
-                                ("level_ft", "altitude")):
+            for key, phrase in (("cleared_alt", "cleared altitude"), ("cleared_ft", "cleared altitude"),
+                                ("passing_ft", "passing altitude"), ("level_ft", "altitude")):
                 if isinstance(rv.get(key), (int, float)):
                     slots["ALTV"] = (str(int(rv[key])), N.altitude_to_speech(int(rv[key])))
                     parts.append(phrase + " {ALTV}")
@@ -358,8 +369,10 @@ class Composer:
                     slots["FLV"] = (str(int(rv[key])), N.digits_to_speech(str(int(rv[key]))))
                     parts.append(phrase + " {FLV}")
                     break
-            if rv.get("established"):
+            if rv.get("established") is True:
                 parts.append("established")
+            elif rv.get("established") is False:
+                parts.append("not yet established")
             if not parts:
                 return None
             template = ", ".join(parts) + ", {CALLSIGN}"
@@ -373,12 +386,16 @@ class Composer:
             if kind == "request":
                 req = self._safe_text(rv.get("request"), "vectors")
                 slots["REQUEST"] = (req, req.lower())
+            if rv.get("fix"):
+                slots["FIXV"] = (str(rv["fix"]), str(rv["fix"]).lower())
             if kind == "established":
                 rwy = (rv.get("runway") or next((e.runway for e in plan.elements if e.runway), None))
                 if rwy:
                     slots["RWYPHRASE"] = (f"runway {rwy}", f"runway {N.runway_to_speech(str(rwy))}")
                 else:
                     options = [o for o in options if "RWYPHRASE" not in o]
+            options = [o for o in options if all(slots.get(n, ("", ""))[1] or n == "CALLSIGN"
+                                                 for n in _SLOT.findall(o))]
             if not options:
                 return None
             idx = 0 if canonical else rng.randrange(len(options))
@@ -407,7 +424,10 @@ class Composer:
             last = self.last_readback.get(plan.callsign)
             if last is not None:
                 return last.model_copy(update={"variant_ids": ["repeat_last"]})
-            plan = ReadbackPlan.model_construct(**{**plan.__dict__, "kind": "standby"})  # internal kind
+            if plan.elements:
+                plan = plan.model_copy(update={"kind": "full"})
+            else:
+                plan = ReadbackPlan.model_construct(**{**plan.__dict__, "kind": "standby"})  # internal kind
         rng = random.Random(f"{plan.seed}|{plan.callsign}|{plan.kind}|{len(plan.elements)}|{plan.persona}")
         for _ in range(6):
             b = self._candidate(plan, rng, canonical=False)

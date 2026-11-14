@@ -5,7 +5,7 @@ as literals) and the validator re-parses every composed readback. This module wr
 ``data/readback_variants.json``; ``Composer`` reads it (falling back to ``DEFAULT_BANK``).
 
 Slots (display form / speech form are produced by ``readback.slots_for``):
-  DIR HDG N | VERB ING ALT FL | SPD CON | RATE | RWY APP FIX UNIT FREQ SQ QNH QNHW WHAT
+  DIR HDG N | VERB ING ALT FL | SPD CON | RATE | RWY APP FIX UNIT FREQ SQ QNH QNHW WHAT | RW
 Template ``needs`` lists slots that must be non-empty for the template to be usable.
 """
 from __future__ import annotations
@@ -157,6 +157,13 @@ DEFAULT_BANK: dict[str, list[dict]] = {
     "cleared_to_land": [v("ctl.1", "cleared to land runway {RWY}", "full")],
     "cleared_takeoff": [v("cto.1", "cleared for takeoff runway {RWY}", "full")],
     "traffic_info": [v("trf.1", "looking for the traffic", "full"), v("trf.2", "looking", "short")],
+    # controller asked "report established/speed/..." -> pilot acknowledges (RW = what to report)
+    "report": [
+        v("rpt.1", "will report {RW}", "full", ("RW",)),
+        v("rpt.2", "wilco, will report {RW}", "full", ("RW",)),
+        v("rpt.3", "report {RW}", "short", ("RW",)),
+        v("rpt.4", "wilco, report {RW}", "short", ("RW",)),
+    ],
 }
 PERSONA_STYLE_WEIGHTS = {
     "crisp_airline": {"full": 3, "short": 1, "ing": 1},
@@ -187,14 +194,17 @@ REASON_PHRASES: dict[str, list[tuple[str, tuple[str, ...]]]] = {
     "UNABLE_SPEED_HIGH": [("unable to maintain more than {max_speed} knots", ("max_speed",)),
                           ("unable, maximum speed is {max_speed}", ("max_speed",)),
                           ("unable that speed, too fast", ())],
-    "UNABLE_CEILING": [("unable, that is above our ceiling", ()), ("unable to climb that high", ())],
-    "UNABLE_RATE": [("unable that rate of descent", ()), ("unable to descend that fast", ())],
+    "UNABLE_CEILING": [("unable, our ceiling is {ceiling_ft}", ("ceiling_ft",)),
+                       ("unable, that is above our ceiling", ()), ("unable to climb that high", ())],
+    "UNABLE_RATE": [("unable more than {max_rate} feet per minute", ("max_rate",)),
+                    ("unable that rate of descent", ()), ("unable to descend that fast", ())],
     "UNABLE_INTERCEPT_ANGLE": [("unable, the intercept angle is too large", ()),
                                ("unable to intercept from this heading", ())],
     "UNABLE_TOO_HIGH_GS": [("unable, we are too high to capture the glideslope", ()),
                            ("unable, too high for the glideslope", ())],
     "UNABLE_NOT_MODELLED": [("unable", ()), ("unable that", ())],
-    "QUERY_LEVEL_BELOW_MIN": [("confirm that altitude", ()), ("say again the altitude", ())],
+    "QUERY_LEVEL_BELOW_MIN": [("confirm altitude, our minimum is {min_alt}", ("min_alt",)),
+                              ("confirm that altitude", ()), ("say again the altitude", ())],
     "QUERY_AMBIGUOUS": [("say again", ()), ("say again please", ())],
     "QUERY_UNKNOWN_FIX": [("say again the waypoint", ()), ("confirm the waypoint", ())],
     "QUERY_UNKNOWN_RUNWAY": [("confirm the runway", ()), ("say again the runway", ())],
@@ -209,6 +219,7 @@ REPLIES: dict[str, list[str]] = {
                           "Gatwick Director, station calling, say again your callsign"],
     "looking": ["looking, {CALLSIGN}", "{CALLSIGN}, looking", "looking for the traffic, {CALLSIGN}"],
     "no_further_clearance": ["{CALLSIGN}, no further clearance", "{CALLSIGN}, any further instructions",
+                             "{CALLSIGN}, approaching {FIXV}, no further clearance",
                              "Gatwick Director, {CALLSIGN}, we have no further clearance"],
     "established": ["{CALLSIGN}, established", "{CALLSIGN}, established on the localiser",
                     "established localiser {RWYPHRASE}, {CALLSIGN}"],
@@ -227,7 +238,7 @@ def bank_to_json(bank: dict | None = None) -> str:
         "_meta": {
             "what": "Pilot readback template bank (owner: Sanju; Tudor reviews phraseology). "
                     "Numbers only via slots; every readback is re-parsed by validator.py.",
-            "slots": "DIR HDG N VERB ING ALT FL SPD CON RATE RWY APP FIX UNIT FREQ SQ QNH QNHW WHAT",
+            "slots": "DIR HDG N VERB ING ALT FL SPD CON RATE RWY APP FIX UNIT FREQ SQ QNH QNHW WHAT RW",
         },
         "elements": bank or DEFAULT_BANK,
         "persona_style_weights": PERSONA_STYLE_WEIGHTS,
