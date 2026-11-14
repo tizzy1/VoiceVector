@@ -113,8 +113,31 @@ def _fix_homophones(tokens: list[str]) -> list[str]:
     return out
 
 
+_GLUED_KEYWORDS = re.compile(r"(qnh|ils|dme)")
+_RUNWAY = re.compile(r"^\d{2}[lrc]$")
+
+
+def _split_glued(tokens: list[str]) -> list[str]:
+    """STT sometimes glues a whole transmission: "ez45abqnh1013" -> ez 45 ab qnh 1013.
+
+    Splits embedded keywords and letter/digit boundaries, but keeps runway tokens ("26l") and
+    decimals ("124.225"). Callsign matching joins tokens anyway, so "45ab" -> "45 ab" is harmless.
+    """
+    out: list[str] = []
+    for t in tokens:
+        glued = any(c.isdigit() for c in t) and not _RUNWAY.match(t) and not NUM_RE.match(t)
+        if not glued:                     # plain words ("fails", "details") are never split
+            out.append(t)
+            continue
+        pieces = [p for p in _GLUED_KEYWORDS.split(t) if p]
+        for piece in pieces:
+            out.extend(p for p in re.findall(r"\d+(?:\.\d+)?|[a-z]+", piece) if p)
+    return out
+
+
 def normalise_tokens(text: str) -> list[str]:
     tokens = tokenize(text)
+    tokens = _split_glued(tokens)
     tokens = _join_letters(tokens)
     tokens = [_WORD_FIXES.get(t, t) for t in tokens]
     tokens = _collapse_phrases(tokens)

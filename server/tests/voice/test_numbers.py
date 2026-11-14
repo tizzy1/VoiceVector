@@ -72,3 +72,21 @@ def test_frequency_round_trip():
 ])
 def test_normalise(raw, norm):
     assert normalise(raw) == norm
+
+
+
+@pytest.mark.parametrize("raw,norm", [
+    ("EZ45ABQNH1013.", "ez 45 ab qnh 1013"),            # Scribe glued a whole transmission (benchmark #12)
+    ("Lufthansa 4KA descend FL80", "lufthansa 4 ka descend fl 80"),
+    ("cleared ILS runway 26L", "cleared ils runway 26l"),  # runway tokens stay whole
+    ("contact tower 124.225", "contact tower 124.225"),    # decimals stay whole
+    ("the engine fails details", "the engine fails details"),   # plain words are never split
+])
+def test_glued_stt_tokens_are_split(raw, norm):
+    assert normalise(raw) == norm
+
+
+def test_glued_transmission_parses():
+    from server.voice.parser import parse
+    tx = parse("EZ45ABQNH1013.")
+    assert tx.receiver == "EZY45AB" and [(i.type, i.value) for i in tx.instructions] == [("qnh", 1013)]

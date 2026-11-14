@@ -125,7 +125,11 @@ class ScribeStream:
         self._committed.set()
 
     def _failed(self, data: dict) -> None:
-        self.error = str(data.get("error") or data.get("message") or data)
+        message = str(data.get("error") or data.get("message") or data)
+        if self._committed.is_set():          # the socket closing after the transcript is not an error
+            logger.debug("Scribe after commit: %s", message)
+            return
+        self.error = message
         logger.warning("Scribe error: %s", self.error)
 
     # ------------------------------------------------------------------ finish
