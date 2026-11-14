@@ -389,6 +389,26 @@ class World:
                     callers.append(ac.callsign)
         return callers
 
+    def import_live(self, targets: Any, source: str = "vatsim", mode: str = "snapshot",
+                    fetched_at: Optional[str] = None, source_time: Optional[str] = None,
+                    ) -> dict[str, Any]:
+        """Read-only traffic snapshot -> simulated aircraft (sim/live_import.py).
+
+        `targets` is either a normalised snapshot dict (from live_import.normalize_vatsim)
+        or a list of normalised targets. Returns the import status (counts, skipped reasons,
+        source/fetch time, attribution) and emits it as an `inject` event."""
+        from server.sim import live_import
+        snap = targets if isinstance(targets, dict) else {
+            "source": source, "targets": list(targets or []), "fetched_at": fetched_at,
+            "source_time": source_time}
+        status = live_import.import_targets(self, snap, mode)
+        self.emit("inject", None, {"kind": "live_import", **{
+            k: status[k] for k in ("source", "mode", "ok", "stale", "error", "fetched_at",
+                                   "source_time", "attribution")},
+            "imported": [i["callsign"] for i in status["imported"]],
+            "skipped": len(status["skipped"])}, actor="INSTRUCTOR")
+        return status
+
     @property
     def forecasts(self) -> list[dict[str, Any]]:
         """ADVISORY conflict probabilities per nearby pair (sim/forecast.py), refreshed every
@@ -482,6 +502,8 @@ class World:
         phon: dict[str, str] = self.telephony["_phonetic"]
         spell = {"alfa": "alpha", "juliett": "juliet"}
         parts = [self._telephony(callsign).lower()] if prefix and self._telephony(callsign) else []
+        if prefix and not parts:        # airline with no known telephony: spell the ICAO code
+            parts = [spell.get(phon[c].lower(), phon[c].lower()) for c in prefix if c in phon]
         num = "".join(c for c in rest if c.isdigit()) if digits else ""
         if digits:
             if num:

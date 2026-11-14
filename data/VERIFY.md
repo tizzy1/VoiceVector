@@ -35,6 +35,9 @@ Every placeholder the sim, pilot and rules use. Confirm or correct each one befo
 | 29 | Forecast perturbations | reaction delay +N(0.5, 1.0) s clipped −0.5…4 s on pending clearances; wind ±N(0, 5) kt per component (shared per rollout); turn rate ×N(1, 0.10) clipped 0.7–1.2; climb/descent ×N(1, 0.15) clipped 0.6–1.4; TAS ×N(1, 0.02); speed targets +N(0, 5) kt; level-off overshoot U(0, 150) ft | `server/sim/forecast.py` |
 | 30 | Forecast candidate pairs / publishing | within 6 NM, or within 20 NM and 3,000 ft or levels crossing; publish p ≥ 0.01, paths (8 samples, 15 s) at p ≥ 0.15 | `server/sim/forecast.py` |
 | 31 | Forecast simplifications | holds flown as a right-hand orbit; vertical-rate constraints and conditionals ignored; pending clearances use the controller's intended values | `server/sim/forecast.py` |
+| 32 | Live import filter | airborne (≥ 60 kt), within 40 NM of the 26L threshold, 1,500–16,000 ft; arrival/departure only if the flight plan says EGKK; target older than 120 s skipped; snapshot older than 10 min refused, older than 60 s flagged stale | `server/sim/live_import.py` |
+| 33 | Live import initial state | arrival aligned with the localiser inside 15 NM (±1.5 NM, ±30°) starts established and cleared ILS; inside 12 NM on present heading; otherwise direct to the nearer of WILLO/TIMBA. Departure: SID from the filed route, cleared 6,000 ft if below. Level = present altitude to the nearest 100 ft. Unknown types fly as the nearest family (else A320) | `server/sim/live_import.py` |
+| 34 | VATSIM terms of use — NOT YET READ | User Agreement v1.5, Commercial Use Policy v2.0 and Data Protection and Handling Policy v1.4 are PDFs on cdn.vatsim.net. Read them before enabling the import in a demo; the code drops pilot names and CIDs at the parse step | `server/sim/live_import.py` |
 
 ## Post-MVP data checks
 
