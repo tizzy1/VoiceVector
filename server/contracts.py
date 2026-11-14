@@ -189,6 +189,10 @@ class AircraftPublic(BaseModel):
     emergency: bool = False
     transmitting: bool = False                 # set by voice layer via hub (pilot audio playing)
     plain_status: str = ""                     # "descending to 4,000 ft · 210 kt" (viz labels)
+    traffic_source: Optional[str] = None       # imported targets are SIMULATED after the snapshot
+    source_time: Optional[str] = None
+    fetched_at: Optional[str] = None
+    source_attribution: Optional[str] = None
 
 
 class CloudLayer(BaseModel):
@@ -214,6 +218,41 @@ class Metar(BaseModel):
     raw: str                                   # "EGKK 141750Z 00000KT 9999 SCT035 11/06 Q1013"
 
 
+class LiveImportedTarget(BaseModel):
+    callsign: str
+    flow: Flow
+    phase: Phase
+    actype: str
+    type_exact: bool
+
+
+class LiveImportSkip(BaseModel):
+    callsign: str
+    reason: str
+
+
+class LiveImportCounts(BaseModel):
+    imported: int = 0
+    skipped: int = 0
+    skipped_by_reason: dict[str, int] = Field(default_factory=dict)
+
+
+class LiveImportStatus(BaseModel):
+    source: Literal["demo", "vatsim"]
+    mode: Literal["snapshot"] = "snapshot"
+    phase: Literal["fetching", "complete"] = "complete"
+    ok: bool = False
+    stale: bool = False
+    error: Optional[str] = None
+    fetched_at: Optional[str] = None
+    source_time: Optional[str] = None
+    attribution: str = ""
+    sim_t: float = 0
+    imported: list[LiveImportedTarget] = Field(default_factory=list)
+    skipped: list[LiveImportSkip] = Field(default_factory=list)  # bounded detail sample, counts are complete
+    counts: LiveImportCounts = Field(default_factory=LiveImportCounts)
+
+
 class StateMsg(BaseModel):
     type: Literal["state"] = "state"
     t: float
@@ -224,6 +263,8 @@ class StateMsg(BaseModel):
     alerts: list[Alert]
     backlog: dict[str, int] = Field(default_factory=dict)  # {"ARR": 2, "DEP": 1}
     metar: Optional[Metar] = None              # optional, additive (CONTRACTS §7.1)
+    live_import_available: bool = False
+    live_import: Optional[LiveImportStatus] = None
 
 
 class WorldSnapshot(BaseModel):
@@ -422,7 +463,7 @@ class SessionMsg(BaseModel):
 
 ControlAction = Literal["new_session", "pause", "resume", "set_speed", "set_traffic", "set_error_rate",
                         "set_runway", "load_scenario", "inject", "force_error", "beat", "end_session",
-                        "reveal_errors"]
+                        "reveal_errors", "import_live"]
 
 
 class ControlMsg(BaseModel):                   # client -> server

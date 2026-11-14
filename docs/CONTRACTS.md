@@ -128,6 +128,13 @@ Typed commands: `{"type":"typed","text":...}` → `voice.on_typed(text)` → sam
 `EventLog` also appends every event to `runs/<session_id>/events.jsonl` (replay + debugging).
 
 ### 3.1 Technical-depth event and data ownership (planned after MVP)
+Implemented live-import boundary: `control/import_live` accepts only `{source: "demo" | "vatsim"}`.
+The session fetches/normalizes server-side and calls Tudor's `World.import_live(snapshot)`.
+`StateMsg` optionally carries `live_import_available` and `live_import: LiveImportStatus`.
+Status includes phase, timestamps, attribution, complete counts and bounded skipped-detail samples.
+Optional `AircraftPublic.traffic_source/source_time/fetched_at/source_attribution` preserve provenance;
+all imported tracks subsequently move as simulated aircraft. No raw provider JSON goes over the socket.
+
 | Data | Producer | Consumer |
 |---|---|---|
 | `TraceMsg` / `PipelineTrace` | Voice pipeline (Sanju) | Both views (Bhavin); final traces also append to `runs/<session>/traces.jsonl` |

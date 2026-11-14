@@ -22,6 +22,8 @@ export interface AircraftPublic {
   route_name?: string | null; next_fix?: string | null; approach_cleared?: string | null;
   established: boolean; squawk: string; on_frequency: boolean; in_jurisdiction: boolean;
   emergency: boolean; transmitting: boolean; plain_status: string;
+  traffic_source?: string | null; source_time?: string | null; fetched_at?: string | null;
+  source_attribution?: string | null;
 }
 
 export interface CloudLayer { cover: string; base_ft: number }
@@ -32,10 +34,23 @@ export interface Metar {
   temp_c: number; dewpoint_c: number; qnh_hpa: number; raw: string;
 }
 
+export interface LiveImportedTarget {
+  callsign: string; flow: Flow; phase: Phase; actype: string; type_exact: boolean;
+}
+export interface LiveImportSkip { callsign: string; reason: string }
+export interface LiveImportCounts { imported: number; skipped: number; skipped_by_reason: Record<string, number> }
+export interface LiveImportStatus {
+  source: "demo" | "vatsim"; mode: "snapshot"; phase: "fetching" | "complete";
+  ok: boolean; stale: boolean; error?: string | null; fetched_at?: string | null;
+  source_time?: string | null; attribution: string; sim_t: number;
+  imported: LiveImportedTarget[]; skipped: LiveImportSkip[]; counts: LiveImportCounts;
+}
+
 export interface StateMsg {
   type: "state"; t: number; paused: boolean; sim_speed: number; runway: string;
   aircraft: AircraftPublic[]; alerts: Alert[]; backlog: Record<string, number>;
   metar?: Metar | null;
+  live_import_available?: boolean; live_import?: LiveImportStatus | null;
 }
 
 export interface ParsedChip { label: string; span?: [number, number] | null }
@@ -91,7 +106,7 @@ export type ServerMsg = StateMsg | CaptionMsg | AudioStartMsg | AudioChunkMsg | 
 // ---- client -> server ----
 export type ControlAction = "new_session" | "pause" | "resume" | "set_speed" | "set_traffic"
   | "set_error_rate" | "set_runway" | "load_scenario" | "inject" | "force_error" | "beat"
-  | "end_session" | "reveal_errors";
+  | "end_session" | "reveal_errors" | "import_live";
 export interface ControlMsg { type: "control"; action: ControlAction; params: Record<string, unknown> }
 export interface PttMsg { type: "ptt"; state: "down" | "up" }
 export interface TypedMsg { type: "typed"; text: string }
