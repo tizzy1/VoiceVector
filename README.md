@@ -58,10 +58,9 @@ Tags show current and cleared level, ground speed, type and assigned targets.
 Altitude 6,000 ft and below uses A-prefix labels; higher levels use FL.
 The shared caption strip retains the latest three transmissions, updates partials
 in place, and displays parsed chips, plain-English summaries and supplied latency
-metrics. Pilot captions currently display the full sentence; word timing awaits
-the browser audio integration.
-3D, browser audio integration, camera controls and the report UI are subsequent
-tasks. /report currently serves the foundation application.
+metrics. Pilot captions follow the audio engine clock when word timings are available,
+and otherwise display the complete sentence.
+3D, camera controls and the report UI are subsequent tasks. /report currently serves the foundation application.
 
 Tudor's simulator now runs independently of the radio pipeline. Both views
 show live aircraft, with Pause/Resume and Reset demo controls. /api/health
@@ -121,3 +120,25 @@ The supplied Gatwick geometry and procedures derive from the VATSIM UK Sector
 File (GPL-3.0) and OurAirports. Aircraft performance values derive from OpenAP.
 Source notes and simulation assumptions are retained in data/. The current
 radar draws the supplied geometry directly.
+
+## Browser radio
+
+On the controller, click Enable microphone and pilot audio and allow microphone
+access. Then hold Space outside text fields or hold the on-screen PTT button.
+Release to finish the transmission. A microphone meter, playback mute and volume
+control are provided. Blur, a hidden tab or disconnect releases PTT. Disable
+audio releases the microphone; reconnect requires enabling audio again.
+
+On /viz, click Enable room audio. This view initializes playback without
+requesting microphone access. Transmitting aircraft highlight from audio activity.
+The arrivals/departures sidebar remains controlled by its Show/Hide button and Escape.
+
+For real speech recognition and ElevenLabs pilot voices, configure
+ELEVENLABS_API_KEY in the ignored .env file and restart the server.
+ANTHROPIC_API_KEY supports the parser fallback and narrative. Localhost supports
+microphone capture; a remote controller browser needs a secure browser origin.
+The second-device viz view needs playback only.
+
+Automated radio transport tests use mocked audio engines, and Sanju's tests use
+a fake AudioContext. Physical microphone input, real provider credentials,
+aviation pronunciation and room/headset routing require a live rehearsal.

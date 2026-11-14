@@ -39,6 +39,11 @@ export function connect(
       socket.send(JSON.stringify(message));
       return true;
     },
+    sendBinary(frame: ArrayBuffer): boolean {
+      if (socket.readyState !== WebSocket.OPEN) return false;
+      socket.send(frame);
+      return true;
+    },
     close() { stopped = true; clearTimeout(timer); socket.close(); },
   };
 }

@@ -21,8 +21,9 @@ const LAYERS = ["CTR", "CTA", "TMA", "Sectors", "RMA", "Fixes", "STAR", "SID",
 type Layer = typeof LAYERS[number];
 const INITIAL: View = { x: 5, y: -10, range: 40 };
 
-export function Radar({ state, data, selected, onSelect }: {
+export function Radar({ state, data, selected, onSelect, activeSpeakers = [] }: {
   state: StateMsg | null; data: Airspace | null;
+  activeSpeakers?: readonly string[];
   selected: string; onSelect: (callsign: string) => void;
 }) {
   const motion = useRef(new MotionBuffer());
@@ -155,7 +156,7 @@ export function Radar({ state, data, selected, onSelect }: {
         const alert = latestState.current?.alerts.find(a => a.callsigns.includes(ac.callsign));
         const color = alert ? (alert.kind === "WAKE" ? "#f2b544" : "#ff5a52")
           : ac.emergency ? "#f2b544" : ac.callsign === selected ? "#4fd1e8"
-          : ac.transmitting ? "#7cf0b4" : !ac.in_jurisdiction ? "#7c8b90" : "#e8eef0";
+          : ac.transmitting || activeSpeakers.includes(ac.callsign) ? "#7cf0b4" : !ac.in_jurisdiction ? "#7c8b90" : "#e8eef0";
         ctx.fillStyle = color; ctx.strokeStyle = color; ctx.lineWidth = 1;
         for (const point of ac.history) {
           const pixel = project([point.x, point.y], view, size.width, size.height);
@@ -194,7 +195,7 @@ export function Radar({ state, data, selected, onSelect }: {
     }
     frame = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frame);
-  }, [view, size, selected, layers, data, runway, vectorMinutes]);
+  }, [view, size, selected, layers, data, runway, vectorMinutes, activeSpeakers]);
 
   function hit(clientX: number, clientY: number) {
     const rect = viewport.current!.getBoundingClientRect();

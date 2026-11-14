@@ -2,7 +2,9 @@ import type { CaptionMsg } from "../protocol";
 import { latencyMetrics } from "./captions";
 import "./captions.css";
 
-export function CaptionStrip({ messages }: { messages: readonly CaptionMsg[] }) {
+export function CaptionStrip({ messages, clocks = {} }: {
+  messages: readonly CaptionMsg[]; clocks?: Readonly<Record<string, number>>;
+}) {
   return <section className="caption-strip" aria-label="Radio transcript">
     {messages.length === 0
       ? <p className="muted">Controller clearances and pilot readbacks will appear here.</p>
@@ -12,7 +14,9 @@ export function CaptionStrip({ messages }: { messages: readonly CaptionMsg[] }) 
           aria-live={message.stage === "partial" ? "off" : "polite"} aria-atomic="true">
           <b className="caption-speaker">{message.speaker === "CTRL" ? "Controller" : message.speaker}</b>
           <div className="caption-content">
-            <p>{message.text}</p>
+            <p>{clocks[message.tx_id] != null && message.words.length > 0
+              ? message.words.filter(word => word.t0 <= clocks[message.tx_id]).map(word => word.w).join(" ")
+              : message.text}</p>
             {message.chips.length > 0 && <ul className="caption-chips" aria-label="Parsed clearance">
               {message.chips.map((chip, index) => <li key={index}>{chip.label}</li>)}
             </ul>}

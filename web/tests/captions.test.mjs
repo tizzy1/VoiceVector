@@ -74,3 +74,17 @@ test("partial captions avoid live announcements and retention is bounded", () =>
   assert.equal(messages.length, 30);
   assert.equal(messages[0].tx_id, "10");
 });
+test("pilot word captions follow playback time and fall back to full text without a clock", () => {
+  const messages = [caption("timed", "BAW117", {
+    text: "Left heading two four zero", stage: "pilot_words",
+    words: [{ w: "Left", t0: 0, t1: .2 }, { w: "heading", t0: .3, t1: .6 },
+      { w: "two", t0: .7, t1: .9 }],
+  })];
+  const timed = renderToStaticMarkup(createElement(CaptionStrip, {
+    messages, clocks: { timed: .4 },
+  }));
+  assert.match(timed, /Left heading/);
+  assert.doesNotMatch(timed, /two/);
+  const fallback = renderToStaticMarkup(createElement(CaptionStrip, { messages }));
+  assert.match(fallback, /Left heading two four zero/);
+});

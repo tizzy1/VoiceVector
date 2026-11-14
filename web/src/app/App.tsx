@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { ControlMsg, CaptionMsg, EventMsg, SessionMsg, StateMsg } from "../protocol";
 import { Radar, type Airspace } from "../radar/Radar";
 import { connect } from "./connection";
+import { createAudioEngine } from "../audio/index";
+import { RadioLink, isTyping, type RadioStatus } from "./radioLink";
 import { TrafficPanel } from "../ui/TrafficPanel";
 import { AircraftDetails } from "../ui/AircraftDetails";
 import { CaptionStrip } from "../ui/CaptionStrip";
@@ -25,6 +27,16 @@ export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarToggle = useRef<HTMLButtonElement>(null);
   const [error, setError] = useState("");
+  const radio = useRef<RadioLink | null>(null);
+  const [radioStatus, setRadioStatus] = useState<RadioStatus>({
+    enabled: false, micReady: false, keyed: false, error: "",
+  });
+  const [audioStarted, setAudioStarted] = useState(false);
+  const [playback, setPlayback] = useState(true);
+  const [level, setLevel] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [speakers, setSpeakers] = useState<string[]>([]);
+  const [captionClock, setCaptionClock] = useState<Record<string, number>>({});
   const connection = useRef<ReturnType<typeof connect> | null>(null);
 
   useEffect(() => {
@@ -43,6 +55,7 @@ export function App() {
     }
     void load();
     const client = connect(role, message => {
+      radio.current?.handle(message);
       if (message.type === "session") setSession(message);
       if (message.type === "state") setState(message);
       if (message.type === "caption") {
@@ -50,11 +63,24 @@ export function App() {
       }
       if (message.type === "event") setEvents(previous => [...previous, message].slice(-12));
     }, nextStatus => {
-      if (nextStatus !== "Connected") setState(null);
+      if (nextStatus !== "Connected") {
+        setState(null);
+        radio.current?.dispose();
+        radio.current = null;
+        setAudioStarted(false);
+        setRadioStatus({ enabled: false, micReady: false, keyed: false, error: "" });
+        setSpeakers([]);
+        setCaptionClock({});
+      }
       setStatus(nextStatus);
     });
     connection.current = client;
-    return () => { abort.abort(); client.close(); };
+    return () => {
+      abort.abort();
+      radio.current?.dispose();
+      radio.current = null;
+      client.close();
+    };
   }, [role]);
 
   useEffect(() => {
@@ -80,6 +106,73 @@ export function App() {
     if (!state?.aircraft.some(ac => ac.callsign === selected
       && ac.phase !== "LANDED" && ac.phase !== "HANDED_OFF")) setSelected("");
   }, [state, selected]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLevel(radio.current?.level() ?? 0);
+      const clocks: Record<string, number> = {};
+      for (const caption of captions.slice(-3)) {
+        const time = radio.current?.clock(caption.tx_id);
+        if (time != null) clocks[caption.tx_id] = time;
+      }
+      setCaptionClock(clocks);
+    }, 100);
+    return () => clearInterval(timer);
+  }, [captions]);
+
+  useEffect(() => {
+    function release() { radio.current?.up(); }
+    function down(event: KeyboardEvent) {
+      if (event.code !== "Space" || event.repeat || isTyping(event.target)) return;
+      if (status !== "Connected" || !health?.ready || !radioStatus.micReady || role !== "radar") return;
+      event.preventDefault();
+      radio.current?.down();
+    }
+    function up(event: KeyboardEvent) {
+      if (event.code === "Space") {
+        if (radioStatus.keyed) event.preventDefault();
+        release();
+      }
+    }
+    function visibility() { if (document.hidden) release(); }
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", release);
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", release);
+      document.removeEventListener("visibilitychange", visibility);
+    };
+  }, [status, health?.ready, radioStatus.micReady, radioStatus.keyed, role]);
+
+  useEffect(() => {
+    radio.current?.playback(playback);
+    radio.current?.volume(volume);
+  }, [playback, volume, radioStatus.enabled]);
+
+  function stopRadio() {
+    radio.current?.dispose();
+    radio.current = null;
+    setAudioStarted(false);
+    setRadioStatus({ enabled: false, micReady: false, keyed: false, error: "" });
+    setSpeakers([]);
+    setCaptionClock({});
+  }
+
+  async function enableRadio() {
+    if (radio.current || !connection.current) return;
+    setAudioStarted(true);
+    const link = new RadioLink(createAudioEngine(), connection.current, role, setRadioStatus, activity => {
+      setSpeakers(previous => activity.state === "start"
+        ? [...new Set([...previous, activity.speaker])]
+        : previous.filter(speaker => speaker !== activity.speaker));
+    });
+    radio.current = link;
+    await link.enable();
+
+  }
 
   function selectAircraft(callsign: string) {
     setSelected(callsign);
@@ -133,7 +226,7 @@ export function App() {
       </div>
       <main className={sidebarOpen ? "sidebar-open" : "sidebar-closed"}>
         <section className="scope">
-          <Radar state={state} data={data} selected={selected} onSelect={selectAircraft} />
+          <Radar state={state} data={data} activeSpeakers={speakers} selected={selected} onSelect={selectAircraft} />
           {health && !health.simulation_ready && (
             <div className="waiting">
               <h1>Platform connected</h1>
@@ -174,7 +267,51 @@ export function App() {
           </div>
         </aside>
       </main>
-      <CaptionStrip messages={captions} />
+      <div className="radio-controls" aria-label="Radio controls">
+        {!audioStarted
+          ? <button disabled={!connected} onClick={enableRadio}>
+            {role === "radar" ? "Enable microphone and pilot audio" : "Enable room audio"}
+          </button>
+          : <><span>{radioStatus.enabled ? "Audio enabled" : "Starting audio…"}</span>
+            <button onClick={stopRadio}>Disable audio</button></>}
+        <label><input type="checkbox" checked={playback} onChange={event => {
+          setPlayback(event.target.checked); radio.current?.playback(event.target.checked);
+        }} />Pilot playback</label>
+        <label>Volume<input type="range" aria-label="Pilot volume" min="0" max="1"
+          step="0.05" value={volume} onChange={event => setVolume(Number(event.target.value))} /></label>
+        {role === "radar" && <>
+          <button disabled={!connected || !health?.ready || !radioStatus.micReady}
+            aria-pressed={radioStatus.keyed}
+            onPointerDown={event => {
+              if (event.button !== 0) return;
+              event.preventDefault(); event.currentTarget.focus();
+              event.currentTarget.setPointerCapture(event.pointerId);
+              radio.current?.down();
+            }}
+            onPointerUp={() => radio.current?.up()}
+            onPointerCancel={() => radio.current?.up()}
+            onLostPointerCapture={() => radio.current?.up()}
+            onKeyDown={event => {
+              if (event.key === " " || event.key === "Enter") {
+                event.preventDefault();
+                if (!event.repeat) radio.current?.down();
+              }
+            }}
+            onKeyUp={event => {
+              if (event.key === " " || event.key === "Enter") {
+                event.preventDefault(); radio.current?.up();
+              }
+            }}
+            onBlur={() => radio.current?.up()}>
+            {radioStatus.keyed ? "Transmitting · release to send" : "Hold to talk · Space"}
+          </button>
+          <meter aria-label="Microphone level" min={0} max={1} value={level} />
+        </>}
+        {radioStatus.error && <span role="status">{radioStatus.error} · Typed input remains available.</span>}
+        {role === "radar" && radioStatus.enabled && !radioStatus.micReady && !radioStatus.error
+          && <span>Waiting for microphone permission…</span>}
+      </div>
+      <CaptionStrip messages={captions} clocks={captionClock} />
       {role === "radar" && (
         <>
         <form onSubmit={event => {
