@@ -364,7 +364,7 @@ class VoicePipeline:
         persona = resp.plan.persona
         stressed = resp.kind in ("mayday", "pan") or persona == "stressed"
         voice = self.voices.voice_for(cs, persona)
-        settings = settings_for(persona, stressed)
+        settings = settings_for(persona, stressed, voice)
         not_before = time.monotonic() + max(0.0, resp.reaction_delay_s)
 
         queue: asyncio.Queue = asyncio.Queue()

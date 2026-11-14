@@ -25,7 +25,7 @@ class FakeContext {
   }
   make(kind, extra = {}) { const n = Object.assign(new Node(kind), extra); this.nodes.push(n); return n; }
   createGain() { return this.make("gain", { gain: new Param(1) }); }
-  createBiquadFilter() { return this.make("biquad", { type: "", frequency: new Param(0) }); }
+  createBiquadFilter() { return this.make("biquad", { type: "", frequency: new Param(0), gain: new Param(0) }); }
   createWaveShaper() { return this.make("shaper", { curve: null }); }
   createOscillator() { return this.make("osc", { type: "", frequency: new Param(0), start() {} }); }
   createBuffer(channels, length, rate) {
@@ -154,8 +154,11 @@ test("every stream goes through the shared radio chain; hiss follows the carrier
   assert.ok(ctx.sources.length > before);
   const highpass = ctx.nodes.find((n) => n.kind === "biquad" && n.type === "highpass");
   const lowpass = ctx.nodes.find((n) => n.kind === "biquad" && n.type === "lowpass");
-  assert.equal(highpass.frequency.value, 300);
-  assert.equal(lowpass.frequency.value, 3000);
+  assert.equal(highpass.frequency.value, 350);
+  assert.equal(lowpass.frequency.value, 2600);
+  const peaking = ctx.nodes.find((n) => n.kind === "biquad" && n.type === "peaking");
+  const shelf = ctx.nodes.find((n) => n.kind === "biquad" && n.type === "highshelf");
+  assert.ok(peaking && shelf, "presence lift and high-shelf cut are in the chain");
 });
 
 test("blocked / overlap-group / overlap-event streams engage the heterodyne, then release", async () => {

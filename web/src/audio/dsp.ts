@@ -1,9 +1,18 @@
 // Pure DSP parameters for the radio chain and the heterodyne squeal (no Web Audio objects).
 
+// Fitted to real VHF ATC audio (UWB-ATCC test split, 1220 pilot transmissions, 14 Nov 2026): energy
+// 300 Hz-1 kHz 67 %, 1-2 kHz 23 %, 2-3 kHz 5.5 %, crest factor ~10 dB. The previous 300/3000 Hz,
+// drive 2.2 chain was too bright above 2 kHz (11 %), too boomy below 300 Hz (6 %) and over-squashed
+// (crest 6.6 dB); this one lands within ~1 point per band (crest 8.2 dB: TTS audio is pre-levelled).
+// Keep in sync with server/voice/voice_design.py RADIO_PROFILE (a test checks it).
 export const RADIO = {
-  highpassHz: 300,
-  lowpassHz: 3000,
-  drive: 2.2, // waveshaper drive: mild tanh saturation
+  highpassHz: 350,
+  lowpassHz: 2600,
+  presenceHz: 1400, // peaking lift, the mid "honk" of a VHF set
+  presenceDb: 2,
+  shelfHz: 2200, // high-shelf cut: real radios roll off early and gently
+  shelfDb: -6,
+  drive: 0.5, // waveshaper drive: light tanh saturation
   hissLevel: 0.012, // faint noise floor under a transmission
   squelchMs: 150, // band-passed noise burst when the carrier drops
   squelchLevel: 0.22,

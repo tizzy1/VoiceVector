@@ -245,21 +245,52 @@ async def design_all(client: Any, specs: tuple[Spec, ...] = SPECS, path: Path = 
 
 
 # --------------------------------------------------------------------- audition
+# Mirror of web/src/audio/dsp.ts RADIO (a test keeps them in sync). Fitted to real VHF audio: UWB-ATCC
+# test split, 1220 pilot transmissions -> energy 300 Hz-1 kHz 67 %, 1-2 kHz 23 %, 2-3 kHz 5.5 %.
+RADIO_PROFILE = {"highpassHz": 350, "lowpassHz": 2600, "presenceHz": 1400, "presenceDb": 2,
+                 "shelfHz": 2200, "shelfDb": -6, "drive": 0.5, "hissLevel": 0.012, "squelchMs": 150,
+                 "squelchLevel": 0.22}
+
+
+def _biquad_mag(kind: str, f0: float, freqs: np.ndarray, rate: int, gain_db: float = 0.0) -> np.ndarray:
+    """|H(f)| of a Web Audio BiquadFilterNode (Audio EQ Cookbook, Q = 1 as Web Audio defaults)."""
+    w0 = 2 * np.pi * f0 / rate
+    cos, sin = np.cos(w0), np.sin(w0)
+    A = 10 ** (gain_db / 40)
+    if kind in ("lowpass", "highpass"):
+        alpha = sin / (2 * 10 ** (1 / 20))                   # Web Audio: Q is in dB for these two
+        b = [(1 - cos) / 2, 1 - cos, (1 - cos) / 2] if kind == "lowpass" else [(1 + cos) / 2, -(1 + cos), (1 + cos) / 2]
+        a = [1 + alpha, -2 * cos, 1 - alpha]
+    elif kind == "peaking":
+        alpha = sin / 2
+        b = [1 + alpha * A, -2 * cos, 1 - alpha * A]
+        a = [1 + alpha / A, -2 * cos, 1 - alpha / A]
+    else:                                                   # highshelf, S = 1
+        alpha = sin / 2 * np.sqrt(2)
+        b = [A * ((A + 1) + (A - 1) * cos + 2 * np.sqrt(A) * alpha), -2 * A * ((A - 1) + (A + 1) * cos),
+             A * ((A + 1) + (A - 1) * cos - 2 * np.sqrt(A) * alpha)]
+        a = [(A + 1) - (A - 1) * cos + 2 * np.sqrt(A) * alpha, 2 * ((A - 1) - (A + 1) * cos),
+             (A + 1) - (A - 1) * cos - 2 * np.sqrt(A) * alpha]
+    z = np.exp(-1j * 2 * np.pi * freqs / rate)
+    return np.abs((b[0] + b[1] * z + b[2] * z ** 2) / (a[0] + a[1] * z + a[2] * z ** 2))
+
+
 def radio(samples: np.ndarray, rate: int, seed: int = 1) -> np.ndarray:
-    """Offline copy of the browser radio chain: 300-3000 Hz band, tanh drive, hiss, squelch tail."""
+    """Offline copy of the browser radio chain (same filter magnitudes, drive, hiss, squelch tail)."""
+    r = RADIO_PROFILE
     x = samples.astype(np.float64)
-    spectrum = np.fft.rfft(x)
     freqs = np.fft.rfftfreq(len(x), 1 / rate)
-    spectrum[(freqs < 300) | (freqs > 3000)] = 0
-    x = np.fft.irfft(spectrum, len(x))
-    peak = np.max(np.abs(x)) or 1.0
-    x = np.tanh(2.2 * x / peak) / np.tanh(2.2)
+    h = (_biquad_mag("highpass", r["highpassHz"], freqs, rate)
+         * _biquad_mag("peaking", r["presenceHz"], freqs, rate, r["presenceDb"])
+         * _biquad_mag("lowpass", r["lowpassHz"], freqs, rate)
+         * _biquad_mag("highshelf", r["shelfHz"], freqs, rate, r["shelfDb"]))
+    x = np.fft.irfft(np.fft.rfft(x) * h, len(x))
+    x = np.tanh(r["drive"] * np.clip(x, -1, 1)) / np.tanh(r["drive"])
     rng = np.random.default_rng(seed)
-    hiss = rng.uniform(-1, 1, len(x)) * 0.012
-    tail_n = int(0.15 * rate)
-    tail = rng.uniform(-1, 1, tail_n) * np.linspace(0.22, 0, tail_n)
-    out = np.concatenate([x + hiss, tail])
-    return np.clip(out * 0.9, -1, 1)
+    hiss = rng.uniform(-1, 1, len(x)) * r["hissLevel"]
+    tail_n = int(r["squelchMs"] / 1000 * rate)
+    tail = rng.uniform(-1, 1, tail_n) * np.linspace(r["squelchLevel"], 0, tail_n)
+    return np.clip(np.concatenate([x + hiss, tail]), -1, 1)
 
 
 READBACKS = ("Left heading two four zero, descend to altitude four thousand feet",
@@ -282,13 +313,36 @@ async def audition(tts: Any, entries: list[dict], out: Path) -> Path:
         prefix = "Uh, " if entry.get("slug") == "student" else ""
         text = f"{prefix}{READBACKS[i % len(READBACKS)]}, {callsign}"
         persona = (entry.get("personas") or ["crisp_airline"])[0]
-        pcm = b"".join([c async for c in tts.stream(text, entry["id"], settings_for(persona))])
+        from server.voice.voices import Voices
+        voice = next(v for v in Voices.load(VOICES_JSON.parent).pool if v.id == entry["id"])
+        pcm = b"".join([c async for c in tts.stream(text, entry["id"], settings_for(persona, voice=voice))])
         samples = np.frombuffer(pcm[: len(pcm) // 2 * 2], "<i2").astype(np.float64) / 32768
         parts += [radio(samples, rate, seed=i + 1), gap]
     mix = np.concatenate(parts) if parts else np.zeros(1)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(pcm16_to_wav((mix * 32767).astype("<i2").tobytes(), rate))
     return out
+
+
+async def calibrate(tts: Any, entries: list[dict], cache: Path) -> list[dict]:
+    """Measure each voice's natural pace (words/s at speed 1.0) so personas can hit real-pilot targets."""
+    from server.voice.voices import PERSONA_SETTINGS
+    cache.mkdir(parents=True, exist_ok=True)
+    for entry in entries:
+        spec = next((s for s in SPECS if s.slug == entry.get("slug")), None)
+        if spec is None:
+            continue
+        neutral = {**PERSONA_SETTINGS[(entry.get("personas") or ["crisp_airline"])[0]], "speed": 1.0}
+        words = seconds = 0.0
+        for k, body in enumerate(READBACKS):
+            text = f"{body}, {spec.callsign_spoken}"
+            path = cache / f"{spec.slug}_{k}.pcm"
+            if not path.exists():
+                path.write_bytes(b"".join([c async for c in tts.stream(text, entry["id"], neutral)]))
+            words += len(text.split())
+            seconds += path.stat().st_size / (2 * tts.sample_rate)
+        entry["natural_wps"] = round(words / seconds, 2) if seconds else None
+    return entries
 
 
 async def main(argv: list[str]) -> int:
@@ -305,12 +359,17 @@ async def main(argv: list[str]) -> int:
     print(f"{len(entries)} designed voices in {VOICES_JSON}")
     for e in entries:
         print(f"  {e['slug']:18} {e['accent']:17} {','.join(e['airlines']) or '(any)':22} score {e.get('score')}")
-    if "--audition" in argv:
+    if "--calibrate" in argv or "--audition" in argv:
         from server.voice.tts import ElevenLabsTTS
         tts = ElevenLabsTTS(key, timeout=20)
-        out = await audition(tts, entries, ROOT / "runs" / "voice_audition.wav")
+        if "--calibrate" in argv:
+            entries = await calibrate(tts, entries, ROOT / "runs" / "voice_clean")
+            write_pool(entries)
+            print("natural pace:", {e["slug"]: e.get("natural_wps") for e in entries})
+        if "--audition" in argv:
+            out = await audition(tts, entries, ROOT / "runs" / "voice_audition.wav")
+            print(f"audition: {out}")
         await tts.aclose()
-        print(f"audition: {out}")
     return 0
 
 

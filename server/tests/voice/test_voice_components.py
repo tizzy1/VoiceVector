@@ -477,16 +477,45 @@ def test_design_keeps_the_most_intelligible_preview_and_skips_existing(tmp_path)
 
 
 def test_offline_radio_effect_band_limits_and_adds_a_squelch_tail():
+    """Same 12 dB/octave Web Audio slopes as the browser: 100 Hz and 3.5 kHz well below 1 kHz."""
     import numpy as np
     from server.voice.voice_design import radio
     rate = 22050
     t = np.arange(rate) / rate
-    low, mid = np.sin(2 * np.pi * 100 * t), np.sin(2 * np.pi * 1000 * t)
-    out = radio(low * 0.3 + mid * 0.3, rate)
+    tone = lambda hz: np.sin(2 * np.pi * hz * t) * 0.2
+    out = radio(tone(100) + tone(1000) + tone(3500), rate)
     assert len(out) == rate + int(0.15 * rate) and np.max(np.abs(out)) <= 1
     spectrum = np.abs(np.fft.rfft(out[:rate]))
     freqs = np.fft.rfftfreq(rate, 1 / rate)
-    assert spectrum[np.argmin(np.abs(freqs - 1000))] > 50 * spectrum[np.argmin(np.abs(freqs - 100))]
+    at = lambda hz: spectrum[np.argmin(np.abs(freqs - hz))]
+    assert at(1000) > 8 * at(100)          # strong low cut (350 Hz high-pass)
+    assert 2 * at(3500) < at(1000)        # gentle top roll-off: real radio keeps a little energy at 3-4 kHz
+
+
+def test_browser_and_offline_radio_profiles_match():
+    """web/src/audio/dsp.ts RADIO and voice_design.RADIO_PROFILE are the same fitted chain."""
+    import re
+    from pathlib import Path
+    from server.voice.voice_design import RADIO_PROFILE
+    ts = (Path(__file__).resolve().parents[3] / "web" / "src" / "audio" / "dsp.ts").read_text()
+    block = ts[ts.index("export const RADIO = {"): ts.index("};", ts.index("export const RADIO = {"))]
+    values = {k: float(v) for k, v in re.findall(r"(\w+):\s*(-?[\d.]+)", block)}
+    for key, value in RADIO_PROFILE.items():
+        assert values[key] == value, (key, values.get(key), value)
+
+
+def test_calibrated_voices_hit_real_pilot_pace():
+    from server.voice.voices import SPEED_RANGE, TARGET_WPS, Voice, settings_for
+    slow = Voice("s", "S", "male", ("crisp_airline",), natural_wps=2.5)
+    fast = Voice("f", "F", "male", ("rushed",), natural_wps=4.8)
+    assert settings_for("crisp_airline", voice=slow)["speed"] == 1.2             # 3.0 / 2.5, at the limit
+    assert settings_for("rushed", voice=fast)["speed"] == round(3.7 / 4.8, 3)   # slowed to a real rushed pace
+    assert settings_for("calm_longhaul", voice=Voice("c", "C", "m", natural_wps=3.0))["speed"] == round(2.75 / 3, 3)
+    assert settings_for("crisp_airline", stressed=True, voice=slow)["speed"] == 1.2
+    assert settings_for("student", voice=Voice("x", "X", "f", natural_wps=10))["speed"] == SPEED_RANGE[0]
+    assert settings_for("crisp_airline") == settings_for("crisp_airline", voice=Voice("u", "U", "m"))
+    assert TARGET_WPS["student"] < TARGET_WPS["calm_longhaul"] < TARGET_WPS["crisp_airline"] < TARGET_WPS["rushed"]
+
 
 
 

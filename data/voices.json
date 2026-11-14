@@ -21,7 +21,8 @@
    ],
    "designed": true,
    "score": 95.5,
-   "previews": 3
+   "previews": 3,
+   "natural_wps": 2.8
   },
   {
    "id": "og8B7pjC9tGRNb7S5fdt",
@@ -42,7 +43,8 @@
    ],
    "designed": true,
    "score": 95.9,
-   "previews": 3
+   "previews": 3,
+   "natural_wps": 2.68
   },
   {
    "id": "FDCUsN00hM6JGy0VBVYQ",
@@ -60,7 +62,8 @@
     "crisp_airline",
     "stressed"
    ],
-   "designed": true
+   "designed": true,
+   "natural_wps": 3.49
   },
   {
    "id": "XjE8ojgCO4pOmcddD4aM",
@@ -79,7 +82,8 @@
    ],
    "designed": true,
    "score": 97.3,
-   "previews": 3
+   "previews": 3,
+   "natural_wps": 2.95
   },
   {
    "id": "DtLpGchXDpQMPGL6WNnH",
@@ -97,7 +101,8 @@
    ],
    "designed": true,
    "score": 99.5,
-   "previews": 3
+   "previews": 3,
+   "natural_wps": 3.92
   },
   {
    "id": "7QpMwDrky9seEuNEMGqd",
@@ -116,7 +121,8 @@
    ],
    "designed": true,
    "score": 90.6,
-   "previews": 3
+   "previews": 3,
+   "natural_wps": 2.54
   },
   {
    "id": "INbj7kAnMfWvIhCQI1p2",
@@ -136,7 +142,8 @@
    ],
    "designed": true,
    "score": 95.3,
-   "previews": 3
+   "previews": 3,
+   "natural_wps": 3.32
   },
   {
    "id": "VAciwYGSeiIIHgzpY04f",
@@ -154,7 +161,8 @@
    ],
    "designed": true,
    "score": 98.4,
-   "previews": 3
+   "previews": 3,
+   "natural_wps": 3.74
   },
   {
    "id": "adpam77YX6t3NG0gW5ia",
@@ -172,7 +180,8 @@
    ],
    "designed": true,
    "score": 84.8,
-   "previews": 3
+   "previews": 3,
+   "natural_wps": 2.83
   },
   {
    "id": "e2pdcIRzepYTcVsMTjuz",
@@ -190,7 +199,8 @@
    ],
    "designed": true,
    "score": 97.4,
-   "previews": 3
+   "previews": 3,
+   "natural_wps": 3.49
   },
   {
    "id": "ndsgo7sVZEcmpr9meW4k",
@@ -208,7 +218,8 @@
    ],
    "designed": true,
    "score": 95.8,
-   "previews": 3
+   "previews": 3,
+   "natural_wps": 2.91
   },
   {
    "id": "65fS1YpyUaIeqIpQPwGb",
@@ -227,7 +238,8 @@
    ],
    "designed": true,
    "score": 96.2,
-   "previews": 3
+   "previews": 3,
+   "natural_wps": 2.81
   },
   {
    "id": "hITAcEDlkxX0dhZZ6VS7",
@@ -242,7 +254,8 @@
    ],
    "designed": true,
    "score": 97.8,
-   "previews": 3
+   "previews": 3,
+   "natural_wps": 2.66
   },
   {
    "id": "sqT2riR6LhenPdfcKr8v",
@@ -259,7 +272,8 @@
    ],
    "designed": true,
    "score": 99.4,
-   "previews": 3
+   "previews": 3,
+   "natural_wps": 3.21
   }
  ],
  "persona_settings": {

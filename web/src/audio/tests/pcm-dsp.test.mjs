@@ -102,7 +102,7 @@ test("radio waveshapers: tanh is odd, monotone and unity at the ends; clip is fl
   assert.ok(Math.abs(t[0] + 1) < 1e-6 && Math.abs(t[256] - 1) < 1e-6);
   assert.ok(Math.abs(t[128]) < 1e-6);
   for (let i = 1; i < t.length; i++) assert.ok(t[i] >= t[i - 1]);
-  assert.ok(t[192] > 0.5 + 0.2, "saturation lifts mid-level signal");
+  assert.ok(t[192] > 0.5 && t[192] < 0.6, "light saturation, as fitted to real VHF audio (drive 0.5)");
   const c = hardClipCurve(201, 0.8);
   assert.ok(Math.abs(c[0] + 0.8) < 1e-6);
   assert.ok(Math.abs(c[200] - 0.8) < 1e-6);

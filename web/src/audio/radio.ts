@@ -1,5 +1,6 @@
 // The radio: every pilot stream is summed into one bus and pushed through
-//   (overdrive -> hard clip) -> high-pass 300 Hz -> low-pass 3 kHz -> tanh saturation -> volume
+//   (overdrive -> hard clip) -> high-pass 350 Hz -> presence +2 dB @1.4 kHz -> low-pass 2.6 kHz
+//   -> high-shelf -6 dB @2.2 kHz -> tanh saturation -> volume   (fitted to real VHF audio, see dsp.ts)
 // with a faint hiss while a carrier is up and a short band-passed noise burst (squelch tail) when
 // it drops. The heterodyne squeal (~1.1 kHz, AM ~7 Hz) is an oscillator summed into the same bus,
 // so a "stepped on" transmission is clipped together with it, exactly like a real over-modulated
@@ -31,17 +32,27 @@ export class RadioBus {
     const highpass = ctx.createBiquadFilter();
     highpass.type = "highpass";
     highpass.frequency.value = RADIO.highpassHz;
+    const presence = ctx.createBiquadFilter();
+    presence.type = "peaking";
+    presence.frequency.value = RADIO.presenceHz;
+    presence.gain.value = RADIO.presenceDb;
     const lowpass = ctx.createBiquadFilter();
     lowpass.type = "lowpass";
     lowpass.frequency.value = RADIO.lowpassHz;
+    const shelf = ctx.createBiquadFilter();
+    shelf.type = "highshelf";
+    shelf.frequency.value = RADIO.shelfHz;
+    shelf.gain.value = RADIO.shelfDb;
     const saturate = ctx.createWaveShaper();
     saturate.curve = tanhCurve();
     this.master = ctx.createGain();
     this.input.connect(this.overdrive);
     this.overdrive.connect(clip);
     clip.connect(highpass);
-    highpass.connect(lowpass);
-    lowpass.connect(saturate);
+    highpass.connect(presence);
+    presence.connect(lowpass);
+    lowpass.connect(shelf);
+    shelf.connect(saturate);
     saturate.connect(this.master);
     this.master.connect(destination);
 

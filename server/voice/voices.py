@@ -21,6 +21,7 @@ class Voice:
     personas: tuple[str, ...] = ()
     airlines: tuple[str, ...] = ()       # ICAO prefixes whose crews sound like this (accent realism)
     accent: str = ""
+    natural_wps: float = 0.0             # measured words/s at speed 1.0 (0 = unknown)
 
 
 # Premade voices available on every ElevenLabs plan (verified against the account's /v2/voices).
@@ -45,11 +46,20 @@ PERSONA_SETTINGS: dict[str, dict[str, float]] = {
 }
 DEFAULT_PERSONA = "crisp_airline"
 
+# Real pilot pace, words/s (UWB-ATCC test split, 1220 pilot transmissions: p25 2.41, p50 3.02, p75 3.67)
+TARGET_WPS = {"student": 2.4, "calm_longhaul": 2.75, "crisp_airline": 3.0, "stressed": 3.4, "rushed": 3.7}
+SPEED_RANGE = (0.7, 1.2)                 # ElevenLabs voice_settings.speed limits
 
-def settings_for(persona: str, stressed: bool = False) -> dict[str, float]:
+
+def settings_for(persona: str, stressed: bool = False, voice: "Voice | None" = None) -> dict[str, float]:
+    """Voice settings for a persona; with a calibrated voice the speed hits the real-pilot pace."""
     base = dict(PERSONA_SETTINGS.get(persona, PERSONA_SETTINGS[DEFAULT_PERSONA]))
     if stressed:
         base.update(PERSONA_SETTINGS["stressed"])
+    if voice is not None and voice.natural_wps > 0:
+        target = TARGET_WPS["stressed" if stressed else persona] if (stressed or persona in TARGET_WPS) \
+            else TARGET_WPS[DEFAULT_PERSONA]
+        base["speed"] = round(min(max(target / voice.natural_wps, SPEED_RANGE[0]), SPEED_RANGE[1]), 3)
     return base
 
 
@@ -68,7 +78,8 @@ class Voices:
                 raw = json.loads(path.read_text(encoding="utf-8"))
                 pool = tuple(Voice(v["id"], v.get("name", v["id"]), v.get("gender", "unknown"),
                                    tuple(v.get("personas", ())), tuple(v.get("airlines", ())),
-                                   v.get("accent", "")) for v in raw.get("voices", []) if v.get("id"))
+                                   v.get("accent", ""), float(v.get("natural_wps") or 0.0))
+                             for v in raw.get("voices", []) if v.get("id"))
                 if pool:
                     return cls(pool=pool, seed=seed)
             except (OSError, ValueError, KeyError):
