@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CaptionMsg, EventMsg, SessionMsg, StateMsg } from "../protocol";
 import { Radar, type Airspace } from "../radar/Radar";
 import { connect } from "./connection";
+import { TrafficPanel } from "../ui/TrafficPanel";
 
 interface Health { ready: boolean; simulation_ready: boolean; missing_modules: string[] }
 
@@ -15,6 +16,7 @@ export function App() {
   const [captions, setCaptions] = useState<CaptionMsg[]>([]);
   const [events, setEvents] = useState<EventMsg[]>([]);
   const [text, setText] = useState("");
+  const [selected, setSelected] = useState("");
   const [error, setError] = useState("");
   const connection = useRef<ReturnType<typeof connect> | null>(null);
 
@@ -67,6 +69,11 @@ export function App() {
     return () => { abort.abort(); };
   }, [status]);
 
+  useEffect(() => {
+    if (!state?.aircraft.some(ac => ac.callsign === selected
+      && ac.phase !== "LANDED" && ac.phase !== "HANDED_OFF")) setSelected("");
+  }, [state, selected]);
+
   const connected = status === "Connected";
   function control(action: "pause" | "resume" | "load_scenario") {
     const params = action === "load_scenario" ? { scenario: "demo", paused: false } : {};
@@ -97,7 +104,7 @@ export function App() {
       </div>
       <main>
         <section className="scope">
-          <Radar state={state} data={data} />
+          <Radar state={state} data={data} selected={selected} onSelect={setSelected} />
           {health && !health.simulation_ready && (
             <div className="waiting">
               <h1>Platform connected</h1>
@@ -107,6 +114,7 @@ export function App() {
           )}
         </section>
         <aside>
+          <TrafficPanel state={state} selected={selected} onSelect={setSelected} />
           <h2>Integration status</h2>
           <p className={health?.simulation_ready ? "success" : "muted"}>
             {health?.simulation_ready ? "Simulator loaded" : "Awaiting simulator"}

@@ -38,6 +38,10 @@ one simulation tick of display delay. Five history dots show recent server
 positions. The Vector control selects Off or a 1/2/5-minute projection using
 current ground speed and track. Pause displays the authoritative stopped state;
 reset and reconnect clear old motion history.
+Arrival and departure flight strips share selection with the radar and its
+aircraft dropdown. Departures are grouped as queued, taking off and airborne.
+Lists preserve server order, omit landed/handed-off flights and show current
+level, cleared level, ground speed, aircraft type, wake category and route.
 Tags show current and cleared level, ground speed, type and assigned targets.
 Altitude 6,000 ft and below uses A-prefix labels; higher levels use FL.
 3D, browser audio integration, camera controls and the report UI are subsequent

@@ -21,7 +21,10 @@ const LAYERS = ["CTR", "CTA", "TMA", "Sectors", "RMA", "Fixes", "STAR", "SID",
 type Layer = typeof LAYERS[number];
 const INITIAL: View = { x: 5, y: -10, range: 40 };
 
-export function Radar({ state, data }: { state: StateMsg | null; data: Airspace | null }) {
+export function Radar({ state, data, selected, onSelect }: {
+  state: StateMsg | null; data: Airspace | null;
+  selected: string; onSelect: (callsign: string) => void;
+}) {
   const motion = useRef(new MotionBuffer());
   const latestState = useRef(state);
   const [vectorMinutes, setVectorMinutes] = useState(1);
@@ -35,7 +38,6 @@ export function Radar({ state, data }: { state: StateMsg | null; data: Airspace 
   const [layers, setLayers] = useState<Set<Layer>>(
     () => new Set(["CTR", "CTA", "Sectors", "Fixes", "Centreline", "Rings"]),
   );
-  const [selected, setSelected] = useState("");
   const aircraft = state?.aircraft.find(a => a.callsign === selected);
   const runway = state?.runway ?? "26L";
 
@@ -51,10 +53,6 @@ export function Radar({ state, data }: { state: StateMsg | null; data: Airspace 
     observer.observe(viewport.current!);
     return () => observer.disconnect();
   }, []);
-
-  useEffect(() => {
-    if (selected && state && !state.aircraft.some(a => a.callsign === selected)) setSelected("");
-  }, [state, selected]);
 
   useEffect(() => {
     const element = viewport.current!;
@@ -216,7 +214,7 @@ export function Radar({ state, data }: { state: StateMsg | null; data: Airspace 
       </select></label>
       <button onClick={centre}>Centre airport</button>
       <label>Aircraft <select aria-label="Select aircraft" value={selected}
-        onChange={e => setSelected(e.target.value)}>
+        onChange={e => onSelect(e.target.value)}>
         <option value="">Select aircraft</option>
         {state?.aircraft.map(ac => <option key={ac.callsign}>{ac.callsign}</option>)}
       </select></label>
@@ -267,7 +265,7 @@ export function Radar({ state, data }: { state: StateMsg | null; data: Airspace 
         }
       }}
       onPointerUp={e => {
-        if (drag.current && !drag.current.moved) setSelected(hit(e.clientX, e.clientY));
+        if (drag.current && !drag.current.moved) onSelect(hit(e.clientX, e.clientY));
         drag.current = null;
       }}
       onPointerCancel={() => { drag.current = null; }}
