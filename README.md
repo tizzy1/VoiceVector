@@ -55,6 +55,14 @@ of the latest ten measured pilot transmissions (or all available when fewer than
 ten). It uses server-reported response timing, not measured browser playback latency;
 repeated caption updates do not add samples. History and samples clear on a session
 reset/change. The bottom strip continues to show only the latest three entries.
+The muted Demo shortcuts button opens a compact presenter box on both views;
+D toggles it and Escape closes it while focused inside. Outside text fields,
+1 resets the seeded demo, 4 arms a wrong-value readback for the next eligible
+numeric clearance, and 8 pauses the session and generates the rules report.
+J toggles local judge mode (larger captions and PTT). Held keys, modifier shortcuts
+and text entry do not trigger demo actions. The box also provides clickable
+controls, disabled when unavailable. The generated report shows a score banner
+and can be downloaded as JSON; the full report screen is still a separate task.
 Arrival and departure flight strips share selection with the radar and its
 aircraft dropdown. Departures are grouped as queued, taking off and airborne.
 The sidebar provides Easy/Medium/Busy traffic targets, 1×/2× simulation speed,

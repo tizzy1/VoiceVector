@@ -178,6 +178,17 @@ class Session:
         ))
 
     async def handle_control(self, message: ControlMsg) -> None:
+        if message.action == "beat":
+            key = message.params.get("key")
+            beats = {
+                1: ("load_scenario", {"scenario": "demo", "paused": False}),
+                4: ("force_error", {"mode": "consistent", "kind": "wrong_value_adjacent"}),
+                8: ("end_session", {}),
+            }
+            if type(key) is not int or key not in beats:
+                raise ValueError("Available presenter beats: 1, 4, 8")
+            action, params = beats[key]
+            message = ControlMsg(action=action, params=params)
         async with self.lock:
             if not self.simulation_ready:
                 raise ValueError("Waiting for simulator module")
@@ -204,6 +215,8 @@ class Session:
                 if self.pilot is not None:
                     self.pilot.set_error_rate(settings.error_rate)
                 self.settings = settings
+                if action == "resume":
+                    self.report = None
                 self.emit({"pause": "session_pause", "resume": "session_resume"}.get(
                     action, "settings_changed"))
             elif action == "inject":
@@ -212,6 +225,7 @@ class Session:
                 if self.pilot is None:
                     raise ValueError("Waiting for pilot module")
                 self.pilot.force_error(**params)
+                await self.notice("Pilot error armed for the next eligible clearance.")
             elif action == "reveal_errors":
                 if not self.ready:
                     raise ValueError("Waiting for radio pipeline")
@@ -219,6 +233,9 @@ class Session:
             elif action == "end_session":
                 if self.rules is None:
                     raise ValueError("Waiting for rules module")
+                if self.report is not None:
+                    await self.hub.send(self.report)
+                    return
                 self.settings.paused = True
                 self.emit("session_end")
                 report = self.rules.report(self.code)
@@ -230,7 +247,7 @@ class Session:
                 self.report = ReportMsg(report=report)
                 await self.hub.send(self.report)
             else:
-                raise ValueError("Presenter beats are scheduled for a later task")
+                raise ValueError("Unsupported session control")
             await self.hub.send(self.state())
 
     @staticmethod

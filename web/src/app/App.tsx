@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ControlMsg, CaptionMsg, EventMsg, SessionMsg, StateMsg } from "../protocol";
+import type { ControlMsg, CaptionMsg, EventMsg, SessionMsg, StateMsg, Report } from "../protocol";
 import { Radar, type Airspace } from "../radar/Radar";
 import { connect } from "./connection";
 import { createAudioEngine } from "../audio/index";
@@ -12,6 +12,7 @@ import { updateResponseSamples, type ResponseSample } from "../ui/communications
 import { CaptionStrip } from "../ui/CaptionStrip";
 import { updateCaptions } from "../ui/captions";
 import { SessionControls, type TrafficConfig } from "../ui/SessionControls";
+import { PresenterConsole } from "../ui/PresenterConsole";
 
 interface Health { ready: boolean; simulation_ready: boolean; missing_modules: string[] }
 
@@ -32,6 +33,9 @@ export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarToggle = useRef<HTMLButtonElement>(null);
   const [error, setError] = useState("");
+  const [judge, setJudge] = useState(false);
+  const [report, setReport] = useState<Report | null>(null);
+  const [reportPending, setReportPending] = useState(false);
   const radio = useRef<RadioLink | null>(null);
   const [radioStatus, setRadioStatus] = useState<RadioStatus>({
     enabled: false, micReady: false, keyed: false, error: "",
@@ -65,25 +69,39 @@ export function App() {
         if (sessionCode.current && sessionCode.current !== message.code) {
           setCaptions([]);
           setResponseSamples([]);
+          setReport(null);
+          setReportPending(false);
         }
         sessionCode.current = message.code;
         setSession(message);
       }
       if (message.type === "state") setState(message);
+      if (message.type === "report") {
+        setReport(message.report);
+        setReportPending(false);
+      }
       if (message.type === "caption") {
+        if (message.speaker === "SYSTEM") setReportPending(false);
         setCaptions(previous => updateCaptions(previous, message));
         setResponseSamples(previous => updateResponseSamples(previous, message));
       }
       if (message.type === "event") {
+        if (message.event.type === "session_resume") {
+          setReport(null);
+          setReportPending(false);
+        }
         if (message.event.type === "session_start") {
           setCaptions([]);
           setResponseSamples([]);
+          setReport(null);
+          setReportPending(false);
         }
         setEvents(previous => [...previous, message].slice(-12));
       }
     }, nextStatus => {
       if (nextStatus !== "Connected") {
         setState(null);
+        setReportPending(false);
         radio.current?.dispose();
         radio.current = null;
         setAudioStarted(false);
@@ -208,7 +226,29 @@ export function App() {
   function sendControl(message: ControlMsg) {
     if (!connection.current?.send(message)) {
       setError("Connection unavailable. Reconnect before changing the simulation.");
-    } else setError("");
+      return false;
+    }
+    setError("");
+    return true;
+  }
+
+  function presenterBeat(key: 1 | 4 | 8) {
+    radio.current?.up();
+    if (sendControl({ type: "control", action: "beat", params: { key } }) && key === 8) {
+      setReportPending(true);
+    }
+  }
+
+  function downloadReport() {
+    if (!report) return;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `sweatbox-${report.session_id.replace(/[^a-zA-Z0-9_-]/g, "_")}-report.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   function control(action: "pause" | "resume" | "load_scenario") {
@@ -218,7 +258,7 @@ export function App() {
     }
   }
   return (
-    <div className="shell">
+    <div className={`shell${judge ? " judge-mode" : ""}`}>
       <header>
         <div><strong>SWEATBOX<span>AI</span></strong><small>GATWICK DIRECTOR</small></div>
         <nav aria-label="Views"><a href="/">Radar</a><a href="/viz">Second screen</a></nav>
@@ -239,11 +279,20 @@ export function App() {
           onClick={() => control("load_scenario")}>Reset demo</button>
       </div>
       <div className="panel-toolbar">
+        <PresenterConsole enabled={connected && Boolean(health?.simulation_ready)}
+          radioReady={Boolean(health?.ready)} judge={judge} onJudge={() => setJudge(value => !value)}
+          reportPending={reportPending} reportReady={Boolean(report)} onBeat={presenterBeat} />
         <button ref={sidebarToggle} aria-expanded={sidebarOpen} aria-controls="traffic-sidebar"
           onClick={() => setSidebarOpen(open => !open)}>
           {sidebarOpen ? "Hide arrivals / departures" : "Show arrivals / departures"}
         </button>
       </div>
+      {(reportPending || report) && <div className="report-notice" role="status">
+        {reportPending ? <span>Generating session report…</span> : report && <>
+          <span>Session ended · Score {report.score} / 100 · {report.findings.length} findings</span>
+          <button onClick={downloadReport}>Download report JSON</button>
+        </>}
+      </div>}
       <main className={sidebarOpen ? "sidebar-open" : "sidebar-closed"}>
         <section className="scope">
           <Radar state={state} data={data} activeSpeakers={speakers} selected={selected} onSelect={selectAircraft} />
@@ -302,7 +351,7 @@ export function App() {
         <label>Volume<input type="range" aria-label="Pilot volume" min="0" max="1"
           step="0.05" value={volume} onChange={event => setVolume(Number(event.target.value))} /></label>
         {role === "radar" && <>
-          <button disabled={!connected || !health?.ready || !radioStatus.micReady}
+          <button data-ptt disabled={!connected || !health?.ready || !radioStatus.micReady}
             aria-pressed={radioStatus.keyed}
             onPointerDown={event => {
               if (event.button !== 0) return;
