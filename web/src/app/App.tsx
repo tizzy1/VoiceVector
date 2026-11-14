@@ -3,6 +3,7 @@ import type { ControlMsg, CaptionMsg, EventMsg, SessionMsg, StateMsg } from "../
 import { Radar, type Airspace } from "../radar/Radar";
 import { connect } from "./connection";
 import { TrafficPanel } from "../ui/TrafficPanel";
+import { AircraftDetails } from "../ui/AircraftDetails";
 import { CaptionStrip } from "../ui/CaptionStrip";
 import { updateCaptions } from "../ui/captions";
 import { SessionControls, type TrafficConfig } from "../ui/SessionControls";
@@ -80,6 +81,11 @@ export function App() {
       && ac.phase !== "LANDED" && ac.phase !== "HANDED_OFF")) setSelected("");
   }, [state, selected]);
 
+  function selectAircraft(callsign: string) {
+    setSelected(callsign);
+    if (callsign) setSidebarOpen(true);
+  }
+
   function closeSidebar() {
     setSidebarOpen(false);
     sidebarToggle.current?.focus();
@@ -122,12 +128,12 @@ export function App() {
       <div className="panel-toolbar">
         <button ref={sidebarToggle} aria-expanded={sidebarOpen} aria-controls="traffic-sidebar"
           onClick={() => setSidebarOpen(open => !open)}>
-          {sidebarOpen ? "Hide traffic panels" : "Show traffic panels"}
+          {sidebarOpen ? "Hide arrivals / departures" : "Show arrivals / departures"}
         </button>
       </div>
       <main className={sidebarOpen ? "sidebar-open" : "sidebar-closed"}>
         <section className="scope">
-          <Radar state={state} data={data} selected={selected} onSelect={setSelected} />
+          <Radar state={state} data={data} selected={selected} onSelect={selectAircraft} />
           {health && !health.simulation_ready && (
             <div className="waiting">
               <h1>Platform connected</h1>
@@ -143,10 +149,15 @@ export function App() {
           }}>
           <div className="sidebar-content">
           <button className="sidebar-close" onClick={closeSidebar}>Close panels</button>
-          <SessionControls session={session} state={state} traffic={traffic}
-            selected={selected} enabled={connected && Boolean(health?.simulation_ready)}
-            radioReady={Boolean(health?.ready)} send={sendControl} />
-          <TrafficPanel state={state} selected={selected} onSelect={setSelected} />
+          <AircraftDetails aircraft={state?.aircraft.find(ac => ac.callsign === selected)}
+            alerts={state?.alerts ?? []} />
+          <TrafficPanel state={state} selected={selected} onSelect={selectAircraft} />
+          <details className="operations-settings">
+            <summary>Session controls</summary>
+            <SessionControls session={session} state={state} traffic={traffic}
+              selected={selected} enabled={connected && Boolean(health?.simulation_ready)}
+              radioReady={Boolean(health?.ready)} send={sendControl} />
+          </details>
           <h2>Integration status</h2>
           <p className={health?.simulation_ready ? "success" : "muted"}>
             {health?.simulation_ready ? "Simulator loaded" : "Awaiting simulator"}

@@ -22,6 +22,7 @@ const { groupTraffic } = await import(groupsURL);
 const componentURL = await compile("../src/ui/TrafficPanel.tsx", {
   "../radar/geometry": geometry, "./trafficGroups": groupsURL,
   "react/jsx-runtime": import.meta.resolve("react/jsx-runtime"),
+  "react": import.meta.resolve("react"),
 });
 const { TrafficPanel } = await import(componentURL);
 function ac(callsign, flow, phase) {

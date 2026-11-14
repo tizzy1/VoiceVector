@@ -66,3 +66,5 @@ main.sidebar-open { grid-template-columns: minmax(0, 1fr) 290px; }
   main, .traffic-sidebar, .sidebar-closed .traffic-sidebar { transition: none; }
 }
 main { overflow: clip; }
+.operations-settings { margin-top: 16px; border-top: 1px solid #2b3a40; padding-top: 12px; }
+.operations-settings > summary { color: #a7bbc3; font-size: 12px; cursor: pointer; }

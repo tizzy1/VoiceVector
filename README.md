@@ -38,6 +38,10 @@ one simulation tick of display delay. Five history dots show recent server
 positions. The Vector control selects Off or a 1/2/5-minute projection using
 current ground speed and track. Pause displays the authoritative stopped state;
 reset and reconnect clear old motion history.
+The selected-aircraft pane compares observed level, heading and IAS with their
+assigned targets and shows route, next fix, radio status and relevant alerts.
+Selecting a track opens the sliding right sidebar and reveals its flight strip.
+Session settings are collapsible beneath the operational panels.
 Arrival and departure flight strips share selection with the radar and its
 aircraft dropdown. Departures are grouped as queued, taking off and airborne.
 The sidebar provides Easy/Medium/Busy traffic targets, 1×/2× simulation speed,
