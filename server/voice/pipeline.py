@@ -23,7 +23,8 @@ from server.contracts import (AudioChunkMsg, AudioEndMsg, AudioStartMsg, Caption
 from server.voice.captions import chips_for, estimated_words, plain_english
 from server.voice.frequency import FrequencyManager
 from server.voice.metrics import Metrics, Stamps
-from server.voice.parser import parse
+from server.voice.parser import default_runways, parse
+from server.voice.parser import llm_fallback
 from server.voice.stt_scribe import STATIC_KEYTERMS, ScribeStream, STTError, build_keyterms
 from server.voice.tts import ElevenLabsTTS, TTSError
 from server.voice.voices import Voices, settings_for
@@ -75,11 +76,13 @@ class VoicePipeline:
         self._counter = 0
         if not key and tts is None:
             logger.warning("ELEVENLABS_API_KEY not set: captions only, no speech")
-        if self.tts is not None:
-            try:
+        self.llm_client = None                     # None -> llm.get_client() (key from env)
+        try:
+            if self.tts is not None:
                 self.hub.spawn(self.tts.warm())
-            except RuntimeError:
-                pass
+            self.hub.spawn(llm_fallback.warm())
+        except RuntimeError:
+            pass
 
     # ------------------------------------------------------------------ helpers
     def _new_id(self, prefix: str) -> str:
@@ -204,15 +207,27 @@ class VoicePipeline:
         tx = parse(text, callsigns=callsigns, fixes=set(self.world.fixes()), source=source,
                    tx_id=tx_id, t=float(self.world.t))
         stamps.mark("t_parsed")
-        tx.timings = {**tx.timings, **stamps}
         parse_s = stamps.span("t_final", "t_parsed")
         self._tx_stamps[tx_id] = stamps
         while len(self._tx_stamps) > 64:
             self._tx_stamps.pop(next(iter(self._tx_stamps)))
         names = {a.callsign: a.spoken_plain for a in self.world.public_state().aircraft}
-        await self.hub.send(CaptionMsg(
-            tx_id=tx_id, speaker="CTRL", stage="final", text=text, chips=chips_for(tx),
-            plain_english=plain_english(tx, names), latency={"parse_s": round(parse_s or 0.0, 4)}))
+
+        def caption(t: Transmission, latency: dict) -> CaptionMsg:
+            return CaptionMsg(tx_id=tx_id, speaker="CTRL", stage="final", text=text, chips=chips_for(t),
+                              plain_english=plain_english(t, names), latency=latency)
+
+        latency = {"parse_s": round(parse_s or 0.0, 4)}
+        await self.hub.send(caption(tx, latency))        # the fast regex result is shown immediately
+        if llm_fallback.needs_fallback(tx):
+            refined = await llm_fallback.refine(tx, callsigns, set(self.world.fixes()), default_runways(),
+                                                client=self.llm_client)
+            stamps.mark("t_parsed")                       # the decision is final only now
+            if refined.parse_path != tx.parse_path:
+                latency = {**latency, "llm_s": round(refined.timings.get("llm_s", 0.0), 3)}
+                await self.hub.send(caption(refined, latency))   # same tx_id: the UI replaces the caption
+            tx = refined
+        tx.timings = {**tx.timings, **stamps}
         evals = self.world.evaluate(tx)
         self._emit("ctrl_transmission", "CONTROLLER", tx.receiver, tx_id,
                    tx=tx.model_dump(mode="json"), evals=[e.model_dump(mode="json") for e in evals])

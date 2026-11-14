@@ -5,6 +5,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Optional
 
+from rapidfuzz import fuzz, process
+
 from server.contracts import Condition, Instruction
 from server.voice.numbers import is_number_token, parse_frequency, parse_run
 
@@ -30,6 +32,9 @@ class Clause:
     family: str
     tokens: list[str]
     condition: Optional[dict] = None
+
+
+ORPHAN = "_orphan"     # pseudo-family: meaningful tokens that belong to no clause (never silently dropped)
 
 
 def _family_of(tok: str) -> Optional[str]:
@@ -74,6 +79,11 @@ def build_clauses(tokens: list[str], fixes: set[str]) -> list[Clause]:
         if fam is None:
             if cur is not None:
                 cur.tokens.append(t)
+            elif is_number_token(t) or t in ("left", "right"):
+                if clauses and clauses[-1].family == ORPHAN:
+                    clauses[-1].tokens.append(t)
+                else:
+                    clauses.append(Clause(ORPHAN, [t]))
         elif (cur is not None and fam == cur.family and fam in ("heading", "speed", "level")
               and not _has_number(cur.tokens)):
             cur.tokens.append(t)
@@ -171,6 +181,26 @@ def _classify_level(toks: list[str]) -> list[Instruction]:
     return out
 
 
+FUZZY_FIX_MIN = 88
+_NOT_FIXES = HEADING_WORDS | SPEED_WORDS | LEVEL_WORDS | SINGLE_STARTERS | FILLERS | {
+    "direct", "published", "hold", "proceed", "route", "going", "over"}
+
+
+def find_fix(toks: list[str], fixes: set[str]) -> tuple[Optional[str], float]:
+    """Exact fix name, else a close STT misspelling ("willow" -> WILLO) at reduced confidence."""
+    for t in toks:
+        if t.upper() in fixes:
+            return t.upper(), 1.0
+    names = sorted(fixes)
+    for t in toks:
+        if len(t) < 4 or t in _NOT_FIXES or not t.isalpha():
+            continue
+        hit = process.extractOne(t.upper(), names, scorer=fuzz.ratio, score_cutoff=FUZZY_FIX_MIN)
+        if hit:
+            return hit[0], 0.85
+    return None, 0.0
+
+
 def _report_what(toks: list[str]) -> Optional[str]:
     for word, what in (("established", "established"), ("heading", "heading"),
                        ("speed", "speed"), ("level", "level"), ("altitude", "level"),
@@ -208,8 +238,8 @@ def classify(clause: Clause, fixes: set[str], last_verb: Optional[str]) -> list[
                                                 else last_verb)
         return [Instruction(type="expedite", verb=verb)]
     if fam in ("direct", "hold"):
-        fix = next((t.upper() for t in toks if t.upper() in fixes), None)
-        return [Instruction(type=fam, fix=fix)] if fix else []
+        fix, confidence = find_fix(toks, fixes)
+        return [Instruction(type=fam, fix=fix, confidence=confidence)] if fix else []
     if fam == "resume":
         return [Instruction(type="resume_nav")]
     if fam == "cleared":
@@ -272,11 +302,48 @@ def _infer_family(toks: list[str], instrs: list[Instruction]) -> Optional[str]:
     return _TYPE_FAMILY.get(instrs[-1].type) if instrs else None
 
 
-def build_instructions(clauses: list[Clause], fixes: set[str]) -> tuple[list[Instruction], int]:
+def number_runs(tokens: list[str]) -> int:
+    """Maximal runs of number words/digits ("decimal" joins the two halves of a frequency)."""
+    runs, inside = 0, False
+    for t in tokens:
+        numeric = is_number_token(t) or (inside and t in ("decimal", "point"))
+        if numeric and not inside:
+            runs += 1
+        inside = numeric
+    return runs
+
+
+def expected_runs(clause: Clause) -> Optional[int]:
+    """How many numbers a clause of this family legitimately carries (None = unchecked)."""
+    fam, toks = clause.family, clause.tokens
+    if fam in ("heading", "speed", "qnh", "expect", "contact", "cleared", "intercept", "clearland",
+               "cleartakeoff"):
+        return 1
+    if fam == "squawk":
+        return 0 if "ident" in toks else 1
+    if fam == "level":
+        if "perminute" in toks and "at" in toks:
+            return 2 if number_runs(toks[:toks.index("at")]) else 1
+        return 1
+    if fam in ("expedite", "direct", "hold", "resume", "cancelapp", "goaround", "report", "confirm"):
+        return 0
+    return None                                   # traffic info and corrections carry free numbers
+
+
+def build_instructions(clauses: list[Clause], fixes: set[str]
+                       ) -> tuple[list[Instruction], int, list[str]]:
+    """-> (instructions, self-corrections, unparsed clause texts)."""
     instrs: list[Instruction] = []
     corrections = 0
+    unparsed: list[str] = []
     last_verb: Optional[str] = None
     for clause in clauses:
+        if clause.family == ORPHAN:
+            unparsed.append(" ".join(clause.tokens))
+            continue
+        allowed = expected_runs(clause)
+        if allowed is not None and number_runs(clause.tokens) > allowed:
+            unparsed.append(" ".join(clause.tokens))          # e.g. "...then set the transponder to 4521"
         correcting = clause.family == "correction"
         if correcting:
             fam = _infer_family(clause.tokens, instrs)
@@ -284,6 +351,8 @@ def build_instructions(clauses: list[Clause], fixes: set[str]) -> tuple[list[Ins
                 continue
             clause = Clause(fam, clause.tokens, clause.condition)
         new = classify(clause, fixes, last_verb)
+        if not new:
+            unparsed.append(" ".join(clause.tokens))      # e.g. "turn left" / "direct willow"
         if new and clause.condition:
             new[0].condition = Condition(**clause.condition)
         for ins in new:
@@ -302,4 +371,21 @@ def build_instructions(clauses: list[Clause], fixes: set[str]) -> tuple[list[Ins
             ins.turn_dir = ins.turn_dir or old.turn_dir
             ins.verb = ins.verb or old.verb
             instrs[idx] = ins
-    return instrs, corrections
+    return instrs, corrections, unparsed
+
+
+RANGES = {"heading": (1, 360), "flight_level": (10, 450), "altitude": (1000, 20000),
+          "speed": (120, 350), "qnh": (900, 1100)}
+
+
+def out_of_range(ins: Instruction) -> bool:
+    """VOICE §7 step 4 range checks. Out-of-range values are kept (the pilot queries them)."""
+    limits = RANGES.get(ins.type)
+    if ins.type == "maintain_level" and ins.value is not None:
+        limits = RANGES["flight_level"] if float(ins.value) < 1000 else RANGES["altitude"]
+    if limits is None or ins.value is None:
+        return False
+    try:
+        return not (limits[0] <= float(ins.value) <= limits[1])
+    except (TypeError, ValueError):
+        return False
