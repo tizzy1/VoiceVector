@@ -505,16 +505,19 @@ def test_browser_and_offline_radio_profiles_match():
 
 
 def test_calibrated_voices_hit_real_pilot_pace():
+    """Speed is interpolated between two measured points (speed 1.0 and 1.2), not assumed linear."""
     from server.voice.voices import SPEED_RANGE, TARGET_WPS, Voice, settings_for
-    slow = Voice("s", "S", "male", ("crisp_airline",), natural_wps=2.5)
-    fast = Voice("f", "F", "male", ("rushed",), natural_wps=4.8)
-    assert settings_for("crisp_airline", voice=slow)["speed"] == 1.2             # 3.0 / 2.5, at the limit
-    assert settings_for("rushed", voice=fast)["speed"] == round(3.7 / 4.8, 3)   # slowed to a real rushed pace
-    assert settings_for("calm_longhaul", voice=Voice("c", "C", "m", natural_wps=3.0))["speed"] == round(2.75 / 3, 3)
-    assert settings_for("crisp_airline", stressed=True, voice=slow)["speed"] == 1.2
-    assert settings_for("student", voice=Voice("x", "X", "f", natural_wps=10))["speed"] == SPEED_RANGE[0]
+    v = Voice("v", "V", "male", ("crisp_airline",), natural_wps=3.5, max_wps=4.3)
+    assert settings_for("crisp_airline", voice=v)["speed"] == round(1 + 0.2 * (3.9 - 3.5) / 0.8, 3)   # 1.1
+    assert settings_for("rushed", voice=v)["speed"] == SPEED_RANGE[1]          # 4.4 is past the top point
+    assert settings_for("student", voice=v)["speed"] < 1.0                     # students slowed down
+    slow_only = Voice("s", "S", "male", natural_wps=3.0)                       # no top point: ratio fallback
+    assert settings_for("calm_longhaul", voice=slow_only)["speed"] == round(3.5 / 3.0, 3)
     assert settings_for("crisp_airline") == settings_for("crisp_airline", voice=Voice("u", "U", "m"))
-    assert TARGET_WPS["student"] < TARGET_WPS["calm_longhaul"] < TARGET_WPS["crisp_airline"] < TARGET_WPS["rushed"]
+    assert settings_for("crisp_airline", stressed=True, voice=v)["speed"] == round(1 + 0.2 * (4.1 - 3.5) / 0.8, 3)
+    # experienced crews: at or above the real readback median (3.23 words/s), students below it
+    assert TARGET_WPS["student"] < 3.23 <= TARGET_WPS["calm_longhaul"] < TARGET_WPS["crisp_airline"] < TARGET_WPS["rushed"]
+
 
 
 

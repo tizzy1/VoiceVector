@@ -5,9 +5,9 @@
  },
  "voices": [
   {
-   "id": "bdu7DVvxHP9CQ4oEd85O",
-   "name": "Sweatbox uk-captain",
-   "slug": "uk-captain",
+   "id": "BqlaagJsY1KhpDCircJg",
+   "name": "Sweatbox uk-captain-brisk",
+   "slug": "uk-captain-brisk",
    "gender": "male",
    "accent": "British",
    "airlines": [
@@ -20,14 +20,15 @@
     "calm_longhaul"
    ],
    "designed": true,
-   "score": 95.5,
+   "score": 95.2,
    "previews": 3,
-   "natural_wps": 2.8
+   "natural_wps": 3.26,
+   "max_wps": 4.1
   },
   {
-   "id": "og8B7pjC9tGRNb7S5fdt",
-   "name": "Sweatbox uk-fo",
-   "slug": "uk-fo",
+   "id": "gqIRYCale678nRIinhRL",
+   "name": "Sweatbox uk-fo-brisk",
+   "slug": "uk-fo-brisk",
    "gender": "female",
    "accent": "British",
    "airlines": [
@@ -42,9 +43,10 @@
     "calm_longhaul"
    ],
    "designed": true,
-   "score": 95.9,
+   "score": 94.9,
    "previews": 3,
-   "natural_wps": 2.68
+   "natural_wps": 3.31,
+   "max_wps": 4.44
   },
   {
    "id": "FDCUsN00hM6JGy0VBVYQ",
@@ -63,7 +65,8 @@
     "stressed"
    ],
    "designed": true,
-   "natural_wps": 3.49
+   "natural_wps": 3.49,
+   "max_wps": 4.25
   },
   {
    "id": "XjE8ojgCO4pOmcddD4aM",
@@ -83,7 +86,8 @@
    "designed": true,
    "score": 97.3,
    "previews": 3,
-   "natural_wps": 2.95
+   "natural_wps": 2.95,
+   "max_wps": 3.62
   },
   {
    "id": "DtLpGchXDpQMPGL6WNnH",
@@ -102,12 +106,13 @@
    "designed": true,
    "score": 99.5,
    "previews": 3,
-   "natural_wps": 3.92
+   "natural_wps": 3.92,
+   "max_wps": 4.79
   },
   {
-   "id": "7QpMwDrky9seEuNEMGqd",
-   "name": "Sweatbox german-captain",
-   "slug": "german-captain",
+   "id": "F5XxlkO0G48O18SNgm2O",
+   "name": "Sweatbox german-captain-brisk",
+   "slug": "german-captain-brisk",
    "gender": "male",
    "accent": "German",
    "airlines": [
@@ -120,9 +125,10 @@
     "calm_longhaul"
    ],
    "designed": true,
-   "score": 90.6,
+   "score": 95.5,
    "previews": 3,
-   "natural_wps": 2.54
+   "natural_wps": 3.24,
+   "max_wps": 3.97
   },
   {
    "id": "INbj7kAnMfWvIhCQI1p2",
@@ -143,7 +149,8 @@
    "designed": true,
    "score": 95.3,
    "previews": 3,
-   "natural_wps": 3.32
+   "natural_wps": 3.32,
+   "max_wps": 3.92
   },
   {
    "id": "VAciwYGSeiIIHgzpY04f",
@@ -162,12 +169,13 @@
    "designed": true,
    "score": 98.4,
    "previews": 3,
-   "natural_wps": 3.74
+   "natural_wps": 3.74,
+   "max_wps": 4.71
   },
   {
-   "id": "adpam77YX6t3NG0gW5ia",
-   "name": "Sweatbox dutch-captain",
-   "slug": "dutch-captain",
+   "id": "Z4nLz8nHEreXg1Lp988i",
+   "name": "Sweatbox dutch-captain-brisk",
+   "slug": "dutch-captain-brisk",
    "gender": "female",
    "accent": "Dutch",
    "airlines": [
@@ -179,9 +187,10 @@
     "calm_longhaul"
    ],
    "designed": true,
-   "score": 84.8,
+   "score": 93.6,
    "previews": 3,
-   "natural_wps": 2.83
+   "natural_wps": 3.09,
+   "max_wps": 3.59
   },
   {
    "id": "e2pdcIRzepYTcVsMTjuz",
@@ -200,7 +209,8 @@
    "designed": true,
    "score": 97.4,
    "previews": 3,
-   "natural_wps": 3.49
+   "natural_wps": 3.49,
+   "max_wps": 3.98
   },
   {
    "id": "ndsgo7sVZEcmpr9meW4k",
@@ -219,7 +229,8 @@
    "designed": true,
    "score": 95.8,
    "previews": 3,
-   "natural_wps": 2.91
+   "natural_wps": 2.91,
+   "max_wps": 3.49
   },
   {
    "id": "65fS1YpyUaIeqIpQPwGb",
@@ -239,7 +250,8 @@
    "designed": true,
    "score": 96.2,
    "previews": 3,
-   "natural_wps": 2.81
+   "natural_wps": 2.81,
+   "max_wps": 3.51
   },
   {
    "id": "hITAcEDlkxX0dhZZ6VS7",
@@ -255,7 +267,8 @@
    "designed": true,
    "score": 97.8,
    "previews": 3,
-   "natural_wps": 2.66
+   "natural_wps": 2.66,
+   "max_wps": 3.38
   },
   {
    "id": "sqT2riR6LhenPdfcKr8v",
@@ -273,7 +286,8 @@
    "designed": true,
    "score": 99.4,
    "previews": 3,
-   "natural_wps": 3.21
+   "natural_wps": 3.21,
+   "max_wps": 3.95
   }
  ],
  "persona_settings": {

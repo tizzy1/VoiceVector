@@ -39,10 +39,10 @@ DESIGN_MODEL = "eleven_ttv_v3"
 DESIGN_ATTEMPTS = 2
 NAME_PREFIX = "Sweatbox"
 
-DELIVERY = ("An airline pilot talking to air traffic control on the aircraft radio: clear, efficient "
-            "radiotelephony with a steady professional cadence, slightly clipped, brisk but unhurried, "
-            "flat intonation, no theatrics. Close headset microphone, dry clean recording, no background "
-            "noise and no reverb.")
+DELIVERY = ("An experienced airline pilot talking to air traffic control on a busy approach frequency: "
+            "quick, clipped, efficient radiotelephony, speaking fast with almost no pauses between items, "
+            "confident and matter-of-fact, flat intonation, no theatrics. Close headset microphone, dry clean "
+            "recording, no background noise and no reverb.")
 
 
 @dataclass(frozen=True)
@@ -72,12 +72,12 @@ class Spec:
 
 
 SPECS: tuple[Spec, ...] = (
-    Spec("uk-captain", "A calm, authoritative British male airline captain in his fifties, neutral southern "
-         "English accent, low warm voice", "male", "British", ("BAW", "TOM", "EZY"),
-         ("crisp_airline", "calm_longhaul"), "Speedbird one one seven"),
-    Spec("uk-fo", "A confident British female first officer in her early thirties, crisp southern English "
-         "accent", "female", "British", ("BAW", "EZY", "TOM", "AUR"),
-         ("crisp_airline", "rushed", "calm_longhaul"), "Easy four five alpha bravo"),
+    Spec("uk-captain-brisk", "A British male airline captain in his fifties, neutral southern English accent, "
+         "low voice, a fast-talking veteran who rattles off readbacks", "male", "British", ("BAW", "TOM", "EZY"),
+         ("crisp_airline", "calm_longhaul"), "Speedbird one one seven", 3.9),
+    Spec("uk-fo-brisk", "A confident British female first officer in her early thirties, crisp southern "
+         "English accent, quick and sharp on the radio", "female", "British", ("BAW", "EZY", "TOM", "AUR"),
+         ("crisp_airline", "rushed", "calm_longhaul"), "Easy four five alpha bravo", 3.9),
     Spec("north-fo", "A friendly British male first officer in his thirties with a Manchester accent, quick "
          "and matter-of-fact", "male", "Northern English", ("EZY", "EXS", "TOM"),
          ("rushed", "crisp_airline", "stressed"), "Channex two two one", 3.5),
@@ -87,18 +87,18 @@ SPECS: tuple[Spec, ...] = (
     Spec("irish-captain", "A brisk Irish male captain in his forties with a Dublin accent, fast and "
          "economical with words", "male", "Irish", ("RYR", "EZY"), ("rushed", "crisp_airline"),
          "Ryanair four two kilo papa", 3.6),
-    Spec("german-captain", "A precise German male captain in his fifties speaking English with a clear "
-         "German accent, measured and exact", "male", "German", ("DLH", "SWR", "EZS"),
-         ("crisp_airline", "calm_longhaul"), "Lufthansa four kilo alpha", 3.0),
+    Spec("german-captain-brisk", "A precise German male captain in his fifties speaking English with a clear "
+         "German accent, fast, exact and efficient", "male", "German", ("DLH", "SWR", "EZS"),
+         ("crisp_airline", "calm_longhaul"), "Lufthansa four kilo alpha", 3.9),
     Spec("spanish-fo", "A Spanish female first officer in her thirties speaking English with a noticeable "
          "Castilian Spanish accent, quick and clear", "female", "Spanish", ("VLG", "IBE", "AEA", "TAP"),
          ("crisp_airline", "rushed"), "Vueling seven two three", 3.4),
     Spec("hungarian-fo", "A young Hungarian male first officer in his late twenties speaking English with a "
          "Central European accent, fast and slightly flat", "male", "Hungarian", ("WZZ", "WUK"),
          ("rushed", "crisp_airline"), "Wizz Air four four seven one", 3.5),
-    Spec("dutch-captain", "A composed Dutch female captain in her forties speaking English with a light Dutch "
-         "accent, direct and efficient", "female", "Dutch", ("KLM", "NAX"), ("crisp_airline", "calm_longhaul"),
-         "KLM one zero three", 3.2),
+    Spec("dutch-captain-brisk", "A Dutch female captain in her forties speaking English with a light Dutch "
+         "accent, direct, fast and efficient", "female", "Dutch", ("KLM", "NAX"), ("crisp_airline", "calm_longhaul"),
+         "KLM one zero three", 3.9),
     Spec("french-fo", "A French male first officer in his thirties speaking English with a French accent, "
          "smooth and quick", "male", "French", ("AFR", "EJU"), ("crisp_airline", "rushed"),
          "Airfrance one two eight one", 3.3),
@@ -332,16 +332,18 @@ async def calibrate(tts: Any, entries: list[dict], cache: Path) -> list[dict]:
         spec = next((s for s in SPECS if s.slug == entry.get("slug")), None)
         if spec is None:
             continue
-        neutral = {**PERSONA_SETTINGS[(entry.get("personas") or ["crisp_airline"])[0]], "speed": 1.0}
-        words = seconds = 0.0
-        for k, body in enumerate(READBACKS):
-            text = f"{body}, {spec.callsign_spoken}"
-            path = cache / f"{spec.slug}_{k}.pcm"
-            if not path.exists():
-                path.write_bytes(b"".join([c async for c in tts.stream(text, entry["id"], neutral)]))
-            words += len(text.split())
-            seconds += path.stat().st_size / (2 * tts.sample_rate)
-        entry["natural_wps"] = round(words / seconds, 2) if seconds else None
+        persona = (entry.get("personas") or ["crisp_airline"])[0]
+        for key, speed in (("natural_wps", 1.0), ("max_wps", 1.2)):
+            settings = {**PERSONA_SETTINGS[persona], "speed": speed}
+            words = seconds = 0.0
+            for k, body in enumerate(READBACKS):
+                text = f"{body}, {spec.callsign_spoken}"
+                path = cache / f"{spec.slug}_{k}_{speed}.pcm"
+                if not path.exists():
+                    path.write_bytes(b"".join([c async for c in tts.stream(text, entry["id"], settings)]))
+                words += len(text.split())
+                seconds += path.stat().st_size / (2 * tts.sample_rate)
+            entry[key] = round(words / seconds, 2) if seconds else None
     return entries
 
 
@@ -363,7 +365,7 @@ async def main(argv: list[str]) -> int:
         from server.voice.tts import ElevenLabsTTS
         tts = ElevenLabsTTS(key, timeout=20)
         if "--calibrate" in argv:
-            entries = await calibrate(tts, entries, ROOT / "runs" / "voice_clean")
+            entries = await calibrate(tts, entries, ROOT / "runs" / "voice_pace")
             write_pool(entries)
             print("natural pace:", {e["slug"]: e.get("natural_wps") for e in entries})
         if "--audition" in argv:
