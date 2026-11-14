@@ -170,7 +170,8 @@ export function App() {
         : previous.filter(speaker => speaker !== activity.speaker));
     });
     radio.current = link;
-    await link.enable();
+    link.volume(volume);
+    await link.enable(playback);
 
   }
 

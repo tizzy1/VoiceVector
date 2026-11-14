@@ -25,13 +25,14 @@ export class RadioLink {
     if (!this.disposed) this.changed(this.status);
   }
 
-  async enable() {
+  async enable(playback = true) {
     try {
       const initialized = this.engine.init({
         role: this.role, playback: true,
         sendJson: message => { this.transport.send(message); },
         sendBinary: frame => { this.transport.sendBinary(frame); },
       });
+      this.engine.setPlayback(playback);
       await Promise.all([initialized, this.engine.resume()]);
       if (this.disposed) return;
       this.update({ enabled: true });
