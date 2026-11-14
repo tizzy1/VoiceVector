@@ -17,6 +17,7 @@ _PHRASES: dict[tuple[str, ...], tuple[str, ...]] = {
     ("maintain", "speed"): ("speed",),
     ("slow", "down"): ("slow",),
     ("stop", "descent"): ("stopdesc",),
+    ("stop", "descend"): ("stopdesc",),   # "descent" is rewritten to "descend" before phrases
     ("stop", "climb"): ("stopclimb",),
     ("own", "navigation"): ("ownnav",),
     ("present", "heading"): ("presenthdg",),
@@ -39,8 +40,15 @@ _PHRASES: dict[tuple[str, ...], tuple[str, ...]] = {
 }
 _MAX_PHRASE = max(len(p) for p in _PHRASES)
 
-_WORD_FIXES = {"descent": "descend", "descending": "descend", "climbing": "climb",
-               "localizer": "localiser", "centre": "center"}
+_WORD_FIXES = {
+    "descent": "descend", "descending": "descend", "climbing": "climb",
+    "localizer": "localiser", "centre": "center",
+    # pilot -ing forms, so readbacks re-parse with the controller grammar
+    "turning": "turn", "reducing": "reduce", "increasing": "increase", "maintaining": "maintain",
+    "expediting": "expedite", "resuming": "resume", "proceeding": "proceed", "holding": "hold",
+    "intercepting": "intercept", "squawking": "squawk", "expecting": "expect",
+    "cancelling": "cancel", "contacting": "contact",
+}
 _HOMOPHONES = {"for": "four", "won": "one", "ate": "eight"}
 
 
@@ -108,8 +116,8 @@ def _fix_homophones(tokens: list[str]) -> list[str]:
 def normalise_tokens(text: str) -> list[str]:
     tokens = tokenize(text)
     tokens = _join_letters(tokens)
-    tokens = _collapse_phrases(tokens)
     tokens = [_WORD_FIXES.get(t, t) for t in tokens]
+    tokens = _collapse_phrases(tokens)
     return _fix_homophones(tokens)
 
 

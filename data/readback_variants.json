@@ -1,0 +1,729 @@
+{
+ "_meta": {
+  "what": "Pilot readback template bank (owner: Sanju; Tudor reviews phraseology). Numbers only via slots; every readback is re-parsed by validator.py.",
+  "slots": "DIR HDG N VERB ING ALT FL SPD CON RATE RWY APP FIX UNIT FREQ SQ QNH QNHW WHAT"
+ },
+ "elements": {
+  "heading": [
+   {
+    "id": "hdg.1",
+    "t": "{DIR} heading {HDG}",
+    "style": "full",
+    "needs": [
+     "DIR"
+    ]
+   },
+   {
+    "id": "hdg.2",
+    "t": "heading {HDG}",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "hdg.3",
+    "t": "{DIR} {HDG}",
+    "style": "short",
+    "needs": [
+     "DIR"
+    ]
+   },
+   {
+    "id": "hdg.4",
+    "t": "turning {DIR} heading {HDG}",
+    "style": "ing",
+    "needs": [
+     "DIR"
+    ]
+   },
+   {
+    "id": "hdg.5",
+    "t": "turn {DIR} heading {HDG}",
+    "style": "full",
+    "needs": [
+     "DIR"
+    ]
+   },
+   {
+    "id": "hdg.6",
+    "t": "fly heading {HDG}",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "hdg.7",
+    "t": "{DIR} turn heading {HDG}",
+    "style": "full",
+    "needs": [
+     "DIR"
+    ]
+   }
+  ],
+  "turn_by": [
+   {
+    "id": "tby.1",
+    "t": "turn {DIR} {N} degrees",
+    "style": "full",
+    "needs": [
+     "DIR"
+    ]
+   },
+   {
+    "id": "tby.2",
+    "t": "{DIR} {N} degrees",
+    "style": "short",
+    "needs": [
+     "DIR"
+    ]
+   },
+   {
+    "id": "tby.3",
+    "t": "turning {DIR} {N} degrees",
+    "style": "ing",
+    "needs": [
+     "DIR"
+    ]
+   },
+   {
+    "id": "tby.4",
+    "t": "{DIR} turn {N} degrees",
+    "style": "full",
+    "needs": [
+     "DIR"
+    ]
+   }
+  ],
+  "present_heading": [
+   {
+    "id": "pre.1",
+    "t": "continue present heading",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "pre.2",
+    "t": "present heading",
+    "style": "short",
+    "needs": []
+   },
+   {
+    "id": "pre.3",
+    "t": "continuing present heading",
+    "style": "ing",
+    "needs": []
+   }
+  ],
+  "altitude": [
+   {
+    "id": "alt.1",
+    "t": "{VERB} altitude {ALT}",
+    "style": "full",
+    "needs": [
+     "VERB"
+    ]
+   },
+   {
+    "id": "alt.2",
+    "t": "{ING} altitude {ALT}",
+    "style": "ing",
+    "needs": [
+     "ING"
+    ]
+   },
+   {
+    "id": "alt.3",
+    "t": "{VERB} {ALT}",
+    "style": "short",
+    "needs": [
+     "VERB"
+    ]
+   },
+   {
+    "id": "alt.4",
+    "t": "{ALT}",
+    "style": "short",
+    "needs": []
+   },
+   {
+    "id": "alt.5",
+    "t": "{ING} {ALT}",
+    "style": "ing",
+    "needs": [
+     "ING"
+    ]
+   },
+   {
+    "id": "alt.6",
+    "t": "{ING} to altitude {ALT}",
+    "style": "ing",
+    "needs": [
+     "ING"
+    ]
+   },
+   {
+    "id": "alt.7",
+    "t": "altitude {ALT}",
+    "style": "full",
+    "needs": []
+   }
+  ],
+  "flight_level": [
+   {
+    "id": "fl.1",
+    "t": "{VERB} flight level {FL}",
+    "style": "full",
+    "needs": [
+     "VERB"
+    ]
+   },
+   {
+    "id": "fl.2",
+    "t": "{ING} flight level {FL}",
+    "style": "ing",
+    "needs": [
+     "ING"
+    ]
+   },
+   {
+    "id": "fl.3",
+    "t": "flight level {FL}",
+    "style": "short",
+    "needs": []
+   },
+   {
+    "id": "fl.4",
+    "t": "{VERB} to flight level {FL}",
+    "style": "full",
+    "needs": [
+     "VERB"
+    ]
+   },
+   {
+    "id": "fl.5",
+    "t": "{ING} to flight level {FL}",
+    "style": "ing",
+    "needs": [
+     "ING"
+    ]
+   },
+   {
+    "id": "fl.6",
+    "t": "cleared flight level {FL}",
+    "style": "full",
+    "needs": []
+   }
+  ],
+  "vertical_rate": [
+   {
+    "id": "vr.1",
+    "t": "{VERB} at {RATE} feet per minute {CON}",
+    "style": "full",
+    "needs": [
+     "VERB"
+    ]
+   },
+   {
+    "id": "vr.2",
+    "t": "{ING} {RATE} feet per minute {CON}",
+    "style": "ing",
+    "needs": [
+     "ING"
+    ]
+   },
+   {
+    "id": "vr.3",
+    "t": "{RATE} feet per minute {CON}",
+    "style": "short",
+    "needs": []
+   }
+  ],
+  "speed": [
+   {
+    "id": "spd.1",
+    "t": "speed {SPD} {CON}",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "spd.2",
+    "t": "speed {SPD} knots {CON}",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "spd.3",
+    "t": "{SPD} knots {CON}",
+    "style": "short",
+    "needs": []
+   },
+   {
+    "id": "spd.4",
+    "t": "reducing speed {SPD} {CON}",
+    "style": "ing",
+    "needs": []
+   },
+   {
+    "id": "spd.5",
+    "t": "maintain speed {SPD} {CON}",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "spd.6",
+    "t": "speed {SPD}",
+    "style": "short",
+    "needs": []
+   }
+  ],
+  "speed_cancel": [
+   {
+    "id": "spc.1",
+    "t": "no speed restriction",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "spc.2",
+    "t": "resuming normal speed",
+    "style": "ing",
+    "needs": []
+   },
+   {
+    "id": "spc.3",
+    "t": "no A T C speed restriction",
+    "style": "short",
+    "needs": []
+   }
+  ],
+  "speed_min_clean": [
+   {
+    "id": "smc.1",
+    "t": "minimum clean speed",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "smc.2",
+    "t": "reducing minimum clean speed",
+    "style": "ing",
+    "needs": []
+   }
+  ],
+  "expedite": [
+   {
+    "id": "exp.1",
+    "t": "expediting",
+    "style": "ing",
+    "needs": []
+   },
+   {
+    "id": "exp.2",
+    "t": "expedite",
+    "style": "short",
+    "needs": []
+   },
+   {
+    "id": "exp.3",
+    "t": "will expedite",
+    "style": "full",
+    "needs": []
+   }
+  ],
+  "direct": [
+   {
+    "id": "dir.1",
+    "t": "direct {FIX}",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "dir.2",
+    "t": "direct to {FIX}",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "dir.3",
+    "t": "proceeding direct {FIX}",
+    "style": "ing",
+    "needs": []
+   },
+   {
+    "id": "dir.4",
+    "t": "proceeding direct to {FIX}",
+    "style": "ing",
+    "needs": []
+   },
+   {
+    "id": "dir.5",
+    "t": "{FIX} direct",
+    "style": "short",
+    "needs": []
+   },
+   {
+    "id": "dir.6",
+    "t": "going direct {FIX}",
+    "style": "ing",
+    "needs": []
+   }
+  ],
+  "hold": [
+   {
+    "id": "hld.1",
+    "t": "hold at {FIX}",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "hld.2",
+    "t": "holding at {FIX}",
+    "style": "ing",
+    "needs": []
+   },
+   {
+    "id": "hld.3",
+    "t": "hold at {FIX} as published",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "hld.4",
+    "t": "holding over {FIX}",
+    "style": "ing",
+    "needs": []
+   }
+  ],
+  "resume_nav": [
+   {
+    "id": "rsm.1",
+    "t": "resuming own navigation",
+    "style": "ing",
+    "needs": []
+   },
+   {
+    "id": "rsm.2",
+    "t": "resume own navigation",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "rsm.3",
+    "t": "own navigation",
+    "style": "short",
+    "needs": []
+   }
+  ],
+  "approach_clearance": [
+   {
+    "id": "app.1",
+    "t": "cleared {APP} approach runway {RWY}",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "app.2",
+    "t": "cleared {APP} runway {RWY}",
+    "style": "short",
+    "needs": []
+   },
+   {
+    "id": "app.3",
+    "t": "cleared the {APP} approach runway {RWY}",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "app.4",
+    "t": "{APP} approach runway {RWY} cleared",
+    "style": "short",
+    "needs": []
+   },
+   {
+    "id": "app.5",
+    "t": "cleared for the {APP} runway {RWY}",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "app.6",
+    "t": "cleared {APP} approach, runway {RWY}",
+    "style": "full",
+    "needs": []
+   }
+  ],
+  "intercept_localiser": [
+   {
+    "id": "loc.1",
+    "t": "intercept localiser runway {RWY}",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "loc.2",
+    "t": "intercepting the localiser runway {RWY}",
+    "style": "ing",
+    "needs": []
+   },
+   {
+    "id": "loc.3",
+    "t": "intercept the localiser runway {RWY}",
+    "style": "full",
+    "needs": []
+   }
+  ],
+  "descend_glidepath": [
+   {
+    "id": "gp.1",
+    "t": "descend on the glidepath",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "gp.2",
+    "t": "descending on the glidepath",
+    "style": "ing",
+    "needs": []
+   },
+   {
+    "id": "gp.3",
+    "t": "descend on the I L S",
+    "style": "short",
+    "needs": []
+   }
+  ],
+  "cancel_approach": [
+   {
+    "id": "can.1",
+    "t": "cancelling approach clearance",
+    "style": "ing",
+    "needs": []
+   },
+   {
+    "id": "can.2",
+    "t": "cancel approach clearance",
+    "style": "full",
+    "needs": []
+   }
+  ],
+  "go_around": [
+   {
+    "id": "ga.1",
+    "t": "going around",
+    "style": "ing",
+    "needs": []
+   },
+   {
+    "id": "ga.2",
+    "t": "go around",
+    "style": "full",
+    "needs": []
+   }
+  ],
+  "contact": [
+   {
+    "id": "con.1",
+    "t": "contact {UNIT} {FREQ}",
+    "style": "full",
+    "needs": [
+     "FREQ"
+    ]
+   },
+   {
+    "id": "con.2",
+    "t": "{UNIT} {FREQ}",
+    "style": "short",
+    "needs": [
+     "FREQ"
+    ]
+   },
+   {
+    "id": "con.3",
+    "t": "contact {UNIT} on {FREQ}",
+    "style": "full",
+    "needs": [
+     "FREQ"
+    ]
+   },
+   {
+    "id": "con.4",
+    "t": "contacting {UNIT} {FREQ}",
+    "style": "ing",
+    "needs": [
+     "FREQ"
+    ]
+   },
+   {
+    "id": "con.5",
+    "t": "contact {UNIT}",
+    "style": "full",
+    "needs": [
+     "UNIT"
+    ]
+   },
+   {
+    "id": "con.6",
+    "t": "changing to {UNIT} {FREQ}",
+    "style": "ing",
+    "needs": [
+     "FREQ"
+    ]
+   }
+  ],
+  "squawk": [
+   {
+    "id": "sqk.1",
+    "t": "squawk {SQ}",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "sqk.2",
+    "t": "squawking {SQ}",
+    "style": "ing",
+    "needs": []
+   },
+   {
+    "id": "sqk.3",
+    "t": "squawk code {SQ}",
+    "style": "full",
+    "needs": []
+   }
+  ],
+  "qnh": [
+   {
+    "id": "qnh.1",
+    "t": "{QNHW} {QNH}",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "qnh.2",
+    "t": "{QNHW} {QNH} hectopascals",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "qnh.3",
+    "t": "{QNH} {QNHW}",
+    "style": "short",
+    "needs": []
+   }
+  ],
+  "expect": [
+   {
+    "id": "exc.1",
+    "t": "expect {WHAT}",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "exc.2",
+    "t": "expecting {WHAT}",
+    "style": "ing",
+    "needs": []
+   }
+  ],
+  "cleared_to_land": [
+   {
+    "id": "ctl.1",
+    "t": "cleared to land runway {RWY}",
+    "style": "full",
+    "needs": []
+   }
+  ],
+  "cleared_takeoff": [
+   {
+    "id": "cto.1",
+    "t": "cleared for takeoff runway {RWY}",
+    "style": "full",
+    "needs": []
+   }
+  ],
+  "traffic_info": [
+   {
+    "id": "trf.1",
+    "t": "looking for the traffic",
+    "style": "full",
+    "needs": []
+   },
+   {
+    "id": "trf.2",
+    "t": "looking",
+    "style": "short",
+    "needs": []
+   }
+  ]
+ },
+ "persona_style_weights": {
+  "crisp_airline": {
+   "full": 3,
+   "short": 1,
+   "ing": 1
+  },
+  "calm_longhaul": {
+   "full": 2,
+   "short": 1,
+   "ing": 3
+  },
+  "student": {
+   "full": 4,
+   "short": 0.25,
+   "ing": 1
+  },
+  "rushed": {
+   "full": 1,
+   "short": 4,
+   "ing": 1
+  },
+  "stressed": {
+   "full": 1,
+   "short": 3,
+   "ing": 1
+  }
+ },
+ "persona_prefix": {
+  "crisp_airline": [
+   ""
+  ],
+  "calm_longhaul": [
+   "",
+   "",
+   "okay, ",
+   "roger, "
+  ],
+  "student": [
+   "uh, ",
+   "okay uh, ",
+   ""
+  ],
+  "rushed": [
+   ""
+  ],
+  "stressed": [
+   ""
+  ]
+ },
+ "persona_suffix": {
+  "calm_longhaul": [
+   "",
+   "",
+   ", thanks"
+  ],
+  "student": [
+   "",
+   ", thank you"
+  ]
+ },
+ "partial_leads": [
+  "",
+  "",
+  "correction, ",
+  "sorry about that, ",
+  "my mistake, "
+ ],
+ "connectors": [
+  ", ",
+  ", ",
+  " and ",
+  ", then "
+ ]
+}
