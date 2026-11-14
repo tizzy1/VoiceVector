@@ -43,7 +43,8 @@ def create_app(factories: dict | None = None, runs_dir: Path | None = None) -> F
     @app.get("/api/health")
     async def health():
         session = app.state.session
-        return {"ready": session.ready, "missing_modules": session.missing}
+        return {"ready": session.ready, "simulation_ready": session.simulation_ready,
+                "missing_modules": session.missing}
 
     @app.get("/api/session")
     async def session_info():
@@ -70,7 +71,7 @@ def create_app(factories: dict | None = None, runs_dir: Path | None = None) -> F
         if session.report:
             client.enqueue(session.report.model_dump(mode="json"))
         if not session.ready:
-            await session.notice("Waiting for teammate modules. See connection status.")
+            await session.notice("Radio unavailable. Waiting for the voice pipeline.")
         try:
             while True:
                 frame = await websocket.receive()
@@ -95,7 +96,7 @@ def create_app(factories: dict | None = None, runs_dir: Path | None = None) -> F
                     if role != "radar":
                         raise ValueError("Only the radar can transmit")
                     if not session.ready:
-                        raise ValueError("Waiting for simulator and voice modules")
+                        raise ValueError("Radio unavailable. Waiting for the voice pipeline.")
                     if isinstance(message, TypedMsg):
                         if not message.text.strip() or len(message.text) > 2000:
                             raise ValueError("Enter a clearance of 1–2000 characters")

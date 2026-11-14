@@ -32,9 +32,12 @@ caption feed and typed input. /viz currently shows the same 2D foundation.
 3D, browser audio integration, camera controls and the report UI are subsequent
 tasks. /report currently serves the foundation application.
 
-Until Tudor's and Sanju's implementations are available, /api/health lists
-missing modules and the application displays an integration-pending state.
-Restart the server after pulling those modules. Production loads exactly:
+Tudor's simulator now runs independently of the radio pipeline. Both views
+show live aircraft, with Pause/Resume and Reset demo controls. /api/health
+reports simulation_ready separately from ready (radio transmission readiness),
+and lists missing modules. Typed input stays disabled until the radio pipeline
+is loaded. Narrative generation is optional for the deterministic report.
+Restart the server after pulling new modules. Production loads exactly:
 
 - server.sim.world.World
 - server.pilot.engine.PilotEngine
@@ -43,8 +46,7 @@ Restart the server after pulling those modules. Production loads exactly:
 - server.voice.pipeline.VoicePipeline
 - server.agents.narrative.Narrative
 
-Construction follows docs/CONTRACTS.md. The server does not supply replacement
-flight or voice implementations. A typed clearance is routed to
+Construction follows docs/CONTRACTS.md. The server uses the available team modules and reports missing capabilities. A typed clearance is routed to
 VoicePipeline.on_typed and resulting captions/state are broadcast to both views.
 
 For web development, run `npm run dev` in web/ alongside the Python server.

@@ -64,12 +64,18 @@ def load_factories() -> tuple[dict, list[str]]:
 class Session:
     def __init__(self, hub: Hub, factories: dict | None = None, runs_dir: Path | None = None):
         self.hub = hub
-        self.factories, self.missing = load_factories() if factories is None else (factories, [])
+        self.factories, _ = load_factories() if factories is None else (factories, [])
+        self.missing = [module for key, (module, _) in MODULES.items()
+                        if key not in self.factories]
         self.runs_dir = runs_dir or ROOT / "runs"
         self.settings = SessionSettings()
         self.code = secrets.token_hex(2).upper()
         self.bus = None
         self.world = None
+        self.pilot = None
+        self.rules = None
+        self.voice = None
+        self.narrative = None
         self.loop_task = None
         self.operations: set[asyncio.Task] = set()
         self.controller = None
@@ -78,7 +84,11 @@ class Session:
 
     @property
     def ready(self) -> bool:
-        return not self.missing
+        return self.voice is not None
+
+    @property
+    def simulation_ready(self) -> bool:
+        return self.world is not None
 
     def message(self, base_url: str) -> SessionMsg:
         return SessionMsg(
@@ -99,6 +109,8 @@ class Session:
             self.bus.emit(Event(t=self.bus.now(), type=kind, actor="SYSTEM"))
 
     def on_sim_event(self, event: Event) -> None:
+        if not self.ready:
+            return
         response = self.pilot.on_sim_event(event)
         if response:
             self.start_operation(self.voice.speak(response))
@@ -109,23 +121,28 @@ class Session:
         task.add_done_callback(self.operations.discard)
 
     async def start(self) -> None:
-        if not self.ready:
+        if "world" not in self.factories:
             return
         self.bus = EventLog(self.runs_dir / secrets.token_hex(8) / "events.jsonl")
         f = self.factories
         self.world = f["world"](self.bus, ROOT / "data")
         self.bus.clock = lambda: self.world.t
-        self.pilot = f["pilot"](self.world, self.bus, ROOT / "data")
-        self.rules = f["rules"](self.world, self.bus, ROOT / "data")
-        self.composer = f["composer"](ROOT / "data")
-        self.voice = f["voice"](self.world, self.pilot, self.composer, self.bus, self.hub)
-        self.narrative = f["narrative"]()
-        self.bus.subscribe(self.rules.on_event)
+        if "pilot" in f:
+            self.pilot = f["pilot"](self.world, self.bus, ROOT / "data")
+        if "rules" in f:
+            self.rules = f["rules"](self.world, self.bus, ROOT / "data")
+            self.bus.subscribe(self.rules.on_event)
+        if self.pilot is not None and "composer" in f and "voice" in f:
+            self.composer = f["composer"](ROOT / "data")
+            self.voice = f["voice"](self.world, self.pilot, self.composer, self.bus, self.hub)
+        if "narrative" in f:
+            self.narrative = f["narrative"]()
         self.bus.subscribe(self.hub.on_event)
         self.bus.subscribe(self.on_sim_event)
-        self.world.load_scenario(self.settings.scenario, self.settings.seed)
         self.world.configure(self.settings)
-        self.pilot.set_error_rate(self.settings.error_rate)
+        self.world.load_scenario(self.settings.scenario, self.settings.seed)
+        if self.pilot is not None:
+            self.pilot.set_error_rate(self.settings.error_rate)
         self.emit("session_start")
         self.loop_task = asyncio.create_task(self.run())
 
@@ -141,14 +158,18 @@ class Session:
         if self.bus:
             self.bus.close()
             self.bus = None
+        self.world = self.pilot = self.rules = self.voice = self.narrative = None
+        self.loop_task = None
 
     async def run(self) -> None:
         while True:
             await asyncio.sleep(1 / self.settings.sim_speed)
             if not self.settings.paused:
                 self.world.tick(1.0)
-                self.pilot.tick(self.world.t)
-                self.rules.on_tick(self.world.snapshot())
+                if self.pilot is not None:
+                    self.pilot.tick(self.world.t)
+                if self.rules is not None:
+                    self.rules.on_tick(self.world.snapshot())
                 await self.hub.send(self.state())
 
     async def notice(self, text: str) -> None:
@@ -158,8 +179,8 @@ class Session:
 
     async def handle_control(self, message: ControlMsg) -> None:
         async with self.lock:
-            if not self.ready:
-                raise ValueError("Waiting for simulator and voice modules")
+            if not self.simulation_ready:
+                raise ValueError("Waiting for simulator module")
             action, params = message.action, message.params
             if action in ("new_session", "load_scenario"):
                 settings = SessionSettings.model_validate({
@@ -180,24 +201,32 @@ class Session:
                 })
                 self.validate_settings(settings)
                 self.world.configure(settings)
-                self.pilot.set_error_rate(settings.error_rate)
+                if self.pilot is not None:
+                    self.pilot.set_error_rate(settings.error_rate)
                 self.settings = settings
                 self.emit({"pause": "session_pause", "resume": "session_resume"}.get(
                     action, "settings_changed"))
             elif action == "inject":
                 self.world.inject(**params)
             elif action == "force_error":
+                if self.pilot is None:
+                    raise ValueError("Waiting for pilot module")
                 self.pilot.force_error(**params)
             elif action == "reveal_errors":
+                if not self.ready:
+                    raise ValueError("Waiting for radio pipeline")
                 self.voice.set_reveal_errors(bool(params.get("on", False)))
             elif action == "end_session":
+                if self.rules is None:
+                    raise ValueError("Waiting for rules module")
                 self.settings.paused = True
                 self.emit("session_end")
                 report = self.rules.report(self.code)
-                try:
-                    report = await asyncio.wait_for(self.narrative.write(report), 5)
-                except Exception:
-                    logger.exception("Narrative unavailable; keeping deterministic report")
+                if self.narrative is not None:
+                    try:
+                        report = await asyncio.wait_for(self.narrative.write(report), 5)
+                    except Exception:
+                        logger.exception("Narrative unavailable; keeping deterministic report")
                 self.report = ReportMsg(report=report)
                 await self.hub.send(self.report)
             else:

@@ -3,7 +3,7 @@ import type { CaptionMsg, EventMsg, SessionMsg, StateMsg } from "../protocol";
 import { Radar, type Airspace } from "../radar/Radar";
 import { connect } from "./connection";
 
-interface Health { ready: boolean; missing_modules: string[] }
+interface Health { ready: boolean; simulation_ready: boolean; missing_modules: string[] }
 
 export function App() {
   const role = location.pathname === "/viz" ? "viz" : "radar";
@@ -22,13 +22,9 @@ export function App() {
     const abort = new AbortController();
     async function load() {
       try {
-        const responses = await Promise.all([
-          fetch("/api/data/egkk", { signal: abort.signal }),
-          fetch("/api/health", { signal: abort.signal }),
-        ]);
-        if (responses.some(response => !response.ok)) throw new Error("Server data unavailable");
-        setData(await responses[0].json());
-        setHealth(await responses[1].json());
+        const response = await fetch("/api/data/egkk", { signal: abort.signal });
+        if (!response.ok) throw new Error("Server data unavailable");
+        setData(await response.json());
       } catch (reason) {
         if (!abort.signal.aborted) setError(String(reason));
       }
@@ -49,7 +45,32 @@ export function App() {
     return () => { abort.abort(); client.close(); };
   }, [role]);
 
+  useEffect(() => {
+    if (status !== "Connected") return;
+    const abort = new AbortController();
+    async function refreshHealth() {
+      try {
+        const response = await fetch("/api/health", { signal: abort.signal });
+        if (!response.ok) throw new Error("Integration status unavailable");
+        setHealth(await response.json());
+      } catch (reason) {
+        if (!abort.signal.aborted) {
+          setHealth(null);
+          setError(String(reason));
+        }
+      }
+    }
+    void refreshHealth();
+    return () => { abort.abort(); };
+  }, [status]);
+
   const connected = status === "Connected";
+  function control(action: "pause" | "resume" | "load_scenario") {
+    const params = action === "load_scenario" ? { scenario: "demo", paused: false } : {};
+    if (!connection.current?.send({ type: "control", action, params })) {
+      setError("Connection unavailable. Reconnect before changing the simulation.");
+    }
+  }
   return (
     <div className="shell">
       <header>
@@ -63,24 +84,33 @@ export function App() {
         <span>{Math.floor((state?.t ?? 0) / 60).toString().padStart(2, "0")}:
           {Math.floor((state?.t ?? 0) % 60).toString().padStart(2, "0")}</span>
         <span>SESSION {session?.code ?? "—"}</span>
+        <span>{state?.paused ? "PAUSED" : "RUNNING"}</span>
+        <button disabled={!connected || !health?.simulation_ready}
+          onClick={() => control(state?.paused ? "resume" : "pause")}>
+          {state?.paused ? "Resume" : "Pause"}
+        </button>
+        <button disabled={!connected || !health?.simulation_ready}
+          onClick={() => control("load_scenario")}>Reset demo</button>
       </div>
       <main>
         <section className="scope">
           <Radar state={state} data={data} />
-          {health && !health.ready && (
+          {health && !health.simulation_ready && (
             <div className="waiting">
               <h1>Platform connected</h1>
-              <p>Waiting for simulator and voice implementations.</p>
-              <p>The scope will display live aircraft when the modules are available.</p>
+              <p>Waiting for the simulator implementation.</p>
+              <p>The scope will display live aircraft when the simulator is available.</p>
             </div>
           )}
           <div className="scope-label">GATWICK · 5 NM RANGE RINGS</div>
         </section>
         <aside>
           <h2>Integration status</h2>
-          <p className={health?.ready ? "success" : "muted"}>
-            {health?.ready ? "Team modules loaded" : "Awaiting team modules"}
+          <p className={health?.simulation_ready ? "success" : "muted"}>
+            {health?.simulation_ready ? "Simulator loaded" : "Awaiting simulator"}
           </p>
+          <p className={health?.ready ? "success" : "muted"}>
+            {health?.ready ? "Radio pipeline loaded" : "Radio pipeline pending"}</p>
           {health?.missing_modules.map(module => <code key={module}>{module}</code>)}
           <h2>Second device</h2>
           <p>Open this address on the same network.</p>
@@ -101,6 +131,7 @@ export function App() {
         ))}
       </section>
       {role === "radar" && (
+        <>
         <form onSubmit={event => {
           event.preventDefault();
           if (connection.current?.send({ type: "typed", text })) {
@@ -113,10 +144,14 @@ export function App() {
             onChange={event => setText(event.target.value)} />
           <button disabled={!connected || !health?.ready || !text.trim()}>Transmit</button>
         </form>
+        {health && !health.ready && <p className="input-status">
+          Typed and spoken clearances become available when the radio pipeline is loaded.
+        </p>}
+        </>
       )}
       {error && <p role="alert" className="error">{error}</p>}
       <footer>{role === "viz" ? "SECOND SCREEN · FOUNDATION VIEW" : "CONTROLLER · TYPED INPUT"}
-        <span>{health?.ready ? "LIVE SIMULATION" : "INTEGRATION PENDING"}</span></footer>
+        <span>{health?.simulation_ready ? "LIVE SIMULATION" : "INTEGRATION PENDING"}</span></footer>
     </div>
   );
 }
