@@ -50,6 +50,7 @@ def empty(world):
 
 # ------------------------------------------------------------- STAR / hold
 def test_star_flown_to_willo_then_holds_and_calls(world, bus):
+    world.script = []                                   # hold only: no scripted MAYDAY
     dlh = world.aircraft["DLH4KA"]                      # at HOLLY, next fix WILLO
     assert dlh.lat_mode == "LNAV" and world.public_state().aircraft[2].next_fix == "WILLO"
     assert run(world, 300, lambda: dlh.lat_mode == "HOLD")

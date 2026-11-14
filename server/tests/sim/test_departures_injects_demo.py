@@ -199,3 +199,26 @@ def test_demo_beats_land_inside_three_minutes_and_replay_identically(data_dir):
                                     for e in b1.of("pilot_call"))
     overlap = [e for e in b1.of("pilot_call") if e.data["kind"] == "checkin" and e.t == 49]
     assert len(overlap) == 2
+
+
+def test_demo_script_fires_timed_injects_once():
+    from pathlib import Path
+    from server.sim.world import World
+    from server.pilot.engine import PilotEngine
+    from server.tests.sim.conftest import FakeBus
+    bus = FakeBus()
+    w = World(bus, Path("data"))
+    w.load_scenario("demo", 42)
+    pe = PilotEngine(w, bus, Path("data"))
+    for _ in range(119):
+        w.tick(1.0); pe.tick(w.t)
+    assert pe._forced is None
+    w.tick(1.0); pe.tick(w.t)
+    assert pe._forced == ("consistent", "wrong_value_adjacent", "EZY45AB")
+    while w.t < 150:
+        w.tick(1.0); pe.tick(w.t)
+    assert w.aircraft["DLH4KA"].emergency and w.aircraft["DLH4KA"].squawk == "7700"
+    n = sum(1 for e in bus.events if getattr(e, "type", None) == "inject")
+    for _ in range(30):
+        w.tick(1.0); pe.tick(w.t)
+    assert sum(1 for e in bus.events if getattr(e, "type", None) == "inject") == n == 1

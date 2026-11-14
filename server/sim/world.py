@@ -96,6 +96,7 @@ class World:
         self.generator = ArrivalGenerator(self, seed, first)
         self.dep_generator = rwy_mgr.DepartureGenerator(self, seed, first + 60.0)
         self.last_departure, self.last_takeoff_t, self.last_landing_t = None, None, None
+        self.script: list[dict[str, Any]] = []   # timed scenario injects, fired once each
         if name != "demo":
             return                      # other scenarios start empty; the generator fills them
         scenario = self._load("scenario_demo")
@@ -128,6 +129,8 @@ class World:
                                          spec.get("persona", "crisp_airline"))
             dep.release_not_before = float(spec.get("release_not_before_s", 0.0))
             self.add_aircraft(dep, checkin=False)
+        self.script = sorted((dict(i, fired=False) for i in scenario.get("injects", [])),
+                             key=lambda i: float(i["t_s"]))
 
     def add_aircraft(self, ac: AircraftState, checkin: bool) -> None:
         self.aircraft[ac.callsign] = ac
@@ -146,6 +149,7 @@ class World:
             return
         self.t += dt
         self._apply_due()
+        self._run_script()
         rwy_mgr.manage(self)
         for ac in list(self.aircraft.values()):
             if ac.flow == "DEP" and rwy_mgr.on_ground(self, ac):
@@ -287,6 +291,15 @@ class World:
     def evaluate(self, tx: Transmission) -> list[Evaluation]:
         """OK / UNABLE / QUERY per instruction (see sim/evaluate.py). Pure — no state change."""
         return evaluate_tx(self, tx)
+
+    def _run_script(self) -> None:
+        """Fire the scenario's world injects at their t_s. force_error entries are
+        left for PilotEngine.tick, which reads them from world.script."""
+        for item in self.script:
+            if item["fired"] or item.get("call") != "inject" or self.t < float(item["t_s"]):
+                continue
+            item["fired"] = True
+            self.inject(item["kind"], item.get("callsign"), dict(item.get("params") or {}))
 
     def set_transmitting(self, callsign: str, on: bool) -> None:
         ac = self.aircraft.get(callsign)

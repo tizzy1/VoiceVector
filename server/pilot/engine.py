@@ -334,6 +334,11 @@ class PilotEngine:
             self._emit("error_spoken", rec.callsign, rec.model_dump(), resp.in_reply_to)
 
     def tick(self, t: float) -> None:
+        for item in getattr(self.world, "script", []):
+            if (not item["fired"] and item.get("call") == "force_error"
+                    and t >= float(item["t_s"])):
+                item["fired"] = True
+                self.force_error(item["mode"], item.get("kind"), item.get("callsign"))
         for eid, due in sorted(self._deadline.items(), key=lambda kv: kv[1]):
             if t >= due and eid in self.errors:
                 self._miss(self.errors[eid], reason="timeout")
