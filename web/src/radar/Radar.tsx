@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AircraftPublic, StateMsg } from "../protocol";
 import { headingLabel, levelLabel, project, scaleFor, zoomAt } from "./geometry";
 import type { Point, View } from "./geometry";
+import { MotionBuffer, vectorEnd } from "./motion";
 import "./radar.css";
 
 type Segments = [Point, Point][];
@@ -21,6 +22,9 @@ type Layer = typeof LAYERS[number];
 const INITIAL: View = { x: 5, y: -10, range: 40 };
 
 export function Radar({ state, data }: { state: StateMsg | null; data: Airspace | null }) {
+  const motion = useRef(new MotionBuffer());
+  const latestState = useRef(state);
+  const [vectorMinutes, setVectorMinutes] = useState(1);
   const canvas = useRef<HTMLCanvasElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const background = useRef<HTMLCanvasElement | null>(null);
@@ -34,6 +38,11 @@ export function Radar({ state, data }: { state: StateMsg | null; data: Airspace 
   const [selected, setSelected] = useState("");
   const aircraft = state?.aircraft.find(a => a.callsign === selected);
   const runway = state?.runway ?? "26L";
+
+  useEffect(() => {
+    latestState.current = state;
+    motion.current.update(state, performance.now());
+  }, [state]);
 
   useEffect(() => {
     const observer = new ResizeObserver(([entry]) => {
@@ -134,41 +143,60 @@ export function Radar({ state, data }: { state: StateMsg | null; data: Airspace 
     const ctx = element.getContext("2d")!;
     const ratio = devicePixelRatio || 1;
     element.width = size.width * ratio; element.height = size.height * ratio;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (background.current) ctx.drawImage(background.current, 0, 0);
-    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    ctx.font = "12px ui-monospace, monospace";
-    hits.current = [];
-    for (const ac of state?.aircraft ?? []) {
-      const [x, y] = project([ac.x, ac.y], view, size.width, size.height);
-      if (x < -10 || y < -10 || x > size.width + 10 || y > size.height + 10) continue;
-      const alert = state?.alerts.find(a => a.callsigns.includes(ac.callsign));
-      const color = alert ? (alert.kind === "WAKE" ? "#f2b544" : "#ff5a52")
-        : ac.emergency ? "#f2b544" : ac.callsign === selected ? "#4fd1e8"
-        : ac.transmitting ? "#7cf0b4" : !ac.in_jurisdiction ? "#7c8b90" : "#e8eef0";
-      ctx.fillStyle = color; ctx.strokeStyle = color; ctx.lineWidth = 1;
-      ctx.fillRect(x - 3, y - 3, 6, 6);
-      if (ac.callsign === selected) ctx.strokeRect(x - 7, y - 7, 14, 14);
-      const trend = ac.vs > 100 ? "↑" : ac.vs < -100 ? "↓" : "→";
-      const assigned = [
-        ac.actype,
-        ac.tgt_hdg == null ? "" : `H${headingLabel(ac.tgt_hdg)}`,
-        ac.tgt_ias == null ? "" : `S${Math.round(ac.tgt_ias)}`,
-      ].filter(Boolean).join(" ");
-      const lines = [ac.callsign,
-        `${levelLabel(ac.alt)}${trend}${levelLabel(ac.cleared_alt)} ${Math.round(ac.gs)}kt`, assigned];
-      const width = Math.max(...lines.map(text => ctx.measureText(text).width));
-      const labelX = Math.max(4, Math.min(x + 16, size.width - width - 4));
-      const labelY = Math.max(14, Math.min(y - 18, size.height - 36));
-      ctx.beginPath(); ctx.moveTo(x + 3, y); ctx.lineTo(labelX - 3, labelY + 5); ctx.stroke();
-      ctx.fillStyle = "#0e1417";
-      ctx.fillRect(labelX - 2, labelY - 12, width + 4, 48);
-      ctx.fillStyle = color;
-      lines.forEach((text, index) => ctx.fillText(text, labelX, labelY + index * 16));
-      hits.current.push({ callsign: ac.callsign, x: labelX, y: labelY, width });
-      hits.current.push({ callsign: ac.callsign, x: x - 8, y: y - 8, width: 16 });
+    let frame = 0;
+    function draw(now: number) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, element.width, element.height);
+      if (background.current) ctx.drawImage(background.current, 0, 0);
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.font = "12px ui-monospace, monospace";
+      hits.current = [];
+      for (const ac of motion.current.sample(now)) {
+        const [x, y] = project([ac.x, ac.y], view, size.width, size.height);
+        if (x < -10 || y < -10 || x > size.width + 10 || y > size.height + 10) continue;
+        const alert = latestState.current?.alerts.find(a => a.callsigns.includes(ac.callsign));
+        const color = alert ? (alert.kind === "WAKE" ? "#f2b544" : "#ff5a52")
+          : ac.emergency ? "#f2b544" : ac.callsign === selected ? "#4fd1e8"
+          : ac.transmitting ? "#7cf0b4" : !ac.in_jurisdiction ? "#7c8b90" : "#e8eef0";
+        ctx.fillStyle = color; ctx.strokeStyle = color; ctx.lineWidth = 1;
+        for (const point of ac.history) {
+          const pixel = project([point.x, point.y], view, size.width, size.height);
+          ctx.globalAlpha = .4;
+          ctx.beginPath(); ctx.arc(...pixel, 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        if (vectorMinutes > 0) {
+          const end = project(vectorEnd(ac, vectorMinutes), view, size.width, size.height);
+          ctx.globalAlpha = .6;
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(...end); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+        ctx.fillRect(x - 3, y - 3, 6, 6);
+        if (ac.callsign === selected) ctx.strokeRect(x - 7, y - 7, 14, 14);
+        const trend = ac.vs > 100 ? "↑" : ac.vs < -100 ? "↓" : "→";
+        const assigned = [
+          ac.actype,
+          ac.tgt_hdg == null ? "" : `H${headingLabel(ac.tgt_hdg)}`,
+          ac.tgt_ias == null ? "" : `S${Math.round(ac.tgt_ias)}`,
+        ].filter(Boolean).join(" ");
+        const lines = [ac.callsign,
+          `${levelLabel(ac.alt)}${trend}${levelLabel(ac.cleared_alt)} ${Math.round(ac.gs)}kt`, assigned];
+        const width = Math.max(...lines.map(text => ctx.measureText(text).width));
+        const labelX = Math.max(4, Math.min(x + 16, size.width - width - 4));
+        const labelY = Math.max(14, Math.min(y - 18, size.height - 36));
+        ctx.beginPath(); ctx.moveTo(x + 3, y); ctx.lineTo(labelX - 3, labelY + 5); ctx.stroke();
+        ctx.fillStyle = "#0e1417";
+        ctx.fillRect(labelX - 2, labelY - 12, width + 4, 48);
+        ctx.fillStyle = color;
+        lines.forEach((text, index) => ctx.fillText(text, labelX, labelY + index * 16));
+        hits.current.push({ callsign: ac.callsign, x: labelX, y: labelY, width });
+        hits.current.push({ callsign: ac.callsign, x: x - 8, y: y - 8, width: 16 });
     }
-  }, [state, view, size, selected, layers, data, runway]);
+    frame = requestAnimationFrame(draw);
+    }
+    frame = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(frame);
+  }, [view, size, selected, layers, data, runway, vectorMinutes]);
 
   function hit(clientX: number, clientY: number) {
     const rect = viewport.current!.getBoundingClientRect();
@@ -194,6 +222,11 @@ export function Radar({ state, data }: { state: StateMsg | null; data: Airspace 
       </select></label>
       <button disabled={!aircraft} onClick={() => aircraft && centreAircraft(aircraft)}>
         Centre selected</button>
+      <label>Vector <select aria-label="Speed vector duration" value={vectorMinutes}
+        onChange={e => setVectorMinutes(Number(e.target.value))}>
+        <option value={0}>Off</option>
+        {[1, 2, 5].map(minutes => <option key={minutes} value={minutes}>{minutes} min</option>)}
+      </select></label>
       <details><summary>Map layers</summary><div className="radar-layers">
         {LAYERS.map(layer => <label key={layer}><input type="checkbox"
           checked={layers.has(layer)} onChange={() => setLayers(current => {

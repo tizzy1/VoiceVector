@@ -40,7 +40,10 @@ export function App() {
         ].slice(-30));
       }
       if (message.type === "event") setEvents(previous => [...previous, message].slice(-12));
-    }, setStatus);
+    }, nextStatus => {
+      if (nextStatus !== "Connected") setState(null);
+      setStatus(nextStatus);
+    });
     connection.current = client;
     return () => { abort.abort(); client.close(); };
   }, [role]);

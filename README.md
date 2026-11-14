@@ -33,6 +33,11 @@ Drag the scope to pan, scroll to zoom around the cursor, or choose a
 10/20/40/80 NM range. Map layers can be toggled individually. Click a track or
 choose its callsign to select it; double-click a track or use Centre selected
 to centre it. With the scope focused, arrows pan, +/- zoom and C resets the view.
+Aircraft positions, altitude and track interpolate between server updates using
+one simulation tick of display delay. Five history dots show recent server
+positions. The Vector control selects Off or a 1/2/5-minute projection using
+current ground speed and track. Pause displays the authoritative stopped state;
+reset and reconnect clear old motion history.
 Tags show current and cleared level, ground speed, type and assigned targets.
 Altitude 6,000 ft and below uses A-prefix labels; higher levels use FL.
 3D, browser audio integration, camera controls and the report UI are subsequent
@@ -69,7 +74,7 @@ cd web && npm run build
 Radar coordinate and formatting regression checks use the existing TypeScript dependency:
 
 ```sh
-node --test web/tests/radar-geometry.test.mjs
+node --test web/tests/*.test.mjs
 ```
 
 The default smoke test starts an actual TCP server and connects two WebSocket
