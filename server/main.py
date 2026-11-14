@@ -133,6 +133,8 @@ def create_app(factories: dict | None = None, runs_dir: Path | None = None) -> F
     dist = ROOT / "web" / "dist"
     if (dist / "assets").is_dir():
         app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
+    if (dist / "fonts").is_dir():
+        app.mount("/fonts", StaticFiles(directory=dist / "fonts"), name="fonts")
 
     @app.get("/")
     @app.get("/viz")

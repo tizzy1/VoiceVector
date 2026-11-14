@@ -4,8 +4,8 @@ import { latencyMetrics } from "./captions";
 import { responseMedian, type ResponseSample } from "./communications";
 import "./communications.css";
 
-export function CommunicationsPanel({ messages, samples }: {
-  messages: readonly CaptionMsg[]; samples: readonly ResponseSample[];
+export function CommunicationsPanel({ messages, samples, selected = "" }: {
+  messages: readonly CaptionMsg[]; samples: readonly ResponseSample[]; selected?: string;
 }) {
   const transcript = useRef<HTMLDivElement>(null);
   const follow = useRef(true);
@@ -39,7 +39,9 @@ export function CommunicationsPanel({ messages, samples }: {
       }}>
       {!messages.length && <p className="muted">No radio traffic yet.</p>}
       {messages.map(message => <article key={JSON.stringify([message.tx_id, message.speaker])}
-        className={message.stage === "partial" ? "communications-partial" : ""}>
+        className={[message.stage === "partial" ? "communications-partial" : "",
+          selected && (message.speaker === selected || message.chips.some(chip => chip.label === selected))
+            ? "communications-selected" : ""].join(" ")}>
         <div className="communications-speaker">
           <b>{message.speaker === "CTRL" ? "Controller" : message.speaker}</b>
           {message.stage === "partial" && <span>Listening…</span>}

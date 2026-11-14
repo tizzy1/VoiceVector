@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { AircraftPublic, StateMsg } from "../protocol";
-import { levelLabel } from "../radar/geometry";
+import { headingLabel, levelLabel } from "../radar/geometry";
 import { groupTraffic, matchesCallsign, type TrafficSort } from "./trafficGroups";
 import "./traffic.css";
 
@@ -23,11 +23,12 @@ function FlightStrip({ aircraft: ac, selected, onSelect }: {
       <div><dt>Level</dt><dd>{levelLabel(ac.alt)}</dd></div>
       <div><dt>Cleared</dt><dd>{levelLabel(ac.cleared_alt)}</dd></div>
       <div><dt>GS</dt><dd>{Math.round(ac.gs)} kt</dd></div>
-      <div><dt>Route</dt><dd>{ac.route_name ?? "—"}</dd></div>
+      <div><dt title="Observed / assigned heading">HDG / CLR</dt><dd>{headingLabel(ac.hdg)} / {ac.tgt_hdg == null ? "—" : headingLabel(ac.tgt_hdg)}</dd></div>
+      <div><dt title="Observed / assigned indicated airspeed in knots">IAS / CLR</dt><dd>{Math.round(ac.ias)} / {ac.tgt_ias == null ? "—" : Math.round(ac.tgt_ias)}</dd></div>
     </dl>
+    <span className="flight-strip-route">Route · {ac.route_name ?? "—"}{ac.next_fix ? ` → ${ac.next_fix}` : ""}</span>
     <span className="flight-strip-status">
       {ac.phase.replaceAll("_", " ")}
-      {ac.next_fix && <span> · Next {ac.next_fix}</span>}
       {ac.emergency && <strong> · Emergency</strong>}
       {ac.transmitting && <span> · Transmitting</span>}
       {ac.traffic_source && <span> · Imported simulation</span>}

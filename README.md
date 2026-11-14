@@ -29,6 +29,16 @@ use a shared hotspot or open /viz on an extended display.
 
 The foundation view serves the Gatwick map, session and connection status,
 caption feed and typed input. /viz currently shows the same 2D foundation.
+The controller uses a compact EuroScope-inspired workstation: weather and selected
+aircraft on the left, the radar centrally, and flight strips in the right-sliding
+drawer. The lower communications/alerts dock scrolls independently and can be
+resized using its lower-right handle. Aircraft/weather and flight lists can be
+collapsed independently; the List width slider adjusts the right drawer. Narrow
+screens use overlay panes and a stacked lower dock. Flight strips compare observed
+and assigned heading/IAS as well as current/cleared level. Selection highlights
+matching pilot/callsign-chip transcript entries. Map labels and track data blocks
+use deterministic collision spacing. Local Inter and JetBrains Mono font files,
+with their OFL licenses, are bundled in web/public/fonts so typography works offline.
 Drag the scope to pan, scroll to zoom around the cursor, or choose a
 10/20/40/80 NM range. Map layers can be toggled individually. Click a track or
 choose its callsign to select it; double-click a track or use Centre selected

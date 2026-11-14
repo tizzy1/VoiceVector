@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import type { ControlMsg, CaptionMsg, EventMsg, SessionMsg, StateMsg, Report } from "../protocol";
 import { Radar, type Airspace } from "../radar/Radar";
 import { connect } from "./connection";
@@ -15,6 +16,8 @@ import { SessionControls, type TrafficConfig } from "../ui/SessionControls";
 import { PresenterConsole } from "../ui/PresenterConsole";
 import { ReportDialog, ReportPage } from "../report/ReportView";
 import { SnapshotPanel } from "../ui/SnapshotPanel";
+import { AlertsEventsPanel } from "../ui/AlertsEventsPanel";
+import "./controller.css";
 
 interface Health { ready: boolean; simulation_ready: boolean; missing_modules: string[] }
 
@@ -34,6 +37,8 @@ export function App() {
   const [text, setText] = useState("");
   const [selected, setSelected] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [contextOpen, setContextOpen] = useState(() => matchMedia("(min-width: 1101px)").matches);
+  const [trafficWidth, setTrafficWidth] = useState(340);
   const sidebarToggle = useRef<HTMLButtonElement>(null);
   const [error, setError] = useState("");
   const [judge, setJudge] = useState(false);
@@ -225,7 +230,7 @@ export function App() {
 
   function selectAircraft(callsign: string) {
     setSelected(callsign);
-    if (callsign) setSidebarOpen(true);
+    if (callsign) { setSidebarOpen(true); setContextOpen(true); }
   }
 
   function closeSidebar() {
@@ -270,8 +275,24 @@ export function App() {
   }
   if (reportPage) return <ReportPage report={report} connectionStatus={status} onDownload={downloadReport} />;
   const reportHref = `/report${session ? `?session=${encodeURIComponent(session.code)}` : ""}`;
+  const contextPanels = <>
+    {role === "radar" && <WeatherPanel metar={state?.metar} connected={connected} />}
+    <AircraftDetails aircraft={state?.aircraft.find(ac => ac.callsign === selected)} alerts={state?.alerts ?? []} />
+    <details className="operations-settings"><summary>Session controls</summary>
+      <SessionControls session={session} state={state} traffic={traffic} selected={selected}
+        enabled={connected && Boolean(health?.simulation_ready)} radioReady={Boolean(health?.ready)} send={sendControl} />
+    </details>
+    <SnapshotPanel state={state} enabled={connected && Boolean(health?.simulation_ready)} controls={role === "radar"} send={sendControl} />
+    <details className="connection-details"><summary>Connection / second device</summary>
+      <p className={health?.simulation_ready ? "success" : "muted"}>{health?.simulation_ready ? "Simulator ready" : "Awaiting simulator"}</p>
+      <p className={health?.ready ? "success" : "muted"}>{health?.ready ? "Radio ready" : "Radio pipeline pending"}</p>
+      {health?.missing_modules.map(module => <code key={module}>{module}</code>)}
+      <p>Open on the same network:</p>{session && <a className="join" href={session.join_url}>{session.join_url}</a>}
+    </details>
+  </>;
   return (
-    <div className={`shell${judge ? " judge-mode" : ""}`}>
+    <div className={`shell ${role === "radar" ? "controller-shell" : "audience-shell"}${judge ? " judge-mode" : ""}`}
+      style={{ "--traffic-width": `${trafficWidth}px` } as CSSProperties}>
       <header>
         <div><strong>SWEATBOX<span>AI</span></strong><small>GATWICK DIRECTOR</small></div>
         <nav aria-label="Views"><a href="/">Radar</a><a href="/viz">Second screen</a><a href={reportHref}>Report</a></nav>
@@ -283,7 +304,7 @@ export function App() {
         <span>{Math.floor((state?.t ?? 0) / 60).toString().padStart(2, "0")}:
           {Math.floor((state?.t ?? 0) % 60).toString().padStart(2, "0")}</span>
         <span>SESSION {session?.code ?? "—"}</span>
-        <span>{state?.paused ? "PAUSED" : "RUNNING"}</span>
+        <span>{state ? state.paused ? "PAUSED" : "RUNNING" : "WAITING"}</span>
         <button disabled={!connected || !health?.simulation_ready}
           onClick={() => control(state?.paused ? "resume" : "pause")}>
           {state?.paused ? "Resume" : "Pause"}
@@ -295,6 +316,12 @@ export function App() {
         <PresenterConsole enabled={connected && Boolean(health?.simulation_ready) && !reportOpen}
           radioReady={Boolean(health?.ready)} judge={judge} onJudge={() => setJudge(value => !value)}
           reportPending={reportPending} reportReady={Boolean(report)} onBeat={presenterBeat} />
+        {role === "radar" && <div className="workspace-controls">
+          <button aria-expanded={contextOpen} aria-controls="controller-context" onClick={() => setContextOpen(value => !value)}>
+            Aircraft / weather</button>
+          <label>List width<input type="range" min="300" max="440" step="20" value={trafficWidth}
+            aria-label="Flight list width" onChange={event => setTrafficWidth(Number(event.target.value))} /></label>
+        </div>}
         <button ref={sidebarToggle} aria-expanded={sidebarOpen} aria-controls="traffic-sidebar"
           onClick={() => setSidebarOpen(open => !open)}>
           {sidebarOpen ? "Hide arrivals / departures" : "Show arrivals / departures"}
@@ -307,7 +334,11 @@ export function App() {
           <button onClick={downloadReport}>Download report JSON</button>
         </>}
       </div>}
-      <main className={sidebarOpen ? "sidebar-open" : "sidebar-closed"}>
+      <main className={`${sidebarOpen ? "sidebar-open" : "sidebar-closed"} ${contextOpen ? "context-open" : "context-closed"}`}>
+        {role === "radar" && <aside id="controller-context" className="controller-context"
+          aria-label="Aircraft and weather" aria-hidden={!contextOpen} inert={!contextOpen}>
+          <div className="context-content">{contextPanels}</div>
+        </aside>}
         <section className="scope">
           <Radar state={state} data={data} activeSpeakers={speakers} selected={selected} onSelect={selectAircraft} />
           {health && !health.simulation_ready && (
@@ -325,35 +356,15 @@ export function App() {
           }}>
           <div className="sidebar-content">
           <button className="sidebar-close" onClick={closeSidebar}>Close panels</button>
-          {role === "radar" && <WeatherPanel metar={state?.metar} connected={connected} />}
-          <AircraftDetails aircraft={state?.aircraft.find(ac => ac.callsign === selected)}
-            alerts={state?.alerts ?? []} />
           <TrafficPanel state={state} selected={selected} onSelect={selectAircraft} />
-          {role === "radar" && <CommunicationsPanel messages={captions} samples={responseSamples} />}
-          <details className="operations-settings">
-            <summary>Session controls</summary>
-            <SessionControls session={session} state={state} traffic={traffic}
-              selected={selected} enabled={connected && Boolean(health?.simulation_ready)}
-              radioReady={Boolean(health?.ready)} send={sendControl} />
-          </details>
-          <SnapshotPanel state={state} enabled={connected && Boolean(health?.simulation_ready)}
-            controls={role === "radar"} send={sendControl} />
-          <h2>Integration status</h2>
-          <p className={health?.simulation_ready ? "success" : "muted"}>
-            {health?.simulation_ready ? "Simulator loaded" : "Awaiting simulator"}
-          </p>
-          <p className={health?.ready ? "success" : "muted"}>
-            {health?.ready ? "Radio pipeline loaded" : "Radio pipeline pending"}</p>
-          {health?.missing_modules.map(module => <code key={module}>{module}</code>)}
-          <h2>Second device</h2>
-          <p>Open this address on the same network.</p>
-          {session && <a className="join" href={session.join_url}>{session.join_url}</a>}
-          <h2>Event feed</h2>
-          {events.length === 0 && <p className="muted">Session events will appear here.</p>}
-          {events.map((event, index) => <p key={index}>{event.feed_text}</p>)}
+          {role === "viz" && <>{contextPanels}<AlertsEventsPanel state={state} events={events} onSelect={selectAircraft} /></>}
           </div>
         </aside>
       </main>
+      {role === "radar" && <section className="controller-bottom" aria-label="Operational communications and alerts">
+        <CommunicationsPanel messages={captions} samples={responseSamples} selected={selected} />
+        <AlertsEventsPanel state={state} events={events} onSelect={selectAircraft} />
+      </section>}
       <div className="radio-controls" aria-label="Radio controls">
         {!audioStarted
           ? <button disabled={!connected} onClick={enableRadio}>
@@ -419,8 +430,8 @@ export function App() {
         </>
       )}
       {error && <p role="alert" className="error">{error}</p>}
-      <footer>{role === "viz" ? "SECOND SCREEN · FOUNDATION VIEW" : "CONTROLLER · TYPED INPUT"}
-        <span>{health?.simulation_ready ? "LIVE SIMULATION" : "INTEGRATION PENDING"}</span></footer>
+      <footer>{role === "viz" ? "SECOND SCREEN · FOUNDATION VIEW" : "CONTROLLER WORKSTATION"}
+        <span>{connected && health?.simulation_ready ? "LIVE SIMULATION" : "AWAITING CONNECTION"}</span></footer>
       {report && reportOpen && <ReportDialog report={report} open={reportOpen} href={reportHref}
         onClose={() => setReportOpen(false)} onDownload={downloadReport} />}
     </div>

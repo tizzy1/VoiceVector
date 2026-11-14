@@ -27,7 +27,8 @@ const componentURL = await compile("../src/ui/TrafficPanel.tsx", {
 const { TrafficPanel } = await import(componentURL);
 function ac(callsign, flow, phase) {
   return { callsign, flow, phase, spoken_plain: callsign, actype: "A320",
-    wake: "M", alt: 6000, cleared_alt: 4000, gs: 210, route_name: null };
+    wake: "M", alt: 6000, cleared_alt: 4000, gs: 210, hdg: 275, tgt_hdg: 240,
+    ias: 220, tgt_ias: 210, route_name: null };
 }
 
 test("groups preserve server order and distinguish takeoff from airborne traffic", () => {
@@ -49,6 +50,7 @@ test("flight strips show server values and accessible shared selection", () => {
   }));
   assert.match(html, /aria-pressed="true"/);
   assert.match(html, /A060/); assert.match(html, /A040/); assert.match(html, /210/);
+  assert.match(html, /275/); assert.match(html, /240/); assert.match(html, /220/);
   assert.match(html, /No departures in this session/);
   const cleared = renderToStaticMarkup(createElement(TrafficPanel, {
     state: { aircraft: [] }, selected: "", onSelect() {},

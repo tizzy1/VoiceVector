@@ -3,6 +3,7 @@ import type { AircraftPublic, StateMsg } from "../protocol";
 import { headingLabel, levelLabel, project, scaleFor, zoomAt } from "./geometry";
 import type { Point, View } from "./geometry";
 import { MotionBuffer, vectorEnd } from "./motion";
+import { overlaps, placeTag, type LabelBox } from "./labels";
 import "./radar.css";
 
 type Segments = [Point, Point][];
@@ -41,6 +42,14 @@ export function Radar({ state, data, selected, onSelect, activeSpeakers = [] }: 
   );
   const aircraft = state?.aircraft.find(a => a.callsign === selected);
   const runway = state?.runway ?? "26L";
+
+  useEffect(() => {
+    let active = true;
+    void document.fonts.load("10px 'JetBrains Mono'").then(() => {
+      if (active) setView(current => ({ ...current }));
+    });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     latestState.current = state;
@@ -83,8 +92,8 @@ export function Radar({ state, data, selected, onSelect, activeSpeakers = [] }: 
       for (const point of points.slice(1)) ctx.lineTo(...xy(point));
       ctx.stroke();
     };
-    ctx.font = "10px ui-monospace, monospace";
-    ctx.fillStyle = "#60777f";
+    ctx.font = "10px 'JetBrains Mono', monospace";
+    ctx.fillStyle = "#4a5d63";
     if (layers.has("Rings")) {
       const step = view.range <= 20 ? 5 : 10;
       for (let radius = step; radius <= view.range * 2; radius += step) {
@@ -121,8 +130,13 @@ export function Radar({ state, data, selected, onSelect, activeSpeakers = [] }: 
       }
     }
     if (layers.has("Fixes")) {
+      const labels: LabelBox[] = [];
       for (const [name, fix] of Object.entries(data?.fixes ?? {})) {
         const [x, y] = xy(fix.xy_nm);
+        const box = { x, y: y - 10, width: ctx.measureText(`△ ${name}`).width, height: 13 };
+        if (x < 0 || y < 0 || x + box.width > size.width || y > size.height) continue;
+        if (labels.some(other => overlaps(box, other))) continue;
+        labels.push(box);
         if (x > 0 && x < size.width - 45 && y > 12 && y < size.height) {
           ctx.fillText(`△ ${name}`, x, y);
         }
@@ -143,18 +157,22 @@ export function Radar({ state, data, selected, onSelect, activeSpeakers = [] }: 
     const ratio = devicePixelRatio || 1;
     element.width = size.width * ratio; element.height = size.height * ratio;
     let frame = 0;
+    const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
     function draw(now: number) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, element.width, element.height);
       if (background.current) ctx.drawImage(background.current, 0, 0);
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      ctx.font = "12px ui-monospace, monospace";
+      ctx.font = "12px 'JetBrains Mono', monospace";
+      const tagBoxes: LabelBox[] = [];
       hits.current = [];
       for (const ac of motion.current.sample(now)) {
         const [x, y] = project([ac.x, ac.y], view, size.width, size.height);
         if (x < -10 || y < -10 || x > size.width + 10 || y > size.height + 10) continue;
         const alert = latestState.current?.alerts.find(a => a.callsigns.includes(ac.callsign));
-        const color = alert ? (alert.kind === "WAKE" ? "#f2b544" : "#ff5a52")
+        const stca = alert?.kind === "STCA_LOS" || alert?.kind === "STCA_PRED";
+        const color = alert ? (alert.kind === "WAKE" ? "#f2b544"
+          : stca && !reducedMotion.matches && Math.floor(now / 250) % 2 ? "#9b3d39" : "#ff5a52")
           : ac.emergency ? "#f2b544" : ac.callsign === selected ? "#4fd1e8"
           : ac.transmitting || activeSpeakers.includes(ac.callsign) ? "#7cf0b4" : !ac.in_jurisdiction ? "#7c8b90" : "#e8eef0";
         ctx.fillStyle = color; ctx.strokeStyle = color; ctx.lineWidth = 1;
@@ -164,6 +182,12 @@ export function Radar({ state, data, selected, onSelect, activeSpeakers = [] }: 
           ctx.beginPath(); ctx.arc(...pixel, 1.5, 0, Math.PI * 2); ctx.fill();
         }
         ctx.globalAlpha = 1;
+        if (ac.transmitting || activeSpeakers.includes(ac.callsign)) {
+          const pulse = reducedMotion.matches ? .5 : (Math.sin(now * Math.PI / 600) + 1) / 2;
+          ctx.globalAlpha = .3 + pulse * .4;
+          ctx.beginPath(); ctx.arc(x, y, 7 + pulse * 3, 0, Math.PI * 2); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
         if (vectorMinutes > 0) {
           const end = project(vectorEnd(ac, vectorMinutes), view, size.width, size.height);
           ctx.globalAlpha = .6;
@@ -181,8 +205,10 @@ export function Radar({ state, data, selected, onSelect, activeSpeakers = [] }: 
         const lines = [ac.callsign + (ac.traffic_source ? " · SNAP" : ""),
           `${levelLabel(ac.alt)}${trend}${levelLabel(ac.cleared_alt)} ${Math.round(ac.gs)}kt`, assigned];
         const width = Math.max(...lines.map(text => ctx.measureText(text).width));
-        const labelX = Math.max(4, Math.min(x + 16, size.width - width - 4));
-        const labelY = Math.max(14, Math.min(y - 18, size.height - 36));
+        const box = placeTag(x, y, width + 4, size.width, size.height, tagBoxes);
+        tagBoxes.push(box);
+        const labelX = box.x + 2;
+        const labelY = box.y + 12;
         ctx.beginPath(); ctx.moveTo(x + 3, y); ctx.lineTo(labelX - 3, labelY + 5); ctx.stroke();
         ctx.fillStyle = "#0e1417";
         ctx.fillRect(labelX - 2, labelY - 12, width + 4, 48);
