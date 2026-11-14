@@ -74,8 +74,13 @@ def mutate(kind: ErrorKind, ins: Instruction, rng: random.Random) -> Optional[In
     return None
 
 
+OMISSION_KINDS: tuple[ErrorKind, ...] = ("omitted_element",)   # slip only -> D3 if not challenged
+
+
 def candidates(mode: ErrorMode, kind: Optional[ErrorKind]) -> list[ErrorKind]:
     pool = EXECUTION_KINDS if mode == "execution_only" else READBACK_KINDS
+    if mode == "readback_only":
+        pool = pool + OMISSION_KINDS
     if kind is not None:
         return [kind]
     return list(pool)
@@ -87,6 +92,10 @@ def build(kind: ErrorKind, mode: ErrorMode, el: ClearanceElement,
     ins = el.intended
     new = el.model_copy(deep=True)
     extra: list[ClearanceElement] = []
+    if kind == "omitted_element":
+        if mode != "readback_only":
+            return None
+        return new, extra, None, _val(ins)          # read back nothing, flown correctly
     if kind == "delayed_compliance":
         new.delay_s = round(rng.uniform(15.0, 25.0), 1)
         return new, extra, _val(ins), _val(ins)
@@ -157,7 +166,7 @@ def causes_los(world, cs: str, good: list[ClearanceElement],
 
     def run(elements: list[ClearanceElement]) -> bool:
         sh = copy.copy(world)
-        sh.bus, sh.generator = _NullBus(), _NoGen()
+        sh.bus, sh.generator, sh.dep_generator = _NullBus(), _NoGen(), _NoGen()
         sh.aircraft = copy.deepcopy(world.aircraft)
         sh._pending = list(world._pending)
         sh.alerts = dict(world.alerts)

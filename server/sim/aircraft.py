@@ -64,3 +64,15 @@ class AircraftState(BaseModel):
     nfc_called: bool = False                    # "no further clearance" already transmitted
     spawn_t: float = 0.0
     landed_t: Optional[float] = None
+    checkin_t: Optional[float] = None           # arrival check-in time (expected-approach call)
+    asked_expect: bool = False
+    radio_failed: bool = False
+    overshoot_called: bool = False
+    loc_prev_xte: Optional[float] = None
+    # departures (sim/runway.py)
+    release_not_before: float = 0.0
+    released_t: Optional[float] = None
+    sid_started: bool = False
+    dep_checked_in: bool = False
+    levelled_t: Optional[float] = None
+    higher_requested: bool = False

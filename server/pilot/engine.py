@@ -119,6 +119,9 @@ class PilotEngine:
         if tx.intent == "readback_correction":
             return self._correction(cs, tx, evaluations)
 
+        reread = self._catch_omissions(cs, tx)
+        if reread and len(reread) == len(tx.instructions):
+            return [self._resp(cs, "partial_correction", tx, elements=reread)]
         self._miss_open(cs, reason="next_transmission")
         refused = first_refusal(evaluations)
         if refused is not None:
@@ -143,8 +146,25 @@ class PilotEngine:
             records.append(rec)
         self.book.record(cs, [e for e in elements if e.type not in NOT_ERROR_ELIGIBLE
                               or e.type in ("contact", "squawk", "qnh")])
+        spoken = [e.readback for e in elements if not self._omitted(e)]
         return self._resp(cs, "full", tx, apply=elements + extra, errors=records,
-                          elements=[e.readback for e in elements])
+                          elements=spoken)
+
+    def _omitted(self, el: ClearanceElement) -> bool:
+        rec = self.errors.get(el.error_id or "")
+        return rec is not None and rec.kind == "omitted_element"
+
+    def _catch_omissions(self, cs: str, tx: Transmission) -> list[Instruction]:
+        """Controller repeated an element the pilot left out of the readback -> caught."""
+        heard: list[Instruction] = []
+        for ins in tx.instructions:
+            el = self.book.match(cs, ins)
+            rec = self.errors.get(el.error_id or "") if el is not None else None
+            if (rec is not None and rec.kind == "omitted_element" and rec.outcome == "pending"
+                    and same_content(ins, el.intended)):
+                self._catch(rec, tx)
+                heard.append(ins.model_copy())
+        return heard
 
     def _plan_error(self, cs: str, elements: list[ClearanceElement]):
         forced = self._forced
@@ -165,6 +185,8 @@ class PilotEngine:
         eligible = [i for i, e in enumerate(elements) if e.type not in NOT_ERROR_ELIGIBLE]
         self._err_rng.shuffle(eligible)
         kinds = policy.candidates(mode, kind)
+        if len(elements) < 2:                       # omitting the only element = no readback
+            kinds = [k for k in kinds if k != "omitted_element"]
         for idx in eligible:
             for k in self._err_rng.sample(kinds, len(kinds)):
                 built = policy.build(k, mode, elements[idx], self._err_rng)
@@ -209,7 +231,10 @@ class PilotEngine:
                                reason_values=refused.reason_values)]
         corrected: list[ClearanceElement] = []
         mentioned: list[Instruction] = []
+        reread = self._catch_omissions(cs, tx)
         for ins in tx.instructions:
+            if any(same_content(ins, h) for h in reread):
+                continue
             el = self.book.match(cs, ins)
             if el is not None and same_content(ins, el.readback) and same_content(ins, el.flown):
                 mentioned.append(ins)                       # pilot already had it right
@@ -221,6 +246,8 @@ class PilotEngine:
                 self._catch(self.errors[el.error_id], tx)
             self.book.record(cs, [fixed])
             corrected.append(fixed)
+        if not corrected and reread:
+            return [self._resp(cs, "partial_correction", tx, elements=reread)]
         if not corrected:
             self._emit("finding", cs, {
                 "rule_id": "D5", "title": f"Unnecessary correction: {cs}",
@@ -285,8 +312,9 @@ class PilotEngine:
         if e.type != "pilot_call" or not e.callsign:
             return None
         kind = e.data.get("kind", "checkin")
-        values = {k: v for k, v in e.data.items() if k != "kind"}
-        plan = self._plan(e.callsign, kind, report_values=values)
+        values = {k: v for k, v in e.data.items() if k not in ("kind", "reason_code")}
+        extra = {"reason_code": e.data["reason_code"]} if e.data.get("reason_code") else {}
+        plan = self._plan(e.callsign, kind, report_values=values, **extra)
         return PilotResponse(callsign=e.callsign, kind=kind, plan=plan,
                              reaction_delay_s=self._reaction(e.callsign),
                              priority=10 if kind in ("mayday", "pan") else 0)

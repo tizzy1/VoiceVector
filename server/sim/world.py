@@ -6,6 +6,7 @@ generator -> STCA. `evaluate` (unable / query) lives in sim/evaluate.py.
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any, Optional
 
@@ -13,9 +14,9 @@ from server.contracts import (
     AircraftPublic, Alert, CallsignInfo, ClearanceElement, Evaluation, Event, EventBus,
     EventType, InjectKind, Instruction, SessionSettings, StateMsg, Transmission, WorldSnapshot,
 )
-from server.sim import kinematics, modes, registry, stca
+from server.sim import kinematics, modes, registry, runway as rwy_mgr, stca
 from server.sim.aircraft import AircraftState
-from server.sim.geo import Projection, norm_hdg, wind_vector
+from server.sim.geo import Projection, heading_for_track, norm_hdg, wind_vector
 from server.sim.evaluate import evaluate as evaluate_tx
 from server.sim.traffic import ArrivalGenerator
 
@@ -23,6 +24,11 @@ TRANSITION_ALT_FT = 6000
 LANDED_REMOVE_S = 30.0
 DEMO_FIRST_SPAWN_S = 300.0      # keep the scripted first minutes of the demo quiet
 ATIS_LETTER = "K"
+EXPECT_APPROACH_ASK_S = 120.0    # arrival asks for the expected approach 2 min after check-in
+CONFLICT_LOS_S = 90.0            # spawn_conflict: loss of separation after ~90 s if untouched
+CONFLICT_POINT_NM = (18.0, 12.0)  # crossing point NE of the airfield, clear of the demo traffic
+CONFLICT_ALT_FT = 7000.0
+CONFLICT_IAS = 250.0
 
 
 class World:
@@ -56,6 +62,10 @@ class World:
         self._seq = 0
         self._set_runway(self.settings.runway)
         self.generator = ArrivalGenerator(self, self.seed, 0.0)
+        self.dep_generator = rwy_mgr.DepartureGenerator(self, self.seed, 0.0)
+        self.last_departure: Optional[str] = None
+        self.last_takeoff_t: Optional[float] = None
+        self.last_landing_t: Optional[float] = None
         self.load_scenario(self.scenario, self.seed)
 
     # ------------------------------------------------------------------ setup
@@ -82,8 +92,10 @@ class World:
         self.aircraft, self.used_callsigns, self.alerts = {}, set(), {}
         self._pending, self._seq = [], 0
         self.wind, self.qnh = (0.0, 0.0), 1013
-        self.generator = ArrivalGenerator(
-            self, seed, DEMO_FIRST_SPAWN_S if name == "demo" else 5.0)
+        first = DEMO_FIRST_SPAWN_S if name == "demo" else 5.0
+        self.generator = ArrivalGenerator(self, seed, first)
+        self.dep_generator = rwy_mgr.DepartureGenerator(self, seed, first + 60.0)
+        self.last_departure, self.last_takeoff_t, self.last_landing_t = None, None, None
         if name != "demo":
             return                      # other scenarios start empty; the generator fills them
         scenario = self._load("scenario_demo")
@@ -111,6 +123,11 @@ class World:
                 hdg=hdg, track=hdg, ias=ias, tas=tas, gs=tas, tgt_hdg=hdg,
                 route=route, route_name=spec.get("star"), cleared_alt=alt, qnh=self.qnh,
             ), checkin=False)
+        for spec in scenario.get("departures", []):
+            dep = rwy_mgr.make_departure(self, spec["callsign"], spec["type"], spec["sid"],
+                                         spec.get("persona", "crisp_airline"))
+            dep.release_not_before = float(spec.get("release_not_before_s", 0.0))
+            self.add_aircraft(dep, checkin=False)
 
     def add_aircraft(self, ac: AircraftState, checkin: bool) -> None:
         self.aircraft[ac.callsign] = ac
@@ -118,6 +135,7 @@ class World:
         self.emit("spawn", ac.callsign, {"flow": ac.flow, "actype": ac.actype,
                                          "route": ac.route_name})
         if checkin:
+            ac.checkin_t = self.t
             level = ({"level_fl": round(ac.alt / 100)} if ac.alt > TRANSITION_ALT_FT
                      else {"alt": round(ac.alt)})
             self.pilot_call(ac, "checkin", route=ac.route_name, atis=ATIS_LETTER, **level)
@@ -128,16 +146,41 @@ class World:
             return
         self.t += dt
         self._apply_due()
+        rwy_mgr.manage(self)
         for ac in list(self.aircraft.values()):
+            if ac.flow == "DEP" and rwy_mgr.on_ground(self, ac):
+                if ac.phase == "TAKEOFF":
+                    rwy_mgr.ground_roll(self, ac, dt)
+                continue
             modes.guide(self, ac)
+            if ac.flow == "DEP":
+                rwy_mgr.guide(self, ac)
             if kinematics.step(ac, self.perf[ac.actype], self.rules, self.wind, dt):
                 self.emit("level_reached", ac.callsign, {"alt": ac.cleared_alt})
             self._check_level_conditionals(ac)
+            if ac.flow == "DEP":
+                rwy_mgr.after_step(self, ac)
+            else:
+                self._arrival_calls(ac)
         for cs in [cs for cs, ac in self.aircraft.items()
-                   if ac.landed_t is not None and self.t - ac.landed_t >= LANDED_REMOVE_S]:
+                   if (ac.landed_t is not None and self.t - ac.landed_t >= LANDED_REMOVE_S)
+                   or (ac.flow == "DEP" and not ac.on_frequency and ac.phase != "QUEUED"
+                       and ac.dep_checked_in
+                       and rwy_mgr.dist_from_airport(self, ac) > rwy_mgr.REMOVE_NM)]:
             del self.aircraft[cs]
         self.generator.tick()
+        self.dep_generator.tick()
         self._update_alerts()
+
+    def _arrival_calls(self, ac: AircraftState) -> None:
+        """SIM_SPEC §1.7: ask for the expected approach 2 min after check-in with no expect."""
+        if (ac.checkin_t is None or ac.asked_expect or ac.expect or ac.approach_cleared
+                or not ac.on_frequency or ac.phase not in ("STAR", "HOLD", "VECTORS")):
+            return
+        jitter = sum(map(ord, ac.callsign)) % 20         # deterministic, spreads the calls
+        if self.t - ac.checkin_t >= EXPECT_APPROACH_ASK_S + jitter:
+            ac.asked_expect = True
+            self.pilot_call(ac, "request", what="expected_approach")
 
     def _apply_due(self) -> None:
         due = sorted((p for p in self._pending if p[0] <= self.t), key=lambda p: p[:2])
@@ -196,12 +239,20 @@ class World:
 
     def land(self, ac: AircraftState) -> None:
         ac.phase, ac.landed_t, ac.on_frequency = "LANDED", self.t, False
+        self.last_landing_t = self.t
         ac.alt, ac.vs, ac.vert_mode, ac.gp_alt = self.rwy_elev, 0.0, "ALT", None
         ac.track = ac.hdg = self.loc_course
         ac.tgt_hdg, ac.auto_ias = None, None
         self.emit("landing", ac.callsign, {"runway": self.runway})
 
     def pilot_call(self, ac: AircraftState, kind: str, **values: Any) -> None:
+        # spoken-text keys the readback composer reads, alongside the contract keys
+        if kind == "request" and "request" not in values:
+            values["request"] = {"higher": "higher level",
+                                 "expected_approach": "expected approach"}.get(
+                                     str(values.get("what")), str(values.get("what", "vectors")))
+        if kind in ("mayday", "pan") and values.get("reason") and "nature" not in values:
+            values["nature"] = values["reason"]
         self.emit("pilot_call", ac.callsign, {"kind": kind, **values}, actor="PILOT")
 
     def _update_alerts(self) -> None:
@@ -252,19 +303,70 @@ class World:
                 ac.squawk = "7700"
             self.pilot_call(ac, kind, **params)
         elif kind == "radio_failure" and ac is not None:
-            ac.on_frequency = False
+            ac.on_frequency, ac.radio_failed = False, True
         elif kind == "go_around" and ac is not None:
             self.go_around(ac, reason="injected")
         elif kind == "spawn_arrival":
             self.generator.spawn(entry=params.get("entry"), force=True)
+        elif kind == "spawn_departure":
+            dep = self.dep_generator.spawn(sid=params.get("sid"))
+            params = {**params, "spawned": [dep.callsign] if dep else []}
+        elif kind == "spawn_conflict":
+            params = {**params, "spawned": self._spawn_conflict()}
+        elif kind == "force_overlap":
+            params = {**params, "callers": self._force_overlap()}
         self.emit("inject", callsign, {"kind": kind, **params}, actor="INSTRUCTOR")
+
+    def _spawn_conflict(self) -> list[str]:
+        """Two arrivals converging 90° on the same level; LoS in ~90 s if nobody acts."""
+        px, py = CONFLICT_POINT_NM
+        tas = kinematics.tas_of(CONFLICT_IAS, CONFLICT_ALT_FT)
+        r_los = self.min_sep_nm / math.sqrt(2.0)          # each at r from P -> sep = r * sqrt 2
+        d0 = r_los + tas * CONFLICT_LOS_S / 3600.0
+        out: list[str] = []
+        rng = self.generator.rng
+        for come_from, airline, actype in ((45.0, "EZY", "A320"), (135.0, "RYR", "B738")):
+            track = norm_hdg(come_from + 180.0)
+            x = px + d0 * math.sin(math.radians(come_from))
+            y = py + d0 * math.cos(math.radians(come_from))
+            hdg = heading_for_track(track, tas, self.wind)
+            cs = self.generator._callsign(airline)
+            persona = rng.choice(("crisp_airline", "rushed"))
+            self.add_aircraft(AircraftState(
+                callsign=cs, spoken=self.spoken(cs), spoken_plain=self.spoken_plain(cs),
+                actype=actype, wake=self.perf[actype]["wake"], persona=persona, flow="ARR",
+                phase="VECTORS", lat_mode="HDG", x=x, y=y, alt=CONFLICT_ALT_FT, hdg=hdg,
+                track=track, ias=CONFLICT_IAS, tas=tas, gs=tas, tgt_hdg=hdg,
+                cleared_alt=CONFLICT_ALT_FT, qnh=self.qnh, spawn_t=self.t,
+            ), checkin=False)
+            out.append(cs)
+        return out
+
+    def _force_overlap(self) -> list[str]:
+        """Two pilot calls in the same tick: two new arrivals check in together."""
+        callers = []
+        for _ in range(2):
+            ac = self.generator.spawn(force=True)
+            if ac is not None:
+                callers.append(ac.callsign)
+        if len(callers) < 2:                              # no room: an existing aircraft asks
+            for ac in sorted(self.aircraft.values(), key=lambda a: a.callsign):
+                if len(callers) >= 2:
+                    break
+                if ac.on_frequency and ac.flow == "ARR" and ac.callsign not in callers:
+                    self.pilot_call(ac, "request", what="expected_approach")
+                    callers.append(ac.callsign)
+        return callers
+
+    def departure_list(self) -> list[dict[str, Any]]:
+        return rwy_mgr.release_info(self)
 
     # ------------------------------------------------------------ views
     def public_state(self) -> StateMsg:
         return StateMsg(
             t=self.t, paused=self.settings.paused, sim_speed=self.settings.sim_speed,
             runway=self.runway, alerts=list(self.alerts.values()),
-            backlog={"ARR": self.generator.backlog, "DEP": 0},
+            backlog={"ARR": self.generator.backlog, "DEP": len(rwy_mgr.queue(self))},
             aircraft=[self._public(ac) for ac in self.aircraft.values()],
         )
 
@@ -363,6 +465,12 @@ class World:
         speed = f"{round(ac.ias)} kt"
         if ac.phase == "LANDED":
             return f"landed runway {self.runway}"
+        if ac.phase == "QUEUED":
+            return f"waiting to depart {self.runway} · {ac.route_name}"
+        if ac.phase == "TAKEOFF" and ac.alt <= self.rwy_elev:
+            return f"taking off {self.runway} · {speed}"
+        if ac.phase == "HANDED_OFF":
+            return f"with London · {ac.route_name}"
         if ac.emergency and ac.squawk == "7700":
             prefix = "MAYDAY · "
         else:

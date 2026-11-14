@@ -4,7 +4,8 @@
   "runway": "26L",
   "qnh": 1013,
   "note": "Initial states for the 3-minute demo. Positions at real STAR fixes; levels/headings plausible for a sim, not real procedure values.",
-  "injects_note": "Each inject maps 1:1 to a contracts.py call at sim time t_s. call=force_error -> PilotEngine.force_error(mode, kind, callsign); call=inject -> World.inject(kind, callsign, params)."
+  "injects_note": "Each inject maps 1:1 to a contracts.py call at sim time t_s. call=force_error -> PilotEngine.force_error(mode, kind, callsign); call=inject -> World.inject(kind, callsign, params).",
+  "departures_note": "Optional list 'departures': [{callsign, type, sid, persona, release_not_before_s}] queues departures at the holding point. Left empty so the demo opening stays exactly the five scripted arrivals; use the spawn_departure inject for the departure beat."
  },
  "aircraft": [
   {

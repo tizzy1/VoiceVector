@@ -35,7 +35,7 @@ class SafetyRules:
 
     # ------------------------------------------------------------------ tick
     def tick(self, t: float, acs: list[AircraftState]) -> None:
-        live = [a for a in acs if a.phase not in ("LANDED", "HANDED_OFF")]
+        live = [a for a in acs if a.phase not in ("LANDED", "HANDED_OFF", "QUEUED", "TAKEOFF")]
         self._a1(t, live)
         self._a2(t)
         self._a3(t, live)

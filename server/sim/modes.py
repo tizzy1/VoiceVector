@@ -19,7 +19,7 @@ LNAV_MAX_LEAD_NM = 5.0
 NFC_CALL_NM = 3.0               # "approaching WILLO, no further clearance"
 HOLD_LEG_S = 60.0
 HOLD_MAX_IAS = 220.0
-LOC_CAPTURE_XTE_NM = 1.0
+LOC_CAPTURE_XTE_NM = 2.0       # SIM_SPEC §2.3: capture only with XTE < 2 NM
 LOC_MAX_INTERCEPT_DEG = 45.0
 LOC_GAIN_DEG_PER_NM = 20.0
 LOC_MAX_CORRECTION_DEG = 30.0
@@ -149,10 +149,17 @@ def glidepath_alt(w: "World", along_nm: float) -> float:
 
 def _try_loc_capture(w: "World", ac: AircraftState) -> None:
     along, xte = loc_geometry(w, ac)
+    prev, ac.loc_prev_xte = ac.loc_prev_xte, xte
     if along <= 0 or abs(xte) >= LOC_CAPTURE_XTE_NM:
         return
     if abs(hdg_diff(ac.track, w.loc_course)) > LOC_MAX_INTERCEPT_DEG:
-        return                          # too steep: flies through the localiser
+        # too steep: flies through the localiser and says so once (SIM_SPEC §2.3, test 7)
+        crossed = prev is not None and (prev > 0) != (xte > 0)
+        if crossed and not ac.overshoot_called and ac.on_frequency:
+            ac.overshoot_called = True
+            w.pilot_call(ac, "unable", reason_code="UNABLE_INTERCEPT_ANGLE",
+                         what="overshooting_localiser", runway=w.runway)
+        return
     ac.lat_mode, ac.established, ac.hold, ac.turn_dir = "LOC", True, None, None
     if ac.phase in ("STAR", "HOLD", "VECTORS", "GO_AROUND"):
         ac.phase = "APPROACH"

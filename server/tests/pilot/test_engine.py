@@ -179,3 +179,36 @@ def test_g_guard_never_creates_los_within_30s(bus, data_dir):
             a, b = w.aircraft["TOP1"], w.aircraft["LOW1"]
             assert not (dist(a.x, a.y, b.x, b.y) < 3.0 and abs(a.alt - b.alt) < 1000), seed
     assert planned > 100                                # the guard still lets safe errors through
+
+
+HDG = I(type="heading", value=240, turn_dir="L")
+
+
+def test_omitted_element_left_out_of_readback_then_missed(world, bus, data_dir):
+    p = engine(world, bus, data_dir)
+    p.force_error("readback_only", "omitted_element", "BAW117")
+    [r] = say(p, world, tx("BAW117", HDG, ALT))
+    assert len(r.plan.elements) == 1 and r.errors[0].kind == "omitted_element"
+    assert sorted(e.flown.type for e in r.apply) == ["altitude", "heading"]   # still flies both
+    say(p, world, tx("BAW117", I(type="speed", value=220), tx_id="tx2"))
+    [m] = bus.of("error_missed")
+    assert m.data["kind"] == "omitted_element"
+
+
+def test_omitted_element_repeated_by_controller_is_caught(world, bus, data_dir):
+    p = engine(world, bus, data_dir)
+    p.force_error("readback_only", "omitted_element", "BAW117")
+    [r] = say(p, world, tx("BAW117", HDG, ALT))
+    left_out = ({"heading", "altitude"} - {e.type for e in r.plan.elements}).pop()
+    again = HDG if left_out == "heading" else ALT
+    [r2] = say(p, world, tx("BAW117", again, tx_id="tx2"))
+    assert r2.kind == "partial_correction" and [e.type for e in r2.plan.elements] == [left_out]
+    assert bus.of("error_caught") and not bus.of("error_missed")
+    assert not [e for e in bus.of("finding") if e.data.get("rule_id") == "D5"]
+
+
+def test_omission_never_planned_for_single_element(world, bus, data_dir):
+    p = engine(world, bus, data_dir)
+    p.force_error("readback_only", "omitted_element", "BAW117")
+    [r] = say(p, world, tx("BAW117", ALT))
+    assert not r.errors and len(r.plan.elements) == 1

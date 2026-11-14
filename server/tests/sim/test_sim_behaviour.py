@@ -44,7 +44,7 @@ def on_final(world, dist_nm, offset_nm=0.0):
 
 def empty(world):
     world.load_scenario("custom", 1)
-    world.settings = world.settings.model_copy(update={"arr_per_hr": 0})
+    world.settings = world.settings.model_copy(update={"arr_per_hr": 0, "dep_per_hr": 0})
     return world
 
 
@@ -144,7 +144,8 @@ def test_no_glideslope_capture_from_above(bus, data_dir):
     assert not bus.of("gs_captured")
     run(w, 200)
     assert bus.of("go_around") and ac.phase == "GO_AROUND" and ac.cleared_alt == 3000
-    assert bus.of("pilot_call")[-1].data["kind"] == "going_around"
+    assert [e for e in bus.of("pilot_call")
+            if e.callsign == ac.callsign][-1].data["kind"] == "going_around"
 
 
 def test_60_degree_intercept_flies_through_the_localiser(bus, data_dir):
@@ -231,7 +232,7 @@ def test_wind_drifts_track_and_lnav_corrects(bus, data_dir):
 # -------------------------------------------------------------- generator
 def test_generator_spawns_separated_arrivals_with_checkins(bus, data_dir):
     w = World(bus, data_dir)
-    w.settings = w.settings.model_copy(update={"arr_per_hr": 30})
+    w.settings = w.settings.model_copy(update={"arr_per_hr": 30, "dep_per_hr": 0})
     w.load_scenario("custom", 3)
     bus.events.clear()
     worst = 99.0
@@ -259,7 +260,7 @@ def test_generator_spawns_separated_arrivals_with_checkins(bus, data_dir):
 def test_generator_is_seeded(bus, data_dir):
     def sample(seed):
         w = World(bus, data_dir)
-        w.settings = w.settings.model_copy(update={"arr_per_hr": 30})
+        w.settings = w.settings.model_copy(update={"arr_per_hr": 30, "dep_per_hr": 0})
         w.load_scenario("custom", seed)
         for _ in range(600):
             w.tick(1.0)

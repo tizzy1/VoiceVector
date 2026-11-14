@@ -30,7 +30,8 @@ def separation(a: AircraftState, b: AircraftState, t: float = 0.0) -> tuple[floa
 
 
 def _exempt(a: AircraftState, b: AircraftState) -> bool:
-    return a.phase == "LANDED" or b.phase == "LANDED"
+    ground = ("LANDED", "QUEUED", "TAKEOFF")      # runway traffic is Tower's job, not STCA's
+    return a.phase in ground or b.phase in ground
 
 
 def _in_trail_ok(a: AircraftState, b: AircraftState, d: float) -> bool:
@@ -50,7 +51,7 @@ def predicted_conflict(a: AircraftState, b: AircraftState, min_nm: float, min_ft
 def detect(aircraft: Iterable[AircraftState], min_nm: float,
            min_ft: float) -> list[dict]:
     """[{kind, callsigns, dist_nm, dalt_ft, in_s}] — one entry per conflicting pair."""
-    acs = [a for a in aircraft if a.phase != "LANDED"]
+    acs = [a for a in aircraft if a.phase not in ("LANDED", "QUEUED")]
     out: list[dict] = []
     for i, a in enumerate(acs):
         for b in acs[i + 1:]:

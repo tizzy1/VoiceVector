@@ -168,3 +168,10 @@ def test_report_validates_and_can_end_any_time(world, bus, data_dir):
     for k in ("catch_table", "los", "efficiency", "latency", "findings_by_category"):
         assert k in rep.stats
     assert rep.narrative is None and 0 <= rep.score <= 100
+
+
+def test_incomplete_readback_not_challenged_is_d3(world, bus, data_dir):
+    rules = setup(world, bus, data_dir)
+    bus.emit(Event(t=40, type="error_missed", actor="PILOT", callsign="T1",
+                   data={**_err("missed", mode="readback_only"), "kind": "omitted_element"}))
+    assert [(f.rule_id, f.severity) for f in rules.findings] == [("D3", "MEDIUM")]

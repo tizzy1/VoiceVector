@@ -69,6 +69,17 @@ class MonitoringRules:
             evidence={"error_id": rec.id, "kind": rec.kind, "mode": rec.mode})
 
     def _missed(self, rec: ErrorRecord, e: Event) -> None:
+        if rec.kind == "omitted_element":
+            self.eng.add(
+                "D3", "MEDIUM", "CONTROLLER", [rec.callsign], t=e.t, tx_id=e.tx_id,
+                title=f"Incomplete readback accepted: {rec.callsign}",
+                detail=f"The pilot left out the {rec.element_type.replace('_', ' ')} "
+                       f"({_value(rec.intended)}) and it was not challenged.",
+                correct_practice="Make sure every safety element is read back; if one is "
+                                 "missing, ask for it, e.g. 'read back the heading'.",
+                evidence={"error_id": rec.id, "kind": rec.kind, "mode": rec.mode,
+                          "reason": e.data.get("reason")})
+            return
         execution = rec.mode == "execution_only"
         rid = "E2" if execution else "D2"
         what = "Execution error" if execution else "Readback error"

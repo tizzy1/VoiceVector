@@ -154,6 +154,18 @@ class InstructionRules:
     def tick(self, t: float, acs: list[AircraftState]) -> None:
         w = self.eng.world
         for a in acs:
+            if a.flow == "DEP" and a.callsign not in self.late_transfer:
+                from server.sim.runway import NOT_TRANSFERRED_NM, not_transferred
+                if not_transferred(w, a):
+                    self.late_transfer.add(a.callsign)
+                    self.eng.add(
+                        "B10", "MEDIUM", "CONTROLLER", [a.callsign], t=t,
+                        title=f"Departure not transferred: {a.callsign}",
+                        detail=f"Reached the end of the {a.route_name} SID or "
+                               f"{NOT_TRANSFERRED_NM:g} NM still on the Director frequency.",
+                        correct_practice="Transfer departures to London before the sector "
+                                         "boundary, e.g. 'contact London Control 134.125'.")
+                continue
             if a.flow != "ARR" or a.callsign in self.late_transfer or not a.on_frequency:
                 continue
             if a.freq_unit != "director" or not a.established:
