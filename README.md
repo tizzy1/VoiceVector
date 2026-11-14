@@ -40,10 +40,17 @@ current ground speed and track. Pause displays the authoritative stopped state;
 reset and reconnect clear old motion history.
 Arrival and departure flight strips share selection with the radar and its
 aircraft dropdown. Departures are grouped as queued, taking off and airborne.
+Use Show/Hide traffic panels to slide the sidebar from the right. Close panels
+or Escape returns focus to the toggle; reduced-motion preferences disable the
+transition.
 Lists preserve server order, omit landed/handed-off flights and show current
 level, cleared level, ground speed, aircraft type, wake category and route.
 Tags show current and cleared level, ground speed, type and assigned targets.
 Altitude 6,000 ft and below uses A-prefix labels; higher levels use FL.
+The shared caption strip retains the latest three transmissions, updates partials
+in place, and displays parsed chips, plain-English summaries and supplied latency
+metrics. Pilot captions currently display the full sentence; word timing awaits
+the browser audio integration.
 3D, browser audio integration, camera controls and the report UI are subsequent
 tasks. /report currently serves the foundation application.
 

@@ -3,6 +3,8 @@ import type { CaptionMsg, EventMsg, SessionMsg, StateMsg } from "../protocol";
 import { Radar, type Airspace } from "../radar/Radar";
 import { connect } from "./connection";
 import { TrafficPanel } from "../ui/TrafficPanel";
+import { CaptionStrip } from "../ui/CaptionStrip";
+import { updateCaptions } from "../ui/captions";
 
 interface Health { ready: boolean; simulation_ready: boolean; missing_modules: string[] }
 
@@ -17,6 +19,8 @@ export function App() {
   const [events, setEvents] = useState<EventMsg[]>([]);
   const [text, setText] = useState("");
   const [selected, setSelected] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const sidebarToggle = useRef<HTMLButtonElement>(null);
   const [error, setError] = useState("");
   const connection = useRef<ReturnType<typeof connect> | null>(null);
 
@@ -36,10 +40,7 @@ export function App() {
       if (message.type === "session") setSession(message);
       if (message.type === "state") setState(message);
       if (message.type === "caption") {
-        setCaptions(previous => [
-          ...previous.filter(c => c.tx_id !== message.tx_id || c.speaker !== message.speaker),
-          message,
-        ].slice(-30));
+        setCaptions(previous => updateCaptions(previous, message));
       }
       if (message.type === "event") setEvents(previous => [...previous, message].slice(-12));
     }, nextStatus => {
@@ -74,6 +75,11 @@ export function App() {
       && ac.phase !== "LANDED" && ac.phase !== "HANDED_OFF")) setSelected("");
   }, [state, selected]);
 
+  function closeSidebar() {
+    setSidebarOpen(false);
+    sidebarToggle.current?.focus();
+  }
+
   const connected = status === "Connected";
   function control(action: "pause" | "resume" | "load_scenario") {
     const params = action === "load_scenario" ? { scenario: "demo", paused: false } : {};
@@ -102,7 +108,13 @@ export function App() {
         <button disabled={!connected || !health?.simulation_ready}
           onClick={() => control("load_scenario")}>Reset demo</button>
       </div>
-      <main>
+      <div className="panel-toolbar">
+        <button ref={sidebarToggle} aria-expanded={sidebarOpen} aria-controls="traffic-sidebar"
+          onClick={() => setSidebarOpen(open => !open)}>
+          {sidebarOpen ? "Hide traffic panels" : "Show traffic panels"}
+        </button>
+      </div>
+      <main className={sidebarOpen ? "sidebar-open" : "sidebar-closed"}>
         <section className="scope">
           <Radar state={state} data={data} selected={selected} onSelect={setSelected} />
           {health && !health.simulation_ready && (
@@ -113,7 +125,13 @@ export function App() {
             </div>
           )}
         </section>
-        <aside>
+        <aside id="traffic-sidebar" className="traffic-sidebar"
+          aria-label="Traffic and session panels" aria-hidden={!sidebarOpen} inert={!sidebarOpen}
+          onKeyDown={event => {
+            if (event.key === "Escape") { event.preventDefault(); closeSidebar(); }
+          }}>
+          <div className="sidebar-content">
+          <button className="sidebar-close" onClick={closeSidebar}>Close panels</button>
           <TrafficPanel state={state} selected={selected} onSelect={setSelected} />
           <h2>Integration status</h2>
           <p className={health?.simulation_ready ? "success" : "muted"}>
@@ -128,18 +146,10 @@ export function App() {
           <h2>Event feed</h2>
           {events.length === 0 && <p className="muted">Session events will appear here.</p>}
           {events.map((event, index) => <p key={index}>{event.feed_text}</p>)}
+          </div>
         </aside>
       </main>
-      <section className="radio" aria-label="Radio transcript" aria-live="polite">
-        {captions.length === 0 && <p className="muted">Controller clearances and pilot readbacks appear here.</p>}
-        {captions.slice(-3).map(caption => (
-          <div key={caption.tx_id + caption.speaker} className="transmission">
-            <b>{caption.speaker}</b><div>{caption.text}
-              {caption.plain_english && <small>{caption.plain_english}</small>}
-            </div>
-          </div>
-        ))}
-      </section>
+      <CaptionStrip messages={captions} />
       {role === "radar" && (
         <>
         <form onSubmit={event => {
