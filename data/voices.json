@@ -1,0 +1,114 @@
+{
+ "_meta": {
+  "what": "Pilot voice pool (owner: Sanju). Premade ElevenLabs voices; replace with generated personas via Voice Design."
+ },
+ "voices": [
+  {
+   "id": "onwK4e9ZLuTAKqWW03F9",
+   "name": "Daniel",
+   "gender": "male",
+   "personas": [
+    "crisp_airline",
+    "calm_longhaul"
+   ]
+  },
+  {
+   "id": "Xb7hH8MSUJpSbSDYk0k2",
+   "name": "Alice",
+   "gender": "female",
+   "personas": [
+    "crisp_airline",
+    "calm_longhaul"
+   ]
+  },
+  {
+   "id": "JBFqnCBsd6RMkjVDRZzb",
+   "name": "George",
+   "gender": "male",
+   "personas": [
+    "calm_longhaul",
+    "crisp_airline"
+   ]
+  },
+  {
+   "id": "pqHfZKP75CvOlQylNhV4",
+   "name": "Bill",
+   "gender": "male",
+   "personas": [
+    "calm_longhaul",
+    "crisp_airline"
+   ]
+  },
+  {
+   "id": "IKne3meq5aSn9XLyUdCD",
+   "name": "Charlie",
+   "gender": "male",
+   "personas": [
+    "rushed",
+    "student",
+    "stressed"
+   ]
+  },
+  {
+   "id": "bIHbv24MWmeRgasZH58o",
+   "name": "Will",
+   "gender": "male",
+   "personas": [
+    "student",
+    "rushed"
+   ]
+  },
+  {
+   "id": "EXAVITQu4vr4xnSDxMaL",
+   "name": "Sarah",
+   "gender": "female",
+   "personas": [
+    "student",
+    "stressed",
+    "crisp_airline"
+   ]
+  },
+  {
+   "id": "cjVigY5qzO86Huf0OWal",
+   "name": "Eric",
+   "gender": "male",
+   "personas": [
+    "rushed",
+    "crisp_airline",
+    "stressed"
+   ]
+  }
+ ],
+ "persona_settings": {
+  "crisp_airline": {
+   "stability": 0.6,
+   "similarity_boost": 0.8,
+   "style": 0.0,
+   "speed": 1.05
+  },
+  "calm_longhaul": {
+   "stability": 0.7,
+   "similarity_boost": 0.8,
+   "style": 0.0,
+   "speed": 0.97
+  },
+  "student": {
+   "stability": 0.35,
+   "similarity_boost": 0.75,
+   "style": 0.15,
+   "speed": 0.92
+  },
+  "rushed": {
+   "stability": 0.45,
+   "similarity_boost": 0.8,
+   "style": 0.1,
+   "speed": 1.15
+  },
+  "stressed": {
+   "stability": 0.25,
+   "similarity_boost": 0.75,
+   "style": 0.5,
+   "speed": 1.1
+  }
+ }
+}
