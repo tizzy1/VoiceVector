@@ -3,7 +3,9 @@ from server.pilot.engine import PilotEngine
 
 
 def make(world, bus, data_dir) -> PilotEngine:
-    return PilotEngine(world, bus, data_dir)
+    p = PilotEngine(world, bus, data_dir)
+    p.set_error_rate("off")                    # these tests check the error-free path
+    return p
 
 
 def tx(receiver="BAW117", **kw) -> Transmission:
@@ -40,7 +42,8 @@ def test_response_applies_through_the_world(world, bus, data_dir):
 
 def test_silence_cases(world, bus, data_dir):
     p = make(world, bus, data_dir)
-    assert p.handle_transmission(tx(receiver=None), []) == []
+    unresolved = p.handle_transmission(tx(receiver=None), [])     # VOICE §8: silence or 50/50
+    assert unresolved == [] or [r.kind for r in unresolved] == ["say_again_request"]
     assert p.handle_transmission(tx(receiver="XXX999"), []) == []
     assert p.handle_transmission(tx(ins=[]), []) == []
 
