@@ -1,8 +1,11 @@
 """Clause segmentation and per-clause grammar -> Instruction (VOICE_PIPELINE §7 steps 3-5)."""
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
+from pathlib import Path
 from typing import Optional
 
 from rapidfuzz import fuzz, process
@@ -186,11 +189,27 @@ _NOT_FIXES = HEADING_WORDS | SPEED_WORDS | LEVEL_WORDS | SINGLE_STARTERS | FILLE
     "direct", "published", "hold", "proceed", "route", "going", "over"}
 
 
+@lru_cache(maxsize=1)
+def navaid_aliases() -> dict[str, str]:
+    """Spoken station name -> ident ("seaford" -> SFD), from Tudor's data/spoken_names.json."""
+    path = Path(__file__).resolve().parents[3] / "data" / "spoken_names.json"
+    try:
+        names = json.loads(path.read_text(encoding="utf-8")).get("navaids", {})
+    except (OSError, ValueError):
+        return {}
+    return {str(n).lower(): ident for ident, n in names.items()}
+
+
 def find_fix(toks: list[str], fixes: set[str]) -> tuple[Optional[str], float]:
-    """Exact fix name, else a close STT misspelling ("willow" -> WILLO) at reduced confidence."""
+    """Exact fix name or navaid station name ("seaford" -> SFD), else a close STT misspelling
+    ("willow" -> WILLO) at reduced confidence."""
+    aliases = navaid_aliases()
     for t in toks:
         if t.upper() in fixes:
             return t.upper(), 1.0
+        ident = aliases.get(t)
+        if ident and ident in fixes:
+            return ident, 1.0
     names = sorted(fixes)
     for t in toks:
         if len(t) < 4 or t in _NOT_FIXES or not t.isalpha():

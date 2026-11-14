@@ -103,6 +103,10 @@ class Composer:
         self.phonetic = {k: ("alpha" if v.lower() == "alfa" else v.lower().replace("-", ""))
                          for k, v in tele.get("_phonetic", {}).items()}
         self.bank = self._load_bank()
+        names_path = self.data_dir / "spoken_names.json"     # Tudor's: SFD -> "Seaford"
+        self.navaid_names: dict[str, str] = (
+            json.loads(names_path.read_text(encoding="utf-8")).get("navaids", {})
+            if names_path.exists() else {})
         self.last_variant: dict[tuple[str, str], str] = {}
         self.last_readback: dict[str, Readback] = {}
         self.rejections = 0
@@ -125,6 +129,12 @@ class Composer:
             except (OSError, ValueError):
                 logger.exception("variant bank unreadable; using built-in defaults")
         return bank
+
+    # ------------------------------------------------------------ navaids
+    def fix_speech(self, ident: str) -> tuple[str, str]:
+        """(display, speech): navaids by station name ("SFD" -> "Seaford"), fixes as written."""
+        name = self.navaid_names.get(ident.upper())
+        return (name, name.lower()) if name else (ident, ident.lower())
 
     # ------------------------------------------------------------- callsigns
     def callsign_speech(self, callsign: str) -> tuple[str, str]:
@@ -192,7 +202,7 @@ class Composer:
         elif el.type == "descend_glidepath":
             pass
         if el.fix:
-            s["FIX"] = (el.fix, el.fix.lower())
+            s["FIX"] = self.fix_speech(el.fix)
         if el.unit:
             s["UNIT"] = (el.unit, {"london": "london control"}.get(el.unit, el.unit))
         if el.frequency:
@@ -357,7 +367,7 @@ class Composer:
                 star = str(rv.get("star") or rv.get("route")).upper()
                 m = re.fullmatch(r"([A-Z]+)(\d)([A-Z]?)", star)
                 if m:
-                    word = m.group(1).lower()
+                    word = self.fix_speech(m.group(1))[1]      # "SFD1X" -> "seaford one x-ray"
                     sp = " ".join(filter(None, [word, N.SPEECH_DIGIT[int(m.group(2))],
                                                 self.phonetic.get(m.group(3), "")]))
                     slots["STARV"] = (star, sp)
@@ -407,7 +417,7 @@ class Composer:
                 req = self._safe_text(rv.get("request"), "vectors")
                 slots["REQUEST"] = (req, req.lower())
             if rv.get("fix"):
-                slots["FIXV"] = (str(rv["fix"]), str(rv["fix"]).lower())
+                slots["FIXV"] = self.fix_speech(str(rv["fix"]))
             if kind == "established":
                 rwy = (rv.get("runway") or next((e.runway for e in plan.elements if e.runway), None))
                 if rwy:

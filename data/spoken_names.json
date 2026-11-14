@@ -1,0 +1,22 @@
+{
+ "_meta": {
+  "what": "How navaids are said on the radio (owner: Tudor). A VOR/DME is spoken by its station name, not its letters: SFD = 'Seaford', so 'SFD1X' = 'Seaford one X-ray'. Five-letter fixes are spoken as written ('willo', 'timba') and are not listed. Used by the readback composer (speech) and the parser (controller says 'Seaford' -> SFD).",
+  "source": "UK AIP ENR 4.1 navaid names (station names as used in RTF)"
+ },
+ "navaids": {
+  "BIG": "Biggin",
+  "BNN": "Bovingdon",
+  "CLN": "Clacton",
+  "CPT": "Compton",
+  "DET": "Detling",
+  "DVR": "Dover",
+  "GWC": "Goodwood",
+  "LAM": "Lambourne",
+  "LON": "London",
+  "MAY": "Mayfield",
+  "MID": "Midhurst",
+  "OCK": "Ockham",
+  "SAM": "Southampton",
+  "SFD": "Seaford"
+ }
+}

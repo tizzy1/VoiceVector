@@ -102,3 +102,15 @@ def test_degrees_without_direction_is_an_absolute_heading(text, expected):
     tx = parse(text)
     assert tx.receiver == "BAW117" and not tx.ambiguities
     assert [(i.type, i.value, i.turn_dir) for i in tx.instructions] == expected
+
+
+# navaids are spoken by station name: "Seaford" = SFD (Tudor, 15 Nov; data/spoken_names.json)
+@pytest.mark.parametrize("text, kind, fix", [
+    ("speedbird one one seven proceed direct seaford", "direct", "SFD"),
+    ("speedbird one one seven direct midhurst", "direct", "MID"),
+    ("speedbird one one seven hold at goodwood", "hold", "GWC"),
+    ("speedbird one one seven direct sfd", "direct", "SFD"),
+])
+def test_navaid_station_names(text, kind, fix):
+    tx = parse(text)
+    assert [(i.type, i.fix) for i in tx.instructions] == [(kind, fix)] and not tx.ambiguities
