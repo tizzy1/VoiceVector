@@ -24,9 +24,18 @@ export interface AircraftPublic {
   emergency: boolean; transmitting: boolean; plain_status: string;
 }
 
+export interface CloudLayer { cover: string; base_ft: number }
+/** Always SIMULATED (built from the sim's wind/QNH); label it as simulated, never as live. */
+export interface Metar {
+  source: "SIMULATED"; icao: string; observed: string; wind_dir_deg: number | null;
+  wind_kt: number; calm: boolean; visibility_m: number; cloud: CloudLayer[]; cavok: boolean;
+  temp_c: number; dewpoint_c: number; qnh_hpa: number; raw: string;
+}
+
 export interface StateMsg {
   type: "state"; t: number; paused: boolean; sim_speed: number; runway: string;
   aircraft: AircraftPublic[]; alerts: Alert[]; backlog: Record<string, number>;
+  metar?: Metar | null;
 }
 
 export interface ParsedChip { label: string; span?: [number, number] | null }

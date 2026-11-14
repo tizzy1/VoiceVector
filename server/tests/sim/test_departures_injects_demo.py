@@ -265,3 +265,10 @@ def test_metar_is_simulated_and_matches_sim_wind_and_qnh(world):
 def test_metar_defaults_to_cavok_for_empty_scenarios(world):
     empty(world)
     assert world.metar()["raw"] == "EGKK 141750Z 00000KT CAVOK 12/07 Q1013"
+
+
+def test_state_message_carries_simulated_metar(world):
+    world.load_scenario("demo", 42)
+    st = StateMsg.model_validate(world.public_state().model_dump())
+    assert st.metar is not None and st.metar.source == "SIMULATED"
+    assert st.metar.raw == world.metar()["raw"] and st.metar.qnh_hpa == world.qnh

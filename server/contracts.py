@@ -191,6 +191,29 @@ class AircraftPublic(BaseModel):
     plain_status: str = ""                     # "descending to 4,000 ft · 210 kt" (viz labels)
 
 
+class CloudLayer(BaseModel):
+    cover: str                                 # FEW | SCT | BKN | OVC
+    base_ft: int
+
+
+class Metar(BaseModel):
+    """Session weather for the scope's METAR panel. Always SIMULATED: built from the sim's
+    own wind and QNH, never a live report. Label it as simulated on screen."""
+    source: Literal["SIMULATED"] = "SIMULATED"
+    icao: str
+    observed: str                              # "17:50Z"
+    wind_dir_deg: Optional[int] = None         # None when calm
+    wind_kt: int
+    calm: bool
+    visibility_m: int
+    cloud: list[CloudLayer] = Field(default_factory=list)
+    cavok: bool
+    temp_c: int
+    dewpoint_c: int
+    qnh_hpa: int
+    raw: str                                   # "EGKK 141750Z 00000KT 9999 SCT035 11/06 Q1013"
+
+
 class StateMsg(BaseModel):
     type: Literal["state"] = "state"
     t: float
@@ -200,6 +223,7 @@ class StateMsg(BaseModel):
     aircraft: list[AircraftPublic]
     alerts: list[Alert]
     backlog: dict[str, int] = Field(default_factory=dict)  # {"ARR": 2, "DEP": 1}
+    metar: Optional[Metar] = None              # optional, additive (CONTRACTS §7.1)
 
 
 class WorldSnapshot(BaseModel):

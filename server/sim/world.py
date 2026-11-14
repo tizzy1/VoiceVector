@@ -400,6 +400,7 @@ class World:
             runway=self.runway, alerts=list(self.alerts.values()),
             backlog={"ARR": self.generator.backlog, "DEP": len(rwy_mgr.queue(self))},
             aircraft=[self._public(ac) for ac in self.aircraft.values()],
+            metar=self.metar(),
         )
 
     def _public(self, ac: AircraftState) -> AircraftPublic:
