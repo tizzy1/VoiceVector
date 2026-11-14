@@ -5,6 +5,10 @@ sub-bounties ElevenLabs + fal). A trainee controller speaks on push-to-talk; AI 
 generated voices (sometimes with planned mistakes) and fly the instructions on a Gatwick radar; a
 second screen shows a cinematic 3D view. Deadline: Sun 15 Nov 11:30.
 
+The controller scope and audience visualisation are separate interfaces. Keep the controller scope
+focused on a modern EuroScope-like operator layout: realistic radar workflow, flight lists, aircraft
+details, weather/METAR and communications. The separate `/viz` audience view may be stylised or 3D.
+
 ## Read first
 1. `docs/PROJECT_REPORT.md` — what we're building and why, tiers, timeline, demo
 2. `docs/CONTRACTS.md` + `server/contracts.py` + `web/src/protocol.ts` — module boundaries (source of truth)

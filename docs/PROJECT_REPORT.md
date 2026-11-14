@@ -78,8 +78,10 @@ Adaption fine-tune (sub-bounty slots go to ElevenLabs + fal). Autonomous-Agents-
 ### 3.1 Two views, one live session
 | View | Device | Audience | Purpose |
 |---|---|---|---|
-| **Radar (operator)** | Controller laptop + headset | The trainee | Realistic, modern EuroScope-style scope; PTT; captions; session controls |
-| **Visualisation (demo)** | Second device → projector | Judges / audience | Industrial control-room styling; 3D map, silhouettes or models, chase cams, plain-English captions, room audio |
+| **Controller scope (operator)** | Controller laptop + headset | The trainee | EuroScope-like operational layout and information density, restyled as modern professional software; radar, flight lists, METAR, communications and controls |
+| **Live visualisation (audience)** | Separate device → projector | Judges / audience | Independent presentation view of the same live session; industrial control-room styling, potentially 3D, with aircraft, camera modes, plain-English captions and room audio |
+
+These are separate interfaces for different jobs. The controller scope prioritises realistic ATC workflow and fast access to operational information. The audience visualisation prioritises explaining the live session and may use a stylised 3D scene. Do not turn the controller scope into the 3D demo view.
 
 ### 3.2 Two-device mode — feasible, include it (SHOULD)
 The server already broadcasts state over WebSocket, so a second device is just another subscriber.
@@ -91,7 +93,7 @@ The server already broadcasts state over WebSocket, so a second device is just a
 ### 3.3 Feature list by tier
 **MUST (demo exists without it? no)**
 - Sim: arrivals on STARs, vectors, altitude/speed, ILS capture + landing, continuous arrival generation, STCA (loss of separation)
-- Radar: map + airspace layers, data tags, history, speed vectors, pan/zoom, smooth 60 fps interpolation
+- Controller scope: EuroScope-like operational layout with map + airspace layers, data tags, history, speed vectors, pan/zoom, smooth 60 fps interpolation, arrival/departure lists, selected-aircraft details, METAR/weather and communications views
 - Voice: PTT → Scribe Realtime → parser → pilot → template readback → ElevenLabs streaming TTS → radio filter
 - **Live captions** (controller partials; pilot text)
 - Readback variation (template engine) + validator
@@ -150,16 +152,21 @@ Design rules: the LLM never moves aircraft · one instruction registry drives pa
 
 ## 5. Design system & styling
 
-### 5.1 Radar view — "modern EuroScope"
-- Realistic content, calm chrome. Background deep slate `#0E1417`; map low-contrast (`#2B3A40` lines, `#4A5D63` labels); traffic brightest (`#E8EEF0`).
-- Accents, sparingly: selected cyan `#4FD1E8`, transmitting pulse `#7CF0B4`, STCA red `#FF5A52`, wake/caution amber `#F2B544`.
-- Type: **JetBrains Mono** for tags/data, **Inter** for UI. 1 px lines, no glow, no gradients.
-- Data block, layers, interaction: `SIM_SPEC.md` §5.
+### 5.1 Controller scope — "modern EuroScope"
+Preserve the familiar operational structure and information density of a professional ATC workstation, while replacing legacy visual styling with a modern, clear interface. The controller scope is a practical radar tool, not the audience's 3D presentation.
+- Layout: persistent top status/toolbar; large central 2D radar; operational side or lower panes for arrivals, departures, selected-flight details, communications/transcript, event/alert feed and METAR. Keep the radar dominant and let panes resize or collapse.
+- Arrival and departure lists should behave like flight strips. Show callsign, aircraft type, wake category, route/procedure, current level, cleared level, speed, heading/assigned speed when present, phase/status, and sequencing or release information when available. Selecting a row selects the same aircraft on the radar; selecting a track focuses its row and detail view.
+- Make assigned clearance and observed state easy to compare. Keep alerts, frequency/transmission state, runway, session time and weather visible without obscuring traffic.
+- Core controls should work: select aircraft, pan/zoom/range, layer toggles, list filtering/sorting, transcript access, typed transmission and PTT when available. Secondary controls may be staged visually, but must not look like active controls if they do nothing.
+- Include a METAR panel for EGKK with observation time, wind, visibility, cloud, temperature/dew point, QNH and raw report. Clearly indicate stale/unavailable data; never present placeholder weather as live METAR.
+- Background deep slate `#0E1417`; map low-contrast (`#2B3A40` lines, `#4A5D63` labels); traffic brightest (`#E8EEF0`). Accents sparingly: selected cyan `#4FD1E8`, transmitting pulse `#7CF0B4`, STCA red `#FF5A52`, wake/caution amber `#F2B544`.
+- Type: **JetBrains Mono** for tags/data, **Inter** for UI. Fine separators and restrained borders, no glow or gradients. Prioritise visual hierarchy and polish while keeping the operational information authentic and legible.
+- Track/data block, map layers and radar interaction: `SIM_SPEC.md` §5.
 
-### 5.2 Visualisation view — "industrial control room"
+### 5.2 Live audience visualisation — "industrial control room"
 Think premium operations software (SCADA / mission control), not a game.
 - Graphite surfaces `#111518` / `#171C20`, hairline borders `#2A3238`, a single warm signal colour (amber `#F2B544`) plus cyan for selection; status chips with tabular numerals.
-- Layout: full-bleed 3D map; slim top status bar (session clock, traffic count, active runway, latency, LIVE indicator); left rail = flight strip cards (arrivals/departures); bottom = caption strip; right = event feed ("BAW117 cleared ILS 26L", "Readback error caught ✓").
+- Layout: full-bleed map or stylised 3D scene; slim top status bar (session clock, traffic count, active runway, latency, LIVE indicator); left rail = flight strip cards (arrivals/departures); bottom = caption strip; right = event feed ("BAW117 cleared ILS 26L", "Readback error caught ✓"). This is a separate audience view and does not replace the controller's 2D scope or its operational panels.
 - **Plain-English everywhere:** "British Airways 117 · descending to 4,000 ft · 210 kt".
 - Aircraft: silhouettes (MUST for viz) → glTF models (COULD); colour by flow (arrivals cool, departures warm); altitude stems to the ground; fading trails at true height; translucent glideslope ramp into 26L; procedure lines in the air.
 

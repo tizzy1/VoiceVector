@@ -268,10 +268,20 @@ CTR · CTA · TMA (with base labels) · Worthing CTA · Director sector lines ·
 
 ---
 
-## 5. Radar display (operator view)
+## 5. Controller scope (operator view)
+
+The operator scope and the live audience visualisation are separate interfaces. This section specifies the controller's operational workstation: a modern EuroScope-like layout and information hierarchy, with a large 2D radar and compact flight lists/panels. The projector/second-device view is a separate presentation surface and may be 3D; its design is covered by `PROJECT_REPORT.md` §5.2 and `ASSIGNMENT_BHAVIN.md` §5.3.
+
+### 5.0 Workstation layout
+- Keep the radar dominant in the centre, with a compact top status/toolbar and persistent, collapsible operational panes for arrivals, departures, selected-aircraft details, METAR/weather, transcript/communications and alerts/events.
+- Arrival and departure lists should read like flight strips. Include callsign, aircraft type, wake, route/procedure, current and cleared level, speed, heading/assigned speed when available, phase/status, and sequencing/release information when available.
+- Selecting a list row selects the same aircraft on the radar; selecting a radar track focuses its list row and details. Show assigned clearance alongside observed aircraft state so deviations are easy to spot.
+- Provide an EGKK METAR panel with observation time, wind, visibility, cloud, temperature/dew point, QNH and raw report. Clearly show stale/unavailable data; do not represent placeholder values as a live METAR.
+- Keep common controller actions and status visible. Visual polish may take priority over secondary functionality, but core track selection, pan/zoom, range, layer toggles, list selection/filtering, typed transmission and PTT must remain usable when implemented.
+- This workstation is operational, not cinematic: no 3D airport scene or presentation camera modes in the controller scope.
 
 ### 5.1 Look
-Modern take on the EuroScope philosophy: realistic content, calm chrome.
+Modern take on the EuroScope philosophy: realistic content and information density, familiar controller workflow, calm modern chrome.
 - Background: deep neutral slate (not pure black); map in low-contrast desaturated tones; **traffic is the brightest thing on screen**.
 - Type: monospace for tags and data (JetBrains Mono / IBM Plex Mono), sans for UI.
 - Colour semantics (few): assumed traffic white/near-white; unconcerned traffic grey; selected cyan; transmitting/addressed pulsing accent; STCA red, wake amber; departures/arrivals distinguished by a tag marker, not a rainbow.
@@ -294,7 +304,7 @@ Modern take on the EuroScope philosophy: realistic content, calm chrome.
 - **Range & bearing tool:** right-drag.
 - Decorative EuroScope-style toolbar (MAP / RANGE / FILTER / STCA / VECT / ALT…): **RANGE, layer toggles and VECT work**; others present for realism.
 - Bottom caption strip (live controller/pilot captions — reserved per earlier note).
-- Side panels: arrival list, departure list (with release info), transcript with plain-English lines, latency readout.
+- Operational panels: arrival list, departure list (with release info), selected-aircraft details, METAR, transcript with plain-English lines, alerts and latency readout. Row/track selection is synchronized as described in §5.0.
 
 ### 5.4 Rendering
 - Canvas 2D (or PixiJS if slow). Static layers (airspace, fixes, procedures) cached to an offscreen canvas and redrawn only on pan/zoom/toggle. Traffic drawn per frame.

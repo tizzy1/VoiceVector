@@ -1,4 +1,4 @@
-# Assignment — Bhavin: Platform, Radar, Visualisation & Demo
+# Assignment — Bhavin: Platform, Controller Scope, Visualisation & Demo
 
 > For Bhavin and his AI agent. Read together with `PROJECT_REPORT.md` (esp. §3, §5, §6, §9), `CONTRACTS.md`, `server/contracts.py`, `web/src/protocol.ts`, and `SIM_SPEC.md` §4–§5 (airspace layers, radar display).
 > **You own everything the judges look at and everything that connects the parts:** the server shell and WebSocket hub, both front-end apps, the design system, controls, the demo console, two-device mode, the report screen, and the submission assets.
@@ -34,7 +34,7 @@ web/  (everything except web/src/audio/):
 | WS routing | JSON `ptt`/`typed` and binary frames from `role=radar` → `voice.on_ptt / on_typed / on_audio_in`; `control` from any role → `handle_control`; on connect send `SessionMsg` + latest `StateMsg` |
 
 ### 3.2 Front end
-`/` radar app, `/viz` visualisation app, `/report` report view — all built from one Vite project, sharing the WS client, store, design tokens and caption strip.
+`/` controller scope, `/viz` live audience visualisation, `/report` report view — all built from one Vite project, sharing the WS client, store and selected common components. The controller scope and audience visualisation are separate products: keep `/` focused on EuroScope-like controller workflow; `/viz` is the presentation surface and may be 3D.
 
 ## 4. Interfaces you CONSUME
 | From | What |
@@ -48,7 +48,7 @@ web/  (everything except web/src/audio/):
 1. **Repo scaffold** (by 14:45): folders per CONTRACTS §1, docs into `docs/`, `contracts.py`, `protocol.ts`, `CLAUDE.md`, `.env.example`, Vite React TS app, FastAPI skeleton, `pyproject`/`requirements.txt`, `npm run build` → `web/dist`. Push; invite teammates.
 2. **Server shell + stubs wiring** (by 15:00) and `tests/integration/test_contracts.py` (validates sample messages from each module) + `smoke_test.py` (starts the server, connects a radar and a viz client, sends a typed command, asserts a `caption` and a heading change in `state` within 5 s).
 
-### 5.2 MUST — radar view (by 22:00)
+### 5.2 MUST — controller scope (by 22:00)
 Spec: SIM_SPEC §5, PROJECT_REPORT §5.1, §5.3, §5.4.
 3. **Canvas renderer** with an offscreen cache for static layers; traffic redrawn per frame; 60 fps with 40 aircraft.
 4. **Interpolation**: keep the last two `state`s per aircraft, render at `t − 1 s`, lerp x/y/alt, shortest-arc lerp heading.
@@ -58,12 +58,13 @@ Spec: SIM_SPEC §5, PROJECT_REPORT §5.1, §5.3, §5.4.
 8. **Caption strip** (bottom; shared component with viz): controller partial text (muted) → final (solid, `chips` highlighted, latency badge); pilot captions revealed word by word using `pilotWordClock`; last 3 transmissions visible, older fade.
 9. **PTT**: Space + on-screen button → `AudioEngine.pttDown/Up`; VU meter from `micLevel()`; PTT state indicator; ignore key repeat.
 10. **Typed command box** (always visible) → `typed` message.
-11. **Side panels**: arrival list, departure list, transcript (with `plain_english` under each), latency chip (p50 of the last 10).
+11. **Operational layout and flight lists**: preserve a professional EuroScope-like arrangement with a dominant central 2D scope and persistent, compact operational panes for arrivals, departures, selected-aircraft details, METAR/weather, transcript (with `plain_english` under each), alerts/event feed and latency (p50 of the last 10). Arrival/departure rows show callsign, type, wake, route/procedure, current and cleared level, speed, heading/assigned speed when available, phase/status, and sequencing/release details when available. Selecting a row selects/focuses that aircraft on the scope; selecting a track focuses the corresponding row and details. Make assigned clearance easy to compare with observed state. Show EGKK METAR observation time, wind, visibility, cloud, temperature/dew point, QNH and raw report; mark stale/unavailable weather clearly and never present placeholder values as live METAR. Panes should be resizable/collapsible where practical and must not bury the scope.
 12. **Session controls panel** (PROJECT_REPORT §6.1): new session, scenario, runway, traffic preset + sliders, error rate, pause/resume, speed, injects, layer toggles, end session, second-screen QR + code.
-13. **Decorative EuroScope-style toolbar** (MAP/RANGE/FILTER/STCA/VECT/ALT…) where RANGE, VECT and layer toggles work.
+13. **Compact scope toolbar** (MAP/RANGE/FILTER/STCA/VECT/ALT…): RANGE, VECT, filtering and layer toggles work. Other controls must be clearly disabled or decorative rather than implying unavailable functionality.
 
-### 5.3 SHOULD — visualisation view (by 02:00)
+### 5.3 SHOULD — live audience visualisation (by 02:00)
 Spec: PROJECT_REPORT §3, §5.2, §5.3.
+This is a separate second-device/projector view. It may use a stylised 3D scene and presentation camera modes; it must not replace or dictate the controller scope layout.
 14. **Scene**: MapLibre GL (OpenFreeMap style; fallback dark background + coastline) + deck.gl overlay; tilted 3D.
 15. **Aircraft**: silhouette icons (`IconLayer`, rotated by track, coloured by flow); altitude stems (`LineLayer` to ground); fading trails at true height (`PathLayer`, last 3 min); ft → m for elevation.
 16. **Context**: translucent glideslope ramp into the active runway (`SolidPolygonLayer` extruded), procedure lines in the air (light), airspace polygons faint, runway highlight.
@@ -99,14 +100,14 @@ Spec: PROJECT_REPORT §3, §5.2, §5.3.
 27. README (screenshots of both views, setup, `.env.example`, architecture diagram, credits: VATSIM UK sector file GPL-3.0, OurAirports, OpenAP, OpenFreeMap, model licence); record the **backup demo video** on the seeded scenario (OBS, both screens); assemble the submission write-up with Tudor and Sanju's paragraphs; confirm the submission form fields.
 
 ## 6. Design specifics (non-negotiable look)
-- **Radar:** background `#0E1417`, map lines `#2B3A40`, map labels `#4A5D63`, traffic `#E8EEF0`, unconcerned `#7C8B90`, selected `#4FD1E8`, transmitting `#7CF0B4`, STCA `#FF5A52`, wake `#F2B544`. JetBrains Mono (tags/data) + Inter (UI). 1 px lines. No glow, no gradients.
+- **Controller scope:** EuroScope-like operational information hierarchy and density, with modern typography, spacing and restrained surfaces. Deep slate `#0E1417`, map lines `#2B3A40`, map labels `#4A5D63`, traffic `#E8EEF0`, unconcerned `#7C8B90`, selected `#4FD1E8`, transmitting `#7CF0B4`, STCA `#FF5A52`, wake `#F2B544`. JetBrains Mono (tags/data) + Inter (UI). Thin separators; no glow or gradients. Prioritise polished visuals while preserving recognizable controller workflow and readable data.
 - **Viz:** graphite `#111518`/`#171C20`, hairlines `#2A3238`, signal amber `#F2B544`, selection cyan; tabular numerals; status chips.
 - **Motion:** appear 180 ms fade + 4 px rise `cubic-bezier(0.2,0.8,0.2,1)`; panels 240 ms; camera 1.6–2.4 s; transmit pulse 1.2 s; STCA 2 Hz flash only.
 - Use a small component kit (Radix primitives or hand-rolled) — no heavy UI framework theming fights.
 
 ## 7. Acceptance tests
 - `test_contracts.py` and `smoke_test.py` green before every merge to `main`.
-- Radar: 40 synthetic aircraft at 60 fps (dev overlay FPS meter); pan/zoom anchored correctly; every layer toggles; tags never overlap after declutter in the demo scenario.
+- Controller scope: EuroScope-like structure with a dominant 2D radar, arrival/departure lists, selected-aircraft details, METAR, transcript and alerts; selecting a flight list row and selecting a radar track stay synchronized. 40 synthetic aircraft at 60 fps (dev overlay FPS meter); pan/zoom anchored correctly; every layer toggles; tags never overlap after declutter in the demo scenario.
 - Captions: partial → final transition visible; pilot words in sync with audio (±150 ms by ear).
 - Two-device: radar on laptop A, viz on laptop B via hotspot — state, captions and room audio live; reconnect after killing viz Wi-Fi for 10 s.
 - Demo console: each hotkey produces its beat within 2 s; judge mode legible from 3 m.
@@ -126,7 +127,7 @@ Spec: PROJECT_REPORT §3, §5.2, §5.3.
 | 10:30–11:30 | Rehearse on the real two-device setup, submit |
 
 ## 9. Overflow rule
-You have the widest surface. At 22:00: if the radar MVP isn't done, defer the viz to a **2D** silhouette map (same deck.gl layers, pitch 0) and hand the report screen to Tudor. Cut order after that: glTF/terrain → departure cam/free orbit → declutter → decorative toolbar polish. Never cut: radar MVP, caption strip, PTT, typed box, viz with at least silhouettes + labels + follow-transmitting camera, demo hotkeys 1/4/8/J.
+You have the widest surface. The controller scope remains the primary operator interface and must keep its 2D radar plus core operational lists and controls. If behind, simplify the separate `/viz` audience view to a **2D** silhouette map (same deck.gl layers, pitch 0) and hand the report screen to Tudor. Cut order after that: glTF/terrain → departure cam/free orbit → declutter → decorative toolbar polish. Never cut: usable controller scope, arrival/departure list structure, caption strip, PTT, typed box, audience view with at least silhouettes + labels + follow-transmitting camera, demo hotkeys 1/4/8/J.
 
 ## 10. Definition of done
 Both views run from one server, live on two devices (or extended display), styled per §6 with smooth motion; the seeded demo plays through all beats via hotkeys; report screen renders; README + backup video + submission done by 11:30.
