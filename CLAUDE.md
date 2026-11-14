@@ -9,6 +9,12 @@ The controller scope and audience visualisation are separate interfaces. Keep th
 focused on a modern EuroScope-like operator layout: realistic radar workflow, flight lists, aircraft
 details, weather/METAR and communications. The separate `/viz` audience view may be stylised or 3D.
 
+After the end-to-end MVP, the technical-depth roadmap adds measured per-transmission pipeline traces,
+reproducible parser/STT/latency/validator benchmarks, seeded probabilistic conflict forecasts, and
+read-only live-traffic import into the simulation. Treat forecasts as uncertain decision support,
+never as a clearance or authoritative prediction. Imported live targets become simulated aircraft;
+the project never connects to or transmits on VATSIM or controls real aircraft.
+
 ## Read first
 1. `docs/PROJECT_REPORT.md` — what we're building and why, tiers, timeline, demo
 2. `docs/CONTRACTS.md` + `server/contracts.py` + `web/src/protocol.ts` — module boundaries (source of truth)

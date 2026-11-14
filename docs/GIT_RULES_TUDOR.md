@@ -57,3 +57,6 @@ git branch -d tudor/<short-task>
 
 ## 6. Done means
 Tests pass, the smoke test passes, your branch is merged into `main`, and `main` still starts (`uvicorn server.main:app`).
+
+## 7. Post-MVP technical-depth ownership
+After the end-to-end MVP works, Tudor owns `server/sim/forecast.py`, `server/sim/live_import.py`, and the corresponding simulator tests. Keep Monte Carlo forecasts seeded, bounded, advisory, and separate from deterministic STCA. Imported traffic is normalized into simulated aircraft only; never connect to or transmit control to a live network. Verify provider terms and data-quality assumptions before enabling an import source.

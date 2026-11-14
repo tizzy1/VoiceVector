@@ -239,6 +239,21 @@ HIGH −15, MEDIUM −5, LOW −1, positive catches +5 (cap +25); efficiency 0�
 4. Export (PDF/JSON). Stored per session (MongoDB if that bounty is taken).
 5. The fal PersonaPlex instructor conversation is seeded from the same `report.json`.
 
+### 3.6 Probabilistic conflict forecast (post-MVP technical depth)
+The deterministic STCA remains the authoritative alert rule. Add a separate forecast engine that estimates uncertainty over plausible trajectories; forecast probabilities are advisory training visualization only and must not change legality decisions, pilot errors, clearances, or aircraft control.
+- Recompute candidate pairs every 2 sim seconds, caching between passes. Prefilter to relevant aircraft (nearby/closing or within 6 NM; within 20 NM and 3,000 ft, or projected levels cross).
+- Initial implementation: 64 seeded paired rollouts per candidate pair, 120 s horizon, 5 s steps. Perturb reaction delay, wind, turn/climb rates, speed and small level-off overshoot. Forecast uses controller-intended clearances and pending scheduled applications; it must not inspect planned pilot errors.
+- `p_conflict` is the fraction of paired rollouts that cross below both 3 NM and 1,000 ft. Report median time and minimum horizontal/vertical separation. Publish paths only for pairs with probability ≥ 0.15, with a bounded/downsampled set of samples.
+- Show risk on tags and paths on radar/viz; use a distinct `PROB_CONFLICT` alert only at the agreed high-probability/time threshold. The UI must label it as a forecast, not an observed loss of separation. Existing STCA_LOS/STCA_PRED continue unchanged.
+- Seed all perturbations from session seed, simulation tick and pair identity so a replay is repeatable. Benchmark forecast cost at 40 aircraft; target ≤ 30 ms per pass, reducing sample count/horizon if needed. Calibration is optional and must use logged outcomes, not invented accuracy claims.
+
+### 3.7 Live traffic snapshot import (post-MVP technical depth)
+- Import is a one-time read-only snapshot. It converts fetched aircraft into local simulated AI-pilot aircraft; subsequent motion and controller actions belong to the simulator. A separate context mode may display non-controllable targets, but is optional.
+- Normalize source records at the fetch boundary. For snapshot import, filter to airborne aircraft within 40 NM and 1,500–16,000 ft; classify Gatwick arrivals/departures from available flight-plan fields and use conservative heuristics only when fields are missing. Skip unrelated overflights in snapshot mode and report imported/skipped counts.
+- Map aircraft type to the nearest supported performance model, preserve callsign when possible, avoid collisions with existing callsigns, and initialize a valid local state. Imported aircraft receive ordinary pilot voices/check-ins and deterministic simulator behavior. Apply STCA immediately; do not reject real observed traffic solely because it conflicts.
+- Every imported track retains its source and fetch time for display/credit. Surface stale/error/empty results; external fetch failure must not interrupt the session.
+- VATSIM is read-only: never log into the network, transmit, or control a real aircraft. FR24/OpenSky work is optional and only after verifying current official API docs, access terms, credentials and rate limits. Do not scrape websites.
+
 ---
 
 ## 4. Airspace

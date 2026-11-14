@@ -30,3 +30,12 @@ Every placeholder the sim, pilot and rules use. Confirm or correct each one befo
 | 24 | Pilot error rates | off 0%, low 5%, med 10%, high 15% | `server/pilot/errors.py` |
 | 25 | Expected-approach request | 2 min after check-in (+0–19 s spread per callsign) | `server/sim/world.py` |
 | 26 | Conflict inject | FL70, 250 kt, 90° crossing NE of the field, LoS after ~90 s | `server/sim/world.py` |
+
+## Post-MVP data checks
+
+The following are planned validation items, not operationally verified values:
+
+- Forecast conflict criteria and probability calibration: initial simulated threshold is <3 NM and <1,000 ft; verify against the simulator's defined conflict semantics and measure false positives/negatives across seeded runs. Do not treat it as an operational separation standard.
+- Forecast perturbations and bounds: document wind/speed/response-time distributions, seed, horizon, rollout count, and runtime environment alongside every result.
+- Live traffic import: before enabling a provider, verify its official API, permitted use, freshness, attribution, rate limits, and field meanings. Record fetch time and source time, flag stale data, and retain a snapshot/replay fallback. Do not scrape websites or transmit control instructions.
+- Benchmark claims: record dataset version, sample count, provider/model version, hardware, and measurement method; distinguish target thresholds from measured results.

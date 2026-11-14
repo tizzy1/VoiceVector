@@ -359,3 +359,7 @@ Backup: recorded video on the fixed seed.
 | fal/ElevenLabs credits run out | Local faster-whisper; fal-hosted TTS; browser speechSynthesis |
 | Wrong separation values embarrass us | Tudor verifies `traffic.json` before freeze |
 | Two traffic flows double integration work | Arrivals first (16:00), departures second (20:00) — departures are cuttable to 3 SIDs |
+
+## 21. Technical-depth upgrade (post-MVP)
+
+The technical-depth proposal extends the existing product after the complete MVP works; it does not change the MVP priority or merge the controller scope with the separate audience demo. The planned additions are a per-transmission voice-pipeline trace, repeatable parser/STT/latency benchmarks, a seeded probabilistic conflict forecast, and optional read-only live traffic snapshots normalized into simulated AI-pilot aircraft. Forecasts remain advisory and separate from STCA. Live imports never transmit to or control VATSIM or real aircraft. See `PROJECT_REPORT.md` §15 and `SIM_SPEC.md` §§3.6–3.7 for the maintained specification and acceptance approach. This plan is historical and its original hackathon deadlines are not refreshed by this addition.

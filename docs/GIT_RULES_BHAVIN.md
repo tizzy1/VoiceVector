@@ -64,3 +64,6 @@ git branch -d bhavin/<short-task>
 
 ## 7. Done means
 Integration tests and the smoke test pass, the web build passes, your branch is merged into `main`, and both `/` and `/viz` load against the live server.
+
+## 8. Post-MVP technical-depth ownership
+For the planned trace, benchmarks, forecast, and live-import work, coordinate additive message/API changes with Sanju and Tudor under `CONTRACTS.md` §3.1. Bhavin owns shared contract definitions, `protocol.ts`, platform endpoints and display. Treat benchmark/forecast/live-import work as future scope until implemented and measured. Show forecast output as advisory; imported targets are simulation-only and no real-network control is permitted.

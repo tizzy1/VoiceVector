@@ -127,6 +127,18 @@ Typed commands: `{"type":"typed","text":...}` → `voice.on_typed(text)` → sam
 
 `EventLog` also appends every event to `runs/<session_id>/events.jsonl` (replay + debugging).
 
+### 3.1 Technical-depth event and data ownership (planned after MVP)
+| Data | Producer | Consumer |
+|---|---|---|
+| `TraceMsg` / `PipelineTrace` | Voice pipeline (Sanju) | Both views (Bhavin); final traces also append to `runs/<session>/traces.jsonl` |
+| `Benchmarks` | Offline benchmark suite (Sanju, with Tudor's golden data) | `GET /api/benchmarks` and engineering overlay (Bhavin) |
+| `ConflictForecast` | Simulator forecast engine (Tudor) | `StateMsg`, radar and viz overlays (Bhavin) |
+| `LiveImportMsg` / `LiveImportStatus` | Session/fetcher (Bhavin) after `World.import_live` (Tudor) | Both views |
+
+These are roadmap additions, not part of the current wire contract until merged. Before any owner implements them, Bhavin adds the optional/defaulted models and fields to `server/contracts.py` and mirrors the client-visible shapes in `web/src/protocol.ts` in the same commit. Forecast output is informational and never drives aircraft or replaces deterministic evaluation/STCA. Live source data is read-only input to the simulation; the app must not connect to or transmit commands on VATSIM or any real-world network.
+
+Planned optional shapes: trace stages carry an exact name/category, relative start/end milliseconds, status and detail; forecasts carry a callsign pair, estimated conflict probability, median CPA and sampled paths; imported-traffic status carries source, success, fetch time, imported/skipped counts and attribution. `AircraftPublic` and `StateMsg` may add source/risk/forecast fields, and session settings may select a traffic source. `import_live` is a control action routed to `World.import_live(targets, source, mode)`. The detailed target shape and acceptance thresholds live in the owner briefs and `SIM_SPEC.md`.
+
 ---
 
 ## 4. Network protocol

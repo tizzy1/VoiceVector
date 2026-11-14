@@ -61,7 +61,7 @@ The sidebar provides Easy/Medium/Busy traffic targets, 1×/2× simulation speed,
 pilot-error rate and selected-aircraft emergency, go-around and radio-failure
 events. Presets update demo/custom rates without resetting traffic; dedicated
 traffic scenarios retain their own generator policy. Speech depends on the
-radio pipeline. Departure generation remains a simulator integration task.
+radio pipeline. Departures are generated and managed by the simulator.
 Use Show/Hide traffic panels to slide the sidebar from the right. Close panels
 or Escape returns focus to the toggle; reduced-motion preferences disable the
 transition.
@@ -151,6 +151,27 @@ ELEVENLABS_API_KEY in the ignored .env file and restart the server.
 ANTHROPIC_API_KEY supports the parser fallback and narrative. Localhost supports
 microphone capture; a remote controller browser needs a secure browser origin.
 The second-device viz view needs playback only.
+
+## Technical depth roadmap
+
+The following engineering features are planned after the end-to-end training
+loop is stable; they are not prerequisites for running the current app:
+
+- A live per-transmission pipeline trace, with server-measured stage timings.
+- Reproducible parser accuracy, STT word-error-rate, latency-percentile,
+  readback-validator and phrasing-variety benchmarks. Published numbers must
+  include the script, sample size and test conditions that produced them.
+- Seeded probabilistic conflict forecasts to complement deterministic STCA.
+  Forecasts are uncertainty estimates for training and display only; they do
+  not decide clearances or replace deterministic safety rules.
+- Optional read-only traffic snapshots from VATSIM, with possible FR24/OpenSky
+  adapters after their current access terms and API details are verified.
+  Imported targets are converted into simulated AI-pilot aircraft; the app
+  never connects to, transmits on or controls the source network's aircraft.
+
+The technical-depth proposal is being merged into the existing contracts,
+simulator, voice and UI specifications. Its standalone source document is not
+part of the repository.
 
 Automated radio transport tests use mocked audio engines, and Sanju's tests use
 a fake AudioContext. Physical microphone input, real provider credentials,

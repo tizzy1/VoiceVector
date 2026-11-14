@@ -133,3 +133,13 @@ If Bhavin is behind at 22:00, you take the **report UI** on Sunday morning (you 
 
 ## 10. Definition of done
 All MUST items pass their tests; `World`, `PilotEngine`, `RulesEngine` satisfy the Protocols (`tests/integration/test_contracts.py` green); the seeded demo replays identically twice in a row; every ⚠ VERIFY value checked.
+
+## 11. Post-MVP technical-depth track (planned)
+Start only once the end-to-end MVP works. Own the simulation-side forecast and live-traffic normalization; these are advisory/context features and do not alter deterministic control behavior.
+
+- Add `server/sim/forecast.py`: seeded paired Monte Carlo rollouts (initial target 64) over a 120-second horizon at 5-second steps, perturbing wind, speed, and pilot response timing. Estimate conflict likelihood from simulated separation below 3 NM and 1,000 ft; preserve seed, horizon, rollout count, threshold, and forecast time in the result.
+- Reuse the existing simulation dynamics and clearance intentions. Forecast the currently intended clearances; do not inject forecast-only pilot mistakes. Bound runtime and workload (initial target ≤30 ms for 40 aircraft), expose uncertainty, and never use forecast output to change aircraft state or replace STCA.
+- Add `server/sim/live_import.py` and an explicit `World.import_live(snapshot)` normalization boundary. Preserve source identity, source timestamp, fetch timestamp, and attribution; map only supported fields and reject stale/invalid/out-of-area records visibly.
+- Live targets become simulated AI-pilot aircraft after import. They may be tracked and cleared inside this simulation, but the system must not transmit, connect-control, or issue commands to VATSIM or real aircraft. Keep live import optional and keep recorded/demo snapshots as a fallback.
+- Verify each provider's official API access, terms, attribution, rate limits, and permitted use before enabling it. Use official interfaces only; no website scraping. Mark unverified thresholds as assumptions in `data/VERIFY.md`.
+- Add seeded forecast tests for reproducibility, calibration/false-positive measurement, and load bounds, plus import normalization/staleness tests. Publish observed results separately from target thresholds.

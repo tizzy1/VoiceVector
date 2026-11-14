@@ -131,3 +131,12 @@ You have the widest surface. The controller scope remains the primary operator i
 
 ## 10. Definition of done
 Both views run from one server, live on two devices (or extended display), styled per §6 with smooth motion; the seeded demo plays through all beats via hotkeys; report screen renders; README + backup video + submission done by 11:30.
+
+## 11. Post-MVP technical-depth track (planned)
+Do this only after the end-to-end MVP works. Keep `/` as the controller's 2D EuroScope-like workspace and `/viz` as the separate audience view. Add the following to the platform without implying that they are already implemented:
+- Define additive optional contract shapes with Sanju and Tudor first (CONTRACTS §3.1); mirror every shared message in `server/contracts.py` and `web/src/protocol.ts` before wiring UI.
+- Provide a per-transmission trace view that can show stage durations for capture, parsing, evaluation, response planning, composition, TTS, and delivery/playback. Show measured values and trace/session IDs; do not display invented latency.
+- Add `/api/benchmarks` or an equivalent session report section for reproducible parser, speech, and end-to-end latency results, including sample count, build/model, hardware, and p50/p95/p99. Preserve the last 10 live latency samples as an explicitly separate short-window readout.
+- Render `ConflictForecast` as a clearly labelled advisory probability and threshold, with seeded trajectory fan/spaghetti paths when available. Keep it distinct from deterministic STCA alerts and controller clearances.
+- Add optional live-import controls and source/time/credit labels. Imported traffic is converted to simulated aircraft for the controller to work; it is never connected to or controlled through VATSIM or another live network.
+- Use the ordinary UI test/build and contract validation gates for new UI and messages; agree exact performance limits with the owners before treating them as release gates.

@@ -341,3 +341,13 @@ Backup: the recorded video on the same seed, ready on both laptops.
 **With the fal rep:** credits; PersonaPlex realtime from the browser; Chatterbox emotion parameter.
 **With organisers:** submission format and deadline; whether two devices/projector audio are available at judging.
 **Tudor:** the ⚠ VERIFY table in `SIM_SPEC.md` §9 and the phraseology in `readback_variants.json`.
+
+## 15. Technical-depth roadmap (post-MVP)
+These are proposed extensions, not claims about the current build. Deliver them after the end-to-end controller MVP is stable; full scope and audience visualization remain separate surfaces.
+
+1. **Observable voice path:** correlate each controller transmission across audio capture, STT, parsing, clearance evaluation, pilot-response planning, composition, TTS, and playback. Show stage timing and failures in a trace view without blocking the voice path.
+2. **Reproducible evidence:** maintain labelled parser and speech corpora and report parser accuracy, STT WER, and end-to-end p50/p95/p99 with sample count, model/provider, hardware, and test conditions. Initial targets are parser ≥95% on 100+ labelled utterances, STT WER ≤10% on 50+ clips, and p95 voice-to-caption ≤1,500 ms on 50+ runs; report measurements honestly, whether or not they meet targets.
+3. **Probabilistic conflict forecast:** run seeded Monte Carlo continuations of current clearances and show risk probabilities plus optional trajectory fans. This is an advisory estimate, not a clearance, deterministic prediction, or substitute for STCA.
+4. **Optional live traffic context:** read a permitted provider snapshot, normalize and label its source/time, then represent the aircraft as simulated AI pilots in this product. Never send instructions to VATSIM or control real aircraft. Confirm provider API terms, attribution, and rate limits before activation.
+
+The shared contracts, simulator parameters, owner assignments, and verification boundary are specified in `CONTRACTS.md` §3.1, `SIM_SPEC.md` §3.6–§3.7, `VOICE_PIPELINE.md`, and the three assignment briefs. Performance budgets remain targets until measured on a defined setup.

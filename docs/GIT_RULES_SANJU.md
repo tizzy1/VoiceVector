@@ -59,3 +59,6 @@ git branch -d sanju/<short-task>
 
 ## 6. Done means
 Tests pass (incl. golden-set accuracy), the smoke test passes, the web build passes, your branch is merged into `main`, and the voice round trip still works from the radar page.
+
+## 7. Post-MVP technical-depth ownership
+After the end-to-end MVP works, Sanju owns transmission-stage tracing and voice benchmarks, including `server/tests/voice/bench/`. Coordinate optional event/API shapes with Bhavin before changing contracts. Traces must be append-only, use monotonic durations, and fail open so instrumentation cannot interrupt voice processing. Report measured sample counts and conditions; do not present targets as results.

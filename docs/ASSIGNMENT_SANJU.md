@@ -119,3 +119,13 @@ If behind at 22:00, cut in order: word-synced captions (show the whole sentence)
 
 ## 10. Definition of done
 Voice round trip works on the venue network with p50 machine latency shown on screen; zero unplanned readback errors over a 20-minute session; captions live on both devices; AudioEngine satisfies `protocol.ts`; contract tests green.
+
+## 11. Post-MVP technical-depth track (planned)
+Start only after the complete voice-to-simulation MVP works. Own per-transmission instrumentation and reproducible voice benchmarks; coordinate any contract additions with Bhavin before implementation.
+
+- Emit trace records with a stable `trace_id`, session/transaction IDs, aircraft/callsign where safe, stage name, start/end/duration, outcome, and provider/model metadata. Instrument capture, STT, parser, evaluation, response planning, composer, TTS, and delivery/playback; use monotonic timing and preserve failures/timeouts.
+- Support provisional transcript revisions and the final transcript as distinct events linked to the same trace. Keep audio and transcripts out of trace logs by default; record only text when explicitly allowed by the existing run-data policy.
+- Store run traces append-only under the run directory and make UI payloads optional/additive. Do not let tracing failures interrupt the voice path.
+- Build `server/tests/voice/bench/` scripts and fixed input manifests for parser accuracy, STT word error rate, and end-to-end latency. Report corpus/sample count, provider/model/version, hardware, conditions, and p50/p95/p99; keep baselines versioned and comparable.
+- Acceptance targets for the first benchmark pass: parser ≥95% on 100+ labelled utterances; STT WER ≤10% on 50+ clips; p95 voice-to-caption ≤1,500 ms on 50+ runs. Publish actual measurements and conditions; a target is not a claim of achieved performance.
+- Add deterministic parser fuzz/variant coverage and validate generated pilot phrase varieties against canonical fallback phrases. Avoid unstable network-provider tests in the default unit test suite.
