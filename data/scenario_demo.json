@@ -3,7 +3,8 @@
   "name": "Demo: Gatwick 26L evening arrivals",
   "runway": "26L",
   "qnh": 1013,
-  "note": "Initial states for the 3-minute demo. Positions at real STAR fixes; levels/headings plausible for a sim, not real procedure values."
+  "note": "Initial states for the 3-minute demo. Positions at real STAR fixes; levels/headings plausible for a sim, not real procedure values.",
+  "injects_note": "Each inject maps 1:1 to a contracts.py call at sim time t_s. call=force_error -> PilotEngine.force_error(mode, kind, callsign); call=inject -> World.inject(kind, callsign, params)."
  },
  "aircraft": [
   {
@@ -37,7 +38,7 @@
   {
    "callsign": "DLH4KA",
    "type": "A321",
-   "persona": "accented",
+   "persona": "calm_longhaul",
    "star": "SIRIC1G",
    "at_fix": "HOLLY",
    "xy_nm": [
@@ -80,16 +81,19 @@
  "injects": [
   {
    "t_s": 120,
-   "type": "readback_error",
-   "callsign": "EZY45AB",
-   "field": "alt",
-   "wrong_value": 5000
+   "call": "force_error",
+   "mode": "consistent",
+   "kind": "wrong_value_adjacent",
+   "callsign": "EZY45AB"
   },
   {
    "t_s": 150,
-   "type": "mayday",
+   "call": "inject",
+   "kind": "mayday",
    "callsign": "DLH4KA",
-   "reason": "engine failure"
+   "params": {
+    "reason": "engine failure"
+   }
   }
  ]
 }

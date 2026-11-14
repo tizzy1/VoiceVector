@@ -1,6 +1,6 @@
 {
  "_meta": {
-  "note": "ICAO 3-letter designator -> radiotelephony callsign. Common at Gatwick. GA uses phonetic registration."
+  "note": "ICAO 3-letter designator -> radiotelephony callsign. Common at Gatwick. GA uses phonetic registration. _airline_names: ICAO -> plain-English airline name for viz labels (spoken_plain)."
  },
  "BAW": "Speedbird",
  "EZY": "Easy",
@@ -10,7 +10,7 @@
  "WZZ": "Wizz Air",
  "WUK": "Wizz Go",
  "VLG": "Vueling",
- "TOM": "Tomson",
+ "TOM": "Tomjet",
  "UAE": "Emirates",
  "QTR": "Qatari",
  "THY": "Turkish",
@@ -28,6 +28,34 @@
  "DAL": "Delta",
  "WJA": "Westjet",
  "EXS": "Channex",
+ "_airline_names": {
+  "BAW": "British Airways",
+  "EZY": "easyJet",
+  "EJU": "easyJet Europe",
+  "EZS": "easyJet Switzerland",
+  "RYR": "Ryanair",
+  "WZZ": "Wizz Air",
+  "WUK": "Wizz Air UK",
+  "VLG": "Vueling",
+  "TOM": "TUI",
+  "UAE": "Emirates",
+  "QTR": "Qatar Airways",
+  "THY": "Turkish Airlines",
+  "PGT": "Pegasus",
+  "DLH": "Lufthansa",
+  "SWR": "Swiss",
+  "KLM": "KLM",
+  "AFR": "Air France",
+  "IBE": "Iberia",
+  "AEA": "Air Europa",
+  "TAP": "TAP Air Portugal",
+  "NAX": "Norwegian",
+  "AUR": "Aurigny",
+  "LOG": "Loganair",
+  "DAL": "Delta",
+  "WJA": "WestJet",
+  "EXS": "Jet2"
+ },
  "_phonetic": {
   "A": "Alfa",
   "B": "Bravo",

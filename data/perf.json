@@ -8,7 +8,7 @@
    "decel_kt_per_s_level": 0.8,
    "max_bank_deg": 25
   },
-  "note": "A20N uses A320 data in OpenAP (synonym)"
+  "note": "A20N uses A320 data in OpenAP (synonym). A21N: OpenAP has no measured WRAP model for it (its synonym table maps a21n->a320); we use the A321 WRAP values instead (same airframe size/weights, so approach speed and climb match better); ceiling from OpenAP aircraft/a21n.yml (12,500 m)."
  },
  "A319": {
   "climb_fpm_low": 2185,
@@ -51,6 +51,17 @@
   "descent_cas_kt": 280,
   "vapp_kt": 140,
   "min_clean_kt": 205,
+  "ceiling_ft": 41010,
+  "wake": "M"
+ },
+ "A21N": {
+  "climb_fpm_low": 1846,
+  "climb_fpm_mid": 1608,
+  "descent_fpm": 1852,
+  "descent_fpm_low": 1183,
+  "descent_cas_kt": 292,
+  "vapp_kt": 146,
+  "min_clean_kt": 215,
   "ceiling_ft": 41010,
   "wake": "M"
  },
