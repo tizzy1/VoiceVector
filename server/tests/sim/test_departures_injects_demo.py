@@ -249,3 +249,19 @@ def test_no_wake_alert_for_medium_pair_at_4nm(world, bus):
         place(world, cs, x=x, y=y, alt=2500, ias=160, lat_mode="LOC", established=True)
     world.tick(1.0)
     assert not [a for a in world.public_state().alerts if a.kind == "WAKE"]
+
+
+def test_metar_is_simulated_and_matches_sim_wind_and_qnh(world):
+    world.load_scenario("demo", 42)
+    m = world.metar()
+    assert m["source"] == "SIMULATED" and m["qnh_hpa"] == world.qnh == 1013
+    assert m["raw"] == "EGKK 141750Z 00000KT 9999 SCT035 11/06 Q1013"
+    world.wind_from, world.wind_kt, world.qnh = 244.0, 14.0, 998
+    m = world.metar()
+    assert m["wind_dir_deg"] == 240 and m["wind_kt"] == 14 and "24014KT" in m["raw"]
+    assert m["raw"].endswith("Q0998")
+
+
+def test_metar_defaults_to_cavok_for_empty_scenarios(world):
+    empty(world)
+    assert world.metar()["raw"] == "EGKK 141750Z 00000KT CAVOK 12/07 Q1013"

@@ -14,7 +14,7 @@ from server.contracts import (
     AircraftPublic, Alert, CallsignInfo, ClearanceElement, Evaluation, Event, EventBus,
     EventType, InjectKind, Instruction, SessionSettings, StateMsg, Transmission, WorldSnapshot,
 )
-from server.sim import kinematics, modes, registry, runway as rwy_mgr, stca
+from server.sim import kinematics, modes, registry, runway as rwy_mgr, stca, weather
 from server.sim.aircraft import AircraftState
 from server.sim.geo import Projection, heading_for_track, norm_hdg, wind_vector
 from server.sim.evaluate import evaluate as evaluate_tx
@@ -94,6 +94,7 @@ class World:
         self.aircraft, self.used_callsigns, self.alerts = {}, set(), {}
         self._pending, self._seq = [], 0
         self.wind, self.qnh = (0.0, 0.0), 1013
+        self.wind_from, self.wind_kt, self.wx_extra = 0.0, 0.0, None
         first = DEMO_FIRST_SPAWN_S if name == "demo" else 5.0
         self.generator = ArrivalGenerator(self, seed, first)
         self.dep_generator = rwy_mgr.DepartureGenerator(self, seed, first + 60.0)
@@ -106,6 +107,8 @@ class World:
         self.qnh = int(meta.get("qnh", 1013))
         if meta.get("wind"):
             self.wind = wind_vector(float(meta["wind"][0]), float(meta["wind"][1]))
+            self.wind_from, self.wind_kt = float(meta["wind"][0]), float(meta["wind"][1])
+        self.wx_extra = meta.get("weather")
         stars = self.egkk["procedures"]["STAR"][self.runway]
         for spec in scenario["aircraft"]:
             cs = spec["callsign"]
@@ -386,6 +389,11 @@ class World:
         return rwy_mgr.release_info(self)
 
     # ------------------------------------------------------------ views
+    def metar(self) -> dict[str, Any]:
+        """SIMULATED EGKK METAR built from the session's own wind and QNH (sim/weather.py)."""
+        return weather.build("EGKK", self.wind_from, self.wind_kt, self.qnh,
+                             getattr(self, "wx_extra", None))
+
     def public_state(self) -> StateMsg:
         return StateMsg(
             t=self.t, paused=self.settings.paused, sim_speed=self.settings.sim_speed,
