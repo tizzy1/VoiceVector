@@ -15,7 +15,7 @@ FILLERS = {"uh", "um", "er", "ah", "the", "please", "then", "and", "sorry", "now
            "it", "that", "just", "so"}
 INTENT_WORDS = {"negative", "say", "again", "i", "readback", "all", "stations"}
 
-HEADING_WORDS = {"turn", "fly", "heading", "continue", "presenthdg", "left", "right"}
+HEADING_WORDS = {"turn", "fly", "heading", "head", "continue", "presenthdg", "left", "right"}
 SPEED_WORDS = {"reduce", "increase", "speed", "slow", "minclean", "speedcancel"}
 LEVEL_WORDS = {"climb", "descend", "down", "maintain", "stopdesc", "stopclimb", "glide"}
 SINGLE_STARTERS = {"expedite", "direct", "hold", "resume", "clearland", "cleartakeoff", "cleared",
@@ -219,7 +219,10 @@ def classify(clause: Clause, fixes: set[str], last_verb: Optional[str]) -> list[
         if run is None:
             return []
         direction = _turn_dir(toks[:k])
-        kind = "turn_by" if "degrees" in toks else "heading"
+        # A relative turn needs a direction ("turn left 20 degrees"). "heading 120 degrees"
+        # or "turn 120 degrees" with no left/right is an absolute heading (shortest turn).
+        relative = "degrees" in toks and direction is not None and "heading" not in toks
+        kind = "turn_by" if relative else "heading"
         return [Instruction(type=kind, value=run[0], turn_dir=direction)]
     if fam == "speed":
         if "minclean" in toks:

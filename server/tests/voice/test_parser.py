@@ -86,3 +86,19 @@ def test_golden_case(case):
 def test_parse_is_fast_enough_for_the_regex_path():
     tx = parse("speedbird one one seven turn left heading two four zero descend altitude four thousand feet")
     assert tx.timings["parse_s"] < 0.05
+
+
+# "degrees" only makes a relative turn when a direction is given (Tudor, 14 Nov)
+@pytest.mark.parametrize("text, expected", [
+    ("speedbird one one seven heading one two zero degrees", [("heading", 120, None)]),
+    ("Speedbird 117, fly heading 300 degrees", [("heading", 300, None)]),
+    ("speedbird one one seven turn one two zero degrees", [("heading", 120, None)]),
+    ("speedbird one one seven turn left heading two four zero degrees", [("heading", 240, "L")]),
+    ("speedbird one one seven turn right two zero degrees", [("turn_by", 20, "R")]),
+    ("speedbird one one seven turn left ten degrees", [("turn_by", 10, "L")]),
+    ("speedbird 117 head 120", [("heading", 120, None)]),
+])
+def test_degrees_without_direction_is_an_absolute_heading(text, expected):
+    tx = parse(text)
+    assert tx.receiver == "BAW117" and not tx.ambiguities
+    assert [(i.type, i.value, i.turn_dir) for i in tx.instructions] == expected
