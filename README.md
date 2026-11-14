@@ -96,7 +96,10 @@ node --test web/tests/*.test.mjs
 The default smoke test starts an actual TCP server and connects two WebSocket
 clients using isolated test doubles under server/tests/integration. After the
 team modules arrive, run `python server/tests/integration/smoke_test.py --real`
-to verify the actual typed-command round trip.
+to verify the actual typed-command round trip. The real-mode timeout is 15 seconds
+to include readback duration and pilot application delay. Test doubles retain
+the 5-second limit. Override either with --timeout SECONDS. This checks target
+application, not completion of the aircraft turn.
 
 The ownership hook is installed separately in each clone:
 

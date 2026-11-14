@@ -6,6 +6,7 @@ Add --real to require and exercise the actual team modules.
 import argparse
 import asyncio
 import json
+import math
 import socket
 import subprocess
 import sys
@@ -20,20 +21,21 @@ import httpx
 from websockets.asyncio.client import connect
 
 
-async def check(port: int) -> None:
+async def check(port: int, timeout_s: float = 5) -> None:
     async with connect(f"ws://127.0.0.1:{port}/ws?role=radar") as radar:
         while json.loads(await radar.recv())["type"] != "state":
             pass
         async with connect(f"ws://127.0.0.1:{port}/ws?role=viz") as viz:
             while json.loads(await viz.recv())["type"] != "state":
                 pass
+            started = time.monotonic()
             await radar.send(json.dumps({
                 "type": "typed", "text": "BAW117 turn left heading 240",
             }))
             async def observe(viewer):
                 caption = False
                 changed = False
-                async with asyncio.timeout(5):
+                async with asyncio.timeout(timeout_s):
                     while not (caption and changed):
                         message = json.loads(await viewer.recv())
                         caption |= (
@@ -46,13 +48,20 @@ async def check(port: int) -> None:
                                 and (a["tgt_hdg"] == 240 or a["hdg"] == 240)
                                 for a in message["aircraft"]
                             )
-            await asyncio.gather(observe(radar), observe(viz))
+                return time.monotonic() - started
+            elapsed = await asyncio.gather(observe(radar), observe(viz))
+            print(f"Readback and heading target received after {max(elapsed):.2f} s")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--real", action="store_true")
+    parser.add_argument("--timeout", type=float, help="Clearance timeout in seconds "
+                        "(default: 15 with --real, otherwise 5)")
     args = parser.parse_args()
+    timeout_s = args.timeout if args.timeout is not None else (15 if args.real else 5)
+    if not math.isfinite(timeout_s) or timeout_s <= 0:
+        parser.error("--timeout must be a finite positive number")
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
@@ -83,8 +92,8 @@ def main() -> None:
                         time.sleep(.1)
                 if not health["ready"]:
                     raise RuntimeError(f"Missing team modules: {health['missing_modules']}")
-                asyncio.run(check(port))
-                print("PASS: radar and viz receive readback and heading update"
+                asyncio.run(check(port, timeout_s))
+                print("PASS: radar and viz receive readback and heading target"
                       + (" (real team modules)" if args.real else " (test doubles)"))
             finally:
                 process.terminate()
