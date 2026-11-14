@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio engine dev page</title>
+<style>
+  :root { --bg:#0e1116; --fg:#e6edf3; --muted:#8b98a5; --card:#171c23; --line:#2a323c; --accent:#3fb950; --warn:#d29922; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f6f8fa; --fg:#1f2328; --muted:#59636e; --card:#fff; --line:#d1d9e0; } }
+  body { margin:0; padding:16px; font:14px/1.45 system-ui, sans-serif; background:var(--bg); color:var(--fg); max-width:760px; }
+  h1 { font-size:18px; margin:0 0 4px; } p { color:var(--muted); margin:0 0 14px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; margin:0 0 12px; }
+  h2 { font-size:13px; margin:0 0 8px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  button { font:inherit; padding:7px 12px; border-radius:6px; border:1px solid var(--line); background:transparent; color:var(--fg); cursor:pointer; }
+  button:hover { border-color:var(--accent); } button.ptt { padding:14px 22px; font-weight:600; }
+  button.ptt.keyed { background:var(--accent); color:#04140a; border-color:var(--accent); }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:6px 0; }
+  .meter { flex:1; min-width:140px; height:10px; background:var(--line); border-radius:5px; overflow:hidden; }
+  .meter > i { display:block; height:100%; width:0; background:var(--accent); transition:width .05s; }
+  input[type=text] { flex:1; min-width:200px; font:inherit; padding:7px 9px; border-radius:6px; border:1px solid var(--line); background:transparent; color:var(--fg); }
+  pre { margin:0; max-height:220px; overflow:auto; font:12px/1.5 ui-monospace, monospace; white-space:pre-wrap; }
+  .pill { padding:1px 8px; border-radius:10px; border:1px solid var(--line); font-size:12px; color:var(--muted); }
+  .ok { color:var(--accent); } .bad { color:var(--warn); }
+</style>
+</head>
+<body>
+<h1>Audio engine dev page</h1>
+<p>Manual check for <code>createAudioEngine()</code>. Add <code>?live=1</code> to connect to the running server as the radar.</p>
+
+<section>
+  <h2>Engine</h2>
+  <div class="row"><button id="enable">Enable audio</button> <span class="pill" id="state">state: none</span>
+    <span class="pill" id="mic">mic: …</span> <label>volume <input id="vol" type="range" min="0" max="1" step="0.05" value="0.8"></label></div>
+</section>
+
+<section>
+  <h2>Push to talk (hold, or hold Space)</h2>
+  <div class="row"><button class="ptt" id="ptt">Hold to talk</button><div class="meter"><i id="level"></i></div></div>
+  <div class="row"><span class="pill" id="sent">frames sent: 0</span></div>
+</section>
+
+<section>
+  <h2>Fixtures (no server needed)</h2>
+  <div class="row">
+    <button id="one">Play one transmission</button>
+    <button id="two">Two overlapping (squeal)</button>
+    <button id="blocked">Stepped-on (blocked)</button>
+    <button id="stress">Stressed call</button>
+  </div>
+</section>
+
+<section id="liveBox" hidden>
+  <h2>Live server</h2>
+  <div class="row"><input id="typed" type="text" placeholder="BAW117 turn left heading 240"> <button id="send">Send typed</button>
+    <span class="pill" id="conn">disconnected</span></div>
+</section>
+
+<section>
+  <h2>Activity and word clock</h2>
+  <pre id="log"></pre>
+</section>
+
+<script type="module">
+  import { createAudioEngine } from "./index.ts";
+  import { pcmToBase64Chunks, synthSpeechLike } from "./fixtures.ts";
+
+  const $ = (id) => document.getElementById(id);
+  const log = (line) => { const el = $("log"); el.textContent += line + "\n"; el.scrollTop = el.scrollHeight; };
+  const live = new URLSearchParams(location.search).has("live");
+  let frames = 0, socket = null, seq = 0;
+
+  const engine = createAudioEngine();
+  window.engine = engine;                                  // for poking from the console / automated checks
+  const refresh = () => { $("state").textContent = `state: ${engine.state()}`; const e = engine.micError(); $("mic").textContent = e ? `mic: ${e}` : "mic: ok"; $("mic").className = "pill " + (e ? "bad" : "ok"); };
+
+  await engine.init({
+    role: "radar", playback: true,
+    sendBinary: (buf) => { frames++; $("sent").textContent = `frames sent: ${frames}`; if (socket?.readyState === 1) socket.send(buf); },
+    sendJson: (msg) => { log("→ " + JSON.stringify(msg)); if (socket?.readyState === 1) socket.send(JSON.stringify(msg)); },
+  });
+  engine.setVolume(0.8);
+  engine.whenMicReady().then(refresh);
+  engine.onActivity((a) => log(`activity ${a.state} ${a.speaker} ${a.tx_id}`));
+  refresh();
+
+  $("enable").onclick = async () => { await engine.resume(); refresh(); };
+  $("vol").oninput = (e) => engine.setVolume(Number(e.target.value));
+
+  const ptt = $("ptt");
+  const down = () => { ptt.classList.add("keyed"); engine.pttDown(); };
+  const up = () => { ptt.classList.remove("keyed"); engine.pttUp(); };
+  ptt.addEventListener("pointerdown", down); ptt.addEventListener("pointerup", up); ptt.addEventListener("pointerleave", () => ptt.classList.contains("keyed") && up());
+  addEventListener("keydown", (e) => { if (e.code === "Space" && !e.repeat && e.target.tagName !== "INPUT") { e.preventDefault(); down(); } });
+  addEventListener("keyup", (e) => { if (e.code === "Space" && e.target.tagName !== "INPUT") up(); });
+  setInterval(() => { $("level").style.width = `${Math.round(engine.micLevel() * 100)}%`; refresh(); }, 60);
+
+  function play(id, over = {}, seconds = 1.6, seed = 1, pitch = 120) {
+    engine.handleServerMsg({ type: "audio_start", tx_id: id, callsign: over.callsign ?? "BAW117", format: "pcm_s16le", sample_rate: 22050,
+      blocked: false, overlap_group: null, emotion: "normal", ...over });
+    pcmToBase64Chunks(synthSpeechLike(seconds, 22050, seed, pitch), 4096).forEach((c, i) => engine.handleServerMsg({ type: "audio_chunk", tx_id: id, seq: i, data_b64: c }));
+    engine.handleServerMsg({ type: "audio_end", tx_id: id });
+    const t0 = performance.now();
+    const timer = setInterval(() => { const c = engine.pilotWordClock(id); if (c === null || performance.now() - t0 > (seconds + 1) * 1000) clearInterval(timer); else log(`  ${id} word clock ${c.toFixed(2)}s`); }, 400);
+  }
+  let n = 0;
+  $("one").onclick = () => play(`one${++n}`);
+  $("two").onclick = () => { const g = `grp${++n}`; play(`a${n}`, { callsign: "BAW117", overlap_group: g }, 2, 2, 110); play(`b${n}`, { callsign: "EZY45AB", overlap_group: g }, 2, 3, 150); };
+  $("blocked").onclick = () => play(`blk${++n}`, { blocked: true }, 2.2, 4);
+  $("stress").onclick = () => play(`str${++n}`, { emotion: "stressed", callsign: "UAE15" }, 1.6, 5, 170);
+
+  if (live) {
+    $("liveBox").hidden = false;
+    socket = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?role=radar`);
+    socket.binaryType = "arraybuffer";
+    socket.onopen = () => { $("conn").textContent = "connected"; $("conn").className = "pill ok"; };
+    socket.onclose = () => { $("conn").textContent = "disconnected"; $("conn").className = "pill bad"; };
+    socket.onmessage = ({ data }) => {
+      const m = JSON.parse(data);
+      engine.handleServerMsg(m);
+      if (m.type === "caption" && m.stage !== "pilot_words") log(`caption[${m.stage}] ${m.speaker}: ${m.text}${m.plain_english ? "  (" + m.plain_english + ")" : ""}`);
+      if (m.type === "audio_start") log(`audio_start ${m.callsign} ${m.sample_rate} Hz ${m.format}`);
+      if (m.type === "audio_chunk") seq++;
+      if (m.type === "audio_end") log(`audio_end after ${seq} chunks`), (seq = 0);
+    };
+    $("send").onclick = () => { const text = $("typed").value.trim(); if (text) socket.send(JSON.stringify({ type: "typed", text })); };
+    $("typed").onkeydown = (e) => e.key === "Enter" && $("send").click();
+  }
+</script>
+</body>
+</html>
