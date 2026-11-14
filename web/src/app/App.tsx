@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import type { CaptionMsg, EventMsg, SessionMsg, StateMsg } from "../protocol";
+import type { ControlMsg, CaptionMsg, EventMsg, SessionMsg, StateMsg } from "../protocol";
 import { Radar, type Airspace } from "../radar/Radar";
 import { connect } from "./connection";
 import { TrafficPanel } from "../ui/TrafficPanel";
 import { CaptionStrip } from "../ui/CaptionStrip";
 import { updateCaptions } from "../ui/captions";
+import { SessionControls, type TrafficConfig } from "../ui/SessionControls";
 
 interface Health { ready: boolean; simulation_ready: boolean; missing_modules: string[] }
 
@@ -14,6 +15,7 @@ export function App() {
   const [session, setSession] = useState<SessionMsg | null>(null);
   const [state, setState] = useState<StateMsg | null>(null);
   const [data, setData] = useState<Airspace | null>(null);
+  const [traffic, setTraffic] = useState<TrafficConfig | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
   const [captions, setCaptions] = useState<CaptionMsg[]>([]);
   const [events, setEvents] = useState<EventMsg[]>([]);
@@ -31,6 +33,9 @@ export function App() {
         const response = await fetch("/api/data/egkk", { signal: abort.signal });
         if (!response.ok) throw new Error("Server data unavailable");
         setData(await response.json());
+        const trafficResponse = await fetch("/api/data/traffic", { signal: abort.signal });
+        if (!trafficResponse.ok) throw new Error("Traffic presets unavailable");
+        setTraffic(await trafficResponse.json());
       } catch (reason) {
         if (!abort.signal.aborted) setError(String(reason));
       }
@@ -81,6 +86,12 @@ export function App() {
   }
 
   const connected = status === "Connected";
+  function sendControl(message: ControlMsg) {
+    if (!connection.current?.send(message)) {
+      setError("Connection unavailable. Reconnect before changing the simulation.");
+    } else setError("");
+  }
+
   function control(action: "pause" | "resume" | "load_scenario") {
     const params = action === "load_scenario" ? { scenario: "demo", paused: false } : {};
     if (!connection.current?.send({ type: "control", action, params })) {
@@ -132,6 +143,9 @@ export function App() {
           }}>
           <div className="sidebar-content">
           <button className="sidebar-close" onClick={closeSidebar}>Close panels</button>
+          <SessionControls session={session} state={state} traffic={traffic}
+            selected={selected} enabled={connected && Boolean(health?.simulation_ready)}
+            radioReady={Boolean(health?.ready)} send={sendControl} />
           <TrafficPanel state={state} selected={selected} onSelect={setSelected} />
           <h2>Integration status</h2>
           <p className={health?.simulation_ready ? "success" : "muted"}>

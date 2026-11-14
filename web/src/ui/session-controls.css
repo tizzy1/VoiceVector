@@ -1,0 +1,8 @@
+.session-controls fieldset { border: 1px solid #2b3a40; padding: 10px; margin: 10px 0; min-width: 0; }
+.session-controls legend { color: #a7bbc3; font-size: 11px; padding: 0 5px; }
+.session-controls label { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 12px 0; }
+.session-controls select, .session-controls button { border: 1px solid #3c515a; border-radius: 3px; color: #e8eef0; background: #171c20; padding: 7px; font-size: 12px; }
+.session-controls .preset-buttons, .session-controls .event-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.session-controls button[aria-pressed="true"] { border-color: #4fd1e8; color: #4fd1e8; }
+.session-controls p { color: #7c8b90; font-size: 11px; margin: 8px 0; }
+.session-controls :disabled { color: #7c8b90; cursor: default; }

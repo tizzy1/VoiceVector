@@ -40,6 +40,11 @@ current ground speed and track. Pause displays the authoritative stopped state;
 reset and reconnect clear old motion history.
 Arrival and departure flight strips share selection with the radar and its
 aircraft dropdown. Departures are grouped as queued, taking off and airborne.
+The sidebar provides Easy/Medium/Busy traffic targets, 1×/2× simulation speed,
+pilot-error rate and selected-aircraft emergency, go-around and radio-failure
+events. Presets update demo/custom rates without resetting traffic; dedicated
+traffic scenarios retain their own generator policy. Speech depends on the
+radio pipeline. Departure generation remains a simulator integration task.
 Use Show/Hide traffic panels to slide the sidebar from the right. Close panels
 or Escape returns focus to the toggle; reduced-motion preferences disable the
 transition.
