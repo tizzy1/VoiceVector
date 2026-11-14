@@ -399,3 +399,113 @@ def test_word_alignment_helpers():
     assert align_display_words("Right heading 240", spoken_word_times(
         "left heading two four zero", list("left heading two four zero"), t, t)) is None
     assert spoken_word_times("abc", list("xyz"), [0, 1, 2], [1, 2, 3]) is None
+
+
+# ------------------------------------------------------------- designed voices
+def test_voices_follow_the_airline_accent_and_students_sound_like_students(tmp_path):
+    from server.voice.voices import Voice, Voices
+    pool = (Voice("irish", "Irish", "male", ("rushed", "crisp_airline"), ("RYR",), "Irish"),
+            Voice("german", "German", "male", ("crisp_airline",), ("DLH",), "German"),
+            Voice("uk1", "UK1", "male", ("crisp_airline", "calm_longhaul"), ("BAW", "EZY"), "British"),
+            Voice("uk2", "UK2", "female", ("crisp_airline", "rushed"), ("BAW", "EZY"), "British"),
+            Voice("student", "Student", "female", ("student", "stressed"), (), "British"))
+    v = Voices(pool=pool, seed=1)
+    assert v.voice_for("RYR42KP", "crisp_airline").id == "irish"
+    assert v.voice_for("DLH4KA", "calm_longhaul").id == "german"        # airline beats persona
+    assert {v.voice_for("BAW117", "crisp_airline").id, v.voice_for("EZY45AB", "crisp_airline").id} == {"uk1", "uk2"}
+    assert v.voice_for("GABCD", "student").id == "student"
+    assert v.voice_for("XYZ1", "rushed").id in {"irish", "uk2"}          # unknown airline -> persona
+
+
+def test_voices_json_with_airlines_round_trips(tmp_path):
+    import json
+    from server.voice.voices import Voices
+    (tmp_path / "voices.json").write_text(json.dumps({"voices": [
+        {"id": "a", "name": "A", "gender": "male", "personas": ["crisp_airline"], "airlines": ["RYR"], "accent": "Irish"},
+        {"name": "no id is skipped"}]}))
+    pool = Voices.load(tmp_path).pool
+    assert len(pool) == 1 and pool[0].airlines == ("RYR",) and pool[0].accent == "Irish"
+
+
+def test_design_keeps_the_most_intelligible_preview_and_skips_existing(tmp_path):
+    import asyncio
+    import base64
+    import json
+    from types import SimpleNamespace
+    from server.voice import voice_design as vd
+
+    spec = vd.SPECS[0]
+    good, mumble = spec.sample, "speedbird something heading something"
+    pcm = (b"\x01\x00" * 16000 * 7)                                  # 7 s at 16 kHz: realistic pace
+
+    class Client:
+        def __init__(self):
+            self.created, self.designs = [], 0
+            self.text_to_voice = SimpleNamespace(design=self.design, create=self.create)
+            self.speech_to_text = SimpleNamespace(convert=self.convert)
+            self.voices = SimpleNamespace(search=self.search)
+            self.heard = iter([mumble, good, mumble])
+
+        async def search(self, **kw):
+            return SimpleNamespace(voices=[])
+
+        async def design(self, **kw):
+            self.designs += 1
+            assert kw["text"] == spec.sample and kw["output_format"] == "pcm_16000"
+            assert "radiotelephony" in kw["voice_description"]
+            return SimpleNamespace(previews=[SimpleNamespace(generated_voice_id=f"g{i}", duration_secs=7.0,
+                                                             audio_base_64=base64.b64encode(pcm).decode())
+                                             for i in range(3)])
+
+        async def convert(self, **kw):
+            assert kw["file_format"] == "pcm_s16le_16"
+            return SimpleNamespace(text=next(self.heard))
+
+        async def create(self, **kw):
+            self.created.append(kw)
+            return SimpleNamespace(voice_id=f"voice-{kw['generated_voice_id']}")
+
+    client = Client()
+    path = tmp_path / "voices.json"
+    entries = asyncio.run(vd.design_all(client, specs=(spec,), path=path))
+    assert client.created[0]["generated_voice_id"] == "g1", "the clearest preview is kept"
+    assert set(client.created[0]["played_not_selected_voice_ids"]) == {"g0", "g2"}
+    saved = json.loads(path.read_text())["voices"][0]
+    assert saved["id"] == "voice-g1" and saved["airlines"] == list(spec.airlines) and "audio" not in saved
+    again = asyncio.run(vd.design_all(client, specs=(spec,), path=path))
+    assert client.designs == 1 and again[0]["id"] == "voice-g1", "re-running never re-designs or wastes a slot"
+
+
+def test_offline_radio_effect_band_limits_and_adds_a_squelch_tail():
+    import numpy as np
+    from server.voice.voice_design import radio
+    rate = 22050
+    t = np.arange(rate) / rate
+    low, mid = np.sin(2 * np.pi * 100 * t), np.sin(2 * np.pi * 1000 * t)
+    out = radio(low * 0.3 + mid * 0.3, rate)
+    assert len(out) == rate + int(0.15 * rate) and np.max(np.abs(out)) <= 1
+    spectrum = np.abs(np.fft.rfft(out[:rate]))
+    freqs = np.fft.rfftfreq(rate, 1 / rate)
+    assert spectrum[np.argmin(np.abs(freqs - 1000))] > 50 * spectrum[np.argmin(np.abs(freqs - 100))]
+
+
+
+def test_design_reuses_a_voice_already_in_the_library(tmp_path):
+    import asyncio
+    from types import SimpleNamespace
+    from server.voice import voice_design as vd
+    spec = vd.SPECS[2]
+
+    class Client:
+        def __init__(self):
+            self.voices = SimpleNamespace(search=self.search)
+            self.text_to_voice = SimpleNamespace(design=self.fail, create=self.fail)
+
+        async def search(self, **kw):
+            return SimpleNamespace(voices=[SimpleNamespace(name=f"Sweatbox {spec.slug}", voice_id="lib-1")])
+
+        async def fail(self, **kw):
+            raise AssertionError("must not design or create again")
+
+    entries = asyncio.run(vd.design_all(Client(), specs=(spec,), path=tmp_path / "voices.json"))
+    assert entries[0]["id"] == "lib-1" and entries[0]["airlines"] == list(spec.airlines)

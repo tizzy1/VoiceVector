@@ -19,18 +19,20 @@ class Voice:
     name: str
     gender: str
     personas: tuple[str, ...] = ()
+    airlines: tuple[str, ...] = ()       # ICAO prefixes whose crews sound like this (accent realism)
+    accent: str = ""
 
 
 # Premade voices available on every ElevenLabs plan (verified against the account's /v2/voices).
 DEFAULT_POOL: tuple[Voice, ...] = (
-    Voice("onwK4e9ZLuTAKqWW03F9", "Daniel", "male", ("crisp_airline", "calm_longhaul")),
-    Voice("Xb7hH8MSUJpSbSDYk0k2", "Alice", "female", ("crisp_airline", "calm_longhaul")),
-    Voice("JBFqnCBsd6RMkjVDRZzb", "George", "male", ("calm_longhaul", "crisp_airline")),
-    Voice("pqHfZKP75CvOlQylNhV4", "Bill", "male", ("calm_longhaul", "crisp_airline")),
-    Voice("IKne3meq5aSn9XLyUdCD", "Charlie", "male", ("rushed", "student", "stressed")),
-    Voice("bIHbv24MWmeRgasZH58o", "Will", "male", ("student", "rushed")),
-    Voice("EXAVITQu4vr4xnSDxMaL", "Sarah", "female", ("student", "stressed", "crisp_airline")),
-    Voice("cjVigY5qzO86Huf0OWal", "Eric", "male", ("rushed", "crisp_airline", "stressed")),
+    Voice("onwK4e9ZLuTAKqWW03F9", "Daniel", "male", ("crisp_airline", "calm_longhaul"), ("BAW", "TOM"), "British"),
+    Voice("Xb7hH8MSUJpSbSDYk0k2", "Alice", "female", ("crisp_airline", "calm_longhaul"), ("EZY", "BAW"), "British"),
+    Voice("JBFqnCBsd6RMkjVDRZzb", "George", "male", ("calm_longhaul", "crisp_airline"), ("BAW", "LOG"), "British"),
+    Voice("pqHfZKP75CvOlQylNhV4", "Bill", "male", ("calm_longhaul", "crisp_airline"), ("DAL", "WJA"), "American"),
+    Voice("IKne3meq5aSn9XLyUdCD", "Charlie", "male", ("rushed", "student", "stressed"), ("UAE", "QTR"), "Australian"),
+    Voice("bIHbv24MWmeRgasZH58o", "Will", "male", ("student", "rushed"), ("RYR",), "American"),
+    Voice("EXAVITQu4vr4xnSDxMaL", "Sarah", "female", ("student", "stressed", "crisp_airline"), ("VLG", "EZY"), "American"),
+    Voice("cjVigY5qzO86Huf0OWal", "Eric", "male", ("rushed", "crisp_airline", "stressed"), ("WZZ", "DLH"), "American"),
 )
 
 # ElevenLabs voice_settings per persona. Flash v2.5 honours stability/similarity/style/speed.
@@ -65,7 +67,8 @@ class Voices:
             try:
                 raw = json.loads(path.read_text(encoding="utf-8"))
                 pool = tuple(Voice(v["id"], v.get("name", v["id"]), v.get("gender", "unknown"),
-                                   tuple(v.get("personas", ()))) for v in raw.get("voices", []))
+                                   tuple(v.get("personas", ())), tuple(v.get("airlines", ())),
+                                   v.get("accent", "")) for v in raw.get("voices", []) if v.get("id"))
                 if pool:
                     return cls(pool=pool, seed=seed)
             except (OSError, ValueError, KeyError):
@@ -76,7 +79,13 @@ class Voices:
         known = self.assigned.get(callsign)
         if known is not None:
             return known
-        compatible = [v for v in self.pool if persona in v.personas] or list(self.pool)
+        prefix = callsign[:3].upper() if callsign[:3].isalpha() else ""
+        airline = [v for v in self.pool if prefix and prefix in v.airlines]
+        fits = [v for v in self.pool if persona in v.personas]
+        both = [v for v in airline if persona in v.personas]
+        # the accent follows the airline (a Ryanair crew sounds Irish); a student sounds like a student
+        tiers = [both, fits, airline] if persona == "student" else [both, airline, fits]
+        compatible = next((t for t in tiers if t), list(self.pool))
         used = {v.id for v in self.assigned.values()}
         fresh = [v for v in compatible if v.id not in used] or compatible
         index = zlib.crc32(f"{self.seed}|{callsign}|{persona}".encode()) % len(fresh)
@@ -87,8 +96,8 @@ class Voices:
         return json.dumps({
             "_meta": {"what": "Pilot voice pool (owner: Sanju). Premade ElevenLabs voices; "
                               "replace with generated personas via Voice Design."},
-            "voices": [{"id": v.id, "name": v.name, "gender": v.gender, "personas": list(v.personas)}
-                       for v in self.pool],
+            "voices": [{"id": v.id, "name": v.name, "gender": v.gender, "personas": list(v.personas),
+                        "airlines": list(v.airlines), "accent": v.accent} for v in self.pool],
             "persona_settings": PERSONA_SETTINGS,
         }, indent=1) + "\n"
 

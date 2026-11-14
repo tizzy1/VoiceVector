@@ -1,82 +1,265 @@
 {
  "_meta": {
-  "what": "Pilot voice pool (owner: Sanju). Premade ElevenLabs voices; replace with generated personas via Voice Design."
+  "what": "Pilot voice pool (owner: Sanju). Designed with ElevenLabs Voice Design: accents matched to Gatwick airlines, cockpit radiotelephony delivery, clean (the browser adds the radio). Each kept preview was the most intelligible to Scribe.",
+  "regenerate": "python -m server.voice.voice_design (only missing voices are designed)"
  },
  "voices": [
   {
-   "id": "onwK4e9ZLuTAKqWW03F9",
-   "name": "Daniel",
+   "id": "bdu7DVvxHP9CQ4oEd85O",
+   "name": "Sweatbox uk-captain",
+   "slug": "uk-captain",
    "gender": "male",
+   "accent": "British",
+   "airlines": [
+    "BAW",
+    "TOM",
+    "EZY"
+   ],
    "personas": [
     "crisp_airline",
     "calm_longhaul"
-   ]
+   ],
+   "designed": true,
+   "score": 95.5,
+   "previews": 3
   },
   {
-   "id": "Xb7hH8MSUJpSbSDYk0k2",
-   "name": "Alice",
+   "id": "og8B7pjC9tGRNb7S5fdt",
+   "name": "Sweatbox uk-fo",
+   "slug": "uk-fo",
    "gender": "female",
+   "accent": "British",
+   "airlines": [
+    "BAW",
+    "EZY",
+    "TOM",
+    "AUR"
+   ],
    "personas": [
     "crisp_airline",
+    "rushed",
     "calm_longhaul"
-   ]
+   ],
+   "designed": true,
+   "score": 95.9,
+   "previews": 3
   },
   {
-   "id": "JBFqnCBsd6RMkjVDRZzb",
-   "name": "George",
+   "id": "FDCUsN00hM6JGy0VBVYQ",
+   "name": "Sweatbox north-fo",
+   "slug": "north-fo",
    "gender": "male",
-   "personas": [
-    "calm_longhaul",
-    "crisp_airline"
-   ]
-  },
-  {
-   "id": "pqHfZKP75CvOlQylNhV4",
-   "name": "Bill",
-   "gender": "male",
-   "personas": [
-    "calm_longhaul",
-    "crisp_airline"
-   ]
-  },
-  {
-   "id": "IKne3meq5aSn9XLyUdCD",
-   "name": "Charlie",
-   "gender": "male",
+   "accent": "Northern English",
+   "airlines": [
+    "EZY",
+    "EXS",
+    "TOM"
+   ],
    "personas": [
     "rushed",
-    "student",
+    "crisp_airline",
     "stressed"
-   ]
+   ],
+   "designed": true
   },
   {
-   "id": "bIHbv24MWmeRgasZH58o",
-   "name": "Will",
+   "id": "XjE8ojgCO4pOmcddD4aM",
+   "name": "Sweatbox scottish-captain",
+   "slug": "scottish-captain",
    "gender": "male",
+   "accent": "Scottish",
+   "airlines": [
+    "LOG",
+    "EZY",
+    "BAW"
+   ],
    "personas": [
-    "student",
+    "calm_longhaul",
+    "crisp_airline"
+   ],
+   "designed": true,
+   "score": 97.3,
+   "previews": 3
+  },
+  {
+   "id": "DtLpGchXDpQMPGL6WNnH",
+   "name": "Sweatbox irish-captain",
+   "slug": "irish-captain",
+   "gender": "male",
+   "accent": "Irish",
+   "airlines": [
+    "RYR",
+    "EZY"
+   ],
+   "personas": [
+    "rushed",
+    "crisp_airline"
+   ],
+   "designed": true,
+   "score": 99.5,
+   "previews": 3
+  },
+  {
+   "id": "7QpMwDrky9seEuNEMGqd",
+   "name": "Sweatbox german-captain",
+   "slug": "german-captain",
+   "gender": "male",
+   "accent": "German",
+   "airlines": [
+    "DLH",
+    "SWR",
+    "EZS"
+   ],
+   "personas": [
+    "crisp_airline",
+    "calm_longhaul"
+   ],
+   "designed": true,
+   "score": 90.6,
+   "previews": 3
+  },
+  {
+   "id": "INbj7kAnMfWvIhCQI1p2",
+   "name": "Sweatbox spanish-fo",
+   "slug": "spanish-fo",
+   "gender": "female",
+   "accent": "Spanish",
+   "airlines": [
+    "VLG",
+    "IBE",
+    "AEA",
+    "TAP"
+   ],
+   "personas": [
+    "crisp_airline",
     "rushed"
-   ]
+   ],
+   "designed": true,
+   "score": 95.3,
+   "previews": 3
   },
   {
-   "id": "EXAVITQu4vr4xnSDxMaL",
-   "name": "Sarah",
-   "gender": "female",
-   "personas": [
-    "student",
-    "stressed",
-    "crisp_airline"
-   ]
-  },
-  {
-   "id": "cjVigY5qzO86Huf0OWal",
-   "name": "Eric",
+   "id": "VAciwYGSeiIIHgzpY04f",
+   "name": "Sweatbox hungarian-fo",
+   "slug": "hungarian-fo",
    "gender": "male",
+   "accent": "Hungarian",
+   "airlines": [
+    "WZZ",
+    "WUK"
+   ],
    "personas": [
     "rushed",
+    "crisp_airline"
+   ],
+   "designed": true,
+   "score": 98.4,
+   "previews": 3
+  },
+  {
+   "id": "adpam77YX6t3NG0gW5ia",
+   "name": "Sweatbox dutch-captain",
+   "slug": "dutch-captain",
+   "gender": "female",
+   "accent": "Dutch",
+   "airlines": [
+    "KLM",
+    "NAX"
+   ],
+   "personas": [
     "crisp_airline",
+    "calm_longhaul"
+   ],
+   "designed": true,
+   "score": 84.8,
+   "previews": 3
+  },
+  {
+   "id": "e2pdcIRzepYTcVsMTjuz",
+   "name": "Sweatbox french-fo",
+   "slug": "french-fo",
+   "gender": "male",
+   "accent": "French",
+   "airlines": [
+    "AFR",
+    "EJU"
+   ],
+   "personas": [
+    "crisp_airline",
+    "rushed"
+   ],
+   "designed": true,
+   "score": 97.4,
+   "previews": 3
+  },
+  {
+   "id": "ndsgo7sVZEcmpr9meW4k",
+   "name": "Sweatbox aus-captain",
+   "slug": "aus-captain",
+   "gender": "male",
+   "accent": "Australian",
+   "airlines": [
+    "UAE",
+    "QTR"
+   ],
+   "personas": [
+    "calm_longhaul",
+    "crisp_airline"
+   ],
+   "designed": true,
+   "score": 95.8,
+   "previews": 3
+  },
+  {
+   "id": "65fS1YpyUaIeqIpQPwGb",
+   "name": "Sweatbox turkish-captain",
+   "slug": "turkish-captain",
+   "gender": "male",
+   "accent": "Turkish",
+   "airlines": [
+    "THY",
+    "PGT",
+    "QTR"
+   ],
+   "personas": [
+    "calm_longhaul",
+    "crisp_airline"
+   ],
+   "designed": true,
+   "score": 96.2,
+   "previews": 3
+  },
+  {
+   "id": "hITAcEDlkxX0dhZZ6VS7",
+   "name": "Sweatbox student",
+   "slug": "student",
+   "gender": "female",
+   "accent": "British",
+   "airlines": [],
+   "personas": [
+    "student",
     "stressed"
-   ]
+   ],
+   "designed": true,
+   "score": 97.8,
+   "previews": 3
+  },
+  {
+   "id": "sqT2riR6LhenPdfcKr8v",
+   "name": "Sweatbox us-captain",
+   "slug": "us-captain",
+   "gender": "male",
+   "accent": "American",
+   "airlines": [
+    "DAL",
+    "WJA"
+   ],
+   "personas": [
+    "calm_longhaul"
+   ],
+   "designed": true,
+   "score": 99.4,
+   "previews": 3
   }
  ],
  "persona_settings": {
