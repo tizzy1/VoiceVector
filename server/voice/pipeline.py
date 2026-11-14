@@ -26,6 +26,7 @@ from server.voice.frequency import FrequencyManager
 from server.voice.metrics import Metrics, Stamps
 from server.voice.parser import default_runways, parse
 from server.voice.parser import llm_fallback
+from server.voice.stt_fallback import WizperSTT
 from server.voice.stt_scribe import STATIC_KEYTERMS, ScribeStream, STTError, build_keyterms
 from server.voice.tts import ElevenLabsTTS, TTSError
 from server.voice.voices import Voices, settings_for
@@ -35,6 +36,8 @@ logger = logging.getLogger(__name__)
 MIN_TRANSMISSION_S = 0.3          # shorter key-ups are accidental blips
 PARTIAL_INTERVAL_S = 0.2          # <= 5 partial captions per second
 FIRST_AUDIO_TIMEOUT_S = 6.0
+EMERGENCY_FIRST_AUDIO_S = 14.0   # Chatterbox (~6.5 s incl. reference) + ElevenLabs fallback
+MAX_PTT_AUDIO_BYTES = 60 * 32000  # keep at most 60 s of 16 kHz PCM16 for the batch STT fallback
 EST_SPEECH_S_PER_WORD = 0.42      # reading time when there is no audio
 EventTypeName = str
 
@@ -46,6 +49,7 @@ class _Ptt:
     stepped_on: dict[str, str] = field(default_factory=dict)     # pilot tx_id -> callsign
     stt: Optional[ScribeStream] = None
     last_partial: float = 0.0
+    audio: bytearray = field(default_factory=bytearray)      # kept for the batch STT fallback
 
 
 @dataclass
@@ -69,7 +73,7 @@ STTFactory = Callable[[list[str], Callable[[str], None]], ScribeStream]
 class VoicePipeline:
     def __init__(self, world, pilot, composer, bus, hub, *, tts: Optional[ElevenLabsTTS] = None,
                  stt_factory: Optional[STTFactory] = None, voices: Optional[Voices] = None,
-                 seed: Optional[int] = None):
+                 seed: Optional[int] = None, emergency: Any = None, stt_fallback: Any = None):
         self.world, self.pilot, self.composer, self.bus, self.hub = world, pilot, composer, bus, hub
         seed = int(getattr(world, "seed", 42) if seed is None else seed)
         key = os.environ.get("ELEVENLABS_API_KEY", "")
@@ -82,6 +86,12 @@ class VoicePipeline:
         if stt_factory is None and key:
             stt_factory = lambda terms, cb: ScribeStream(key, terms, cb)   # noqa: E731
         self.stt_factory = stt_factory
+        # fal: emotional emergency voice and batch STT fallback (keys from env; None without FAL_KEY)
+        if emergency is None and self.tts is not None:
+            from server.agents.fal_emergency import ChatterboxVoice
+            emergency = ChatterboxVoice.from_env(self.tts)
+        self.emergency = emergency
+        self.stt_fallback = stt_fallback if stt_fallback is not None else WizperSTT.from_env()
         data_dir = getattr(composer, "data_dir", None)
         self.voices = voices or (Voices.load(data_dir, seed) if data_dir else Voices(seed=seed))
         self.freq = FrequencyManager(seed)
@@ -180,7 +190,11 @@ class VoicePipeline:
 
     async def on_audio_in(self, pcm16: bytes) -> None:
         ptt = self._ptt
-        if ptt is not None and ptt.stt is not None:
+        if ptt is None:
+            return
+        if len(ptt.audio) < MAX_PTT_AUDIO_BYTES:
+            ptt.audio += pcm16
+        if ptt.stt is not None:
             ptt.stt.feed(pcm16)
 
     async def _ptt_up(self) -> None:
@@ -193,16 +207,27 @@ class VoicePipeline:
         if ptt.stepped_on:
             await self._blocked(ptt)
             return
-        if ptt.stt is None:
+        if ptt.stt is None and self.stt_fallback is None:
             await self._notice("Voice input unavailable. Use the typed input.", ptt.tx_id)
             return
-        if ptt.stt.duration_s < MIN_TRANSMISSION_S:
-            await ptt.stt.cancel()
+        if len(ptt.audio) / 32000 < MIN_TRANSMISSION_S:
+            if ptt.stt is not None:
+                await ptt.stt.cancel()
             return
-        try:
-            text = await ptt.stt.finish()
-        except STTError as error:
-            logger.warning("speech-to-text failed: %s", error)
+        text: Optional[str] = None
+        if ptt.stt is not None:
+            try:
+                text = await ptt.stt.finish()
+            except STTError as error:
+                logger.warning("speech-to-text failed: %s", error)
+        if text is None and self.stt_fallback is not None:
+            await self._notice("Speech service unavailable; trying the backup transcriber…", ptt.tx_id)
+            try:
+                text = await self.stt_fallback.transcribe(bytes(ptt.audio))
+                ptt.stamps["stt_fallback"] = 1.0
+            except STTError as error:
+                logger.warning("backup speech-to-text failed: %s", error)
+        if text is None:
             await self._notice("Could not hear that. Try again or use the typed input.", ptt.tx_id)
             return
         ptt.stamps.mark("t_final")
@@ -291,28 +316,40 @@ class VoicePipeline:
         return "; ".join(lines) or None
 
     async def _produce(self, text: str, voice_id: str, settings: dict, queue: asyncio.Queue,
-                       stamps: Stamps, alignment: list) -> None:
-        try:
-            stamps.mark("t_tts_req")
-            timed = getattr(self.tts, "stream_timed", None)
-            if timed is not None:                       # word-synced captions (ElevenLabs timestamps)
-                async for chunk, align in timed(text, voice_id, settings):
-                    if align:
-                        alignment.append(align)
-                    if chunk:
+                       stamps: Stamps, alignment: list, engines: list, meta: dict) -> None:
+        """Stream from the first engine that works; fall back only if nothing was produced yet."""
+        stamps.mark("t_tts_req")
+        last_error: Exception = TTSError("no TTS engine")
+        for engine in engines:
+            meta["engine"] = engine
+            produced = False
+            try:
+                timed = getattr(engine, "stream_timed", None)
+                if timed is not None:                   # word-synced captions (ElevenLabs timestamps)
+                    async for chunk, align in timed(text, voice_id, settings):
+                        if align:
+                            alignment.append(align)
+                        if chunk:
+                            produced = True
+                            if "t_tts_first" not in stamps:
+                                stamps.mark("t_tts_first")
+                            await queue.put(chunk)
+                else:
+                    async for chunk in engine.stream(text, voice_id, settings):
+                        produced = True
                         if "t_tts_first" not in stamps:
                             stamps.mark("t_tts_first")
                         await queue.put(chunk)
-            else:
-                async for chunk in self.tts.stream(text, voice_id, settings):
-                    if "t_tts_first" not in stamps:
-                        stamps.mark("t_tts_first")
-                    await queue.put(chunk)
-            await queue.put(None)
-        except asyncio.CancelledError:
-            raise
-        except Exception as error:                                   # noqa: BLE001
-            await queue.put(error if isinstance(error, TTSError) else TTSError(repr(error)))
+                await queue.put(None)
+                return
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:                               # noqa: BLE001
+                last_error = error if isinstance(error, TTSError) else TTSError(repr(error))
+                if produced:
+                    break                                # mid-stream failure: do not restart the voice
+                logger.warning("%s failed (%s); trying the next voice engine", type(engine).__name__, error)
+        await queue.put(last_error)
 
     async def speak(self, resp: PilotResponse) -> None:
         if resp.kind == "silence" or not resp.callsign or resp.plan is None:
@@ -332,13 +369,17 @@ class VoicePipeline:
 
         queue: asyncio.Queue = asyncio.Queue()
         alignment: list[dict] = []
+        meta: dict = {}
         producer = None
         first: Any = None
-        if self.tts is not None:
+        emergency_call = resp.kind in ("mayday", "pan") and self.emergency is not None
+        engines = [e for e in ([self.emergency] if emergency_call else []) + [self.tts] if e is not None]
+        if engines:
             producer = asyncio.create_task(self._produce(readback.tts_text, voice.id, settings, queue, stamps,
-                                                         alignment))
+                                                         alignment, engines, meta))
             try:
-                first = await asyncio.wait_for(queue.get(), FIRST_AUDIO_TIMEOUT_S)
+                first = await asyncio.wait_for(
+                    queue.get(), EMERGENCY_FIRST_AUDIO_S if emergency_call else FIRST_AUDIO_TIMEOUT_S)
             except asyncio.TimeoutError:
                 first = TTSError("no audio within timeout")
         tts_ok = producer is not None and not isinstance(first, Exception)
@@ -365,7 +406,8 @@ class VoicePipeline:
                                callsigns=sorted(group.arrived), overlap_group=group.id)
             if tts_ok:
                 await self.hub.send(AudioStartMsg(
-                    tx_id=tx_id, callsign=cs, format=self.tts.audio_format, sample_rate=self.tts.sample_rate,
+                    tx_id=tx_id, callsign=cs, format=meta["engine"].audio_format,
+                    sample_rate=meta["engine"].sample_rate,
                     blocked=self.freq.is_blocked(tx_id), overlap_group=group.id if group else None,
                     emotion="stressed" if stressed else "normal"))
             base = parent.get("t_final", stamps["t_plan"])      # stage stamps live in two dicts
@@ -389,7 +431,8 @@ class VoicePipeline:
                 await self.hub.send(AudioEndMsg(tx_id=tx_id))
             words = readback.text.split()
             if tts_ok and audio_bytes:
-                bytes_per_s = 2 * self.tts.sample_rate if self.tts.audio_format == "pcm_s16le" else 16000
+                engine = meta["engine"]
+                bytes_per_s = 2 * engine.sample_rate if engine.audio_format == "pcm_s16le" else 16000
                 duration = audio_bytes / bytes_per_s
             else:
                 duration = len(words) * EST_SPEECH_S_PER_WORD
