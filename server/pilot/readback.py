@@ -99,7 +99,8 @@ class Composer:
         tele = json.loads(self.telephony_path.read_text(encoding="utf-8"))
         self.tele_by_icao = {k: v for k, v in tele.items() if not k.startswith("_") and isinstance(v, str)}
         self.tele_words = V.telephony_map(self.telephony_path)
-        self.phonetic = {k: ("alpha" if v.lower() == "alfa" else v.lower())
+        # "Alfa" -> "alpha", "X-ray" -> "xray": one token, so the validator can decode the callsign
+        self.phonetic = {k: ("alpha" if v.lower() == "alfa" else v.lower().replace("-", ""))
                          for k, v in tele.get("_phonetic", {}).items()}
         self.bank = self._load_bank()
         self.last_variant: dict[tuple[str, str], str] = {}
@@ -293,17 +294,25 @@ class Composer:
             pos = m.end()
         b.filler(template[pos:])
 
+    @staticmethod
+    def _reason(plan: ReadbackPlan) -> tuple[Optional[str], dict]:
+        """Reason code and numbers: from the plan, or from a World pilot call's report_values."""
+        code = plan.reason_code or plan.report_values.get("reason_code")
+        values = {**{k: v for k, v in plan.report_values.items() if isinstance(v, (int, float))},
+                  **plan.reason_values}
+        return code, values
+
     def _reason_template(self, plan: ReadbackPlan, rng: random.Random, canonical: bool,
                          slots: dict) -> Optional[str]:
-        options = REASON_PHRASES.get(plan.reason_code or "", [("say again", ())])
+        code, values = self._reason(plan)
+        options = REASON_PHRASES.get(code or "", [("say again", ())])
         usable = []
         for tpl, needs in options:
-            if all(isinstance(plan.reason_values.get(n), (int, float)) and plan.reason_values.get(n)
-                   for n in needs):
+            if all(isinstance(values.get(n), (int, float)) and values.get(n) for n in needs):
                 usable.append(tpl)
         if not usable:
             return None
-        for key, val in plan.reason_values.items():
+        for key, val in values.items():
             if isinstance(val, (int, float)) and not isinstance(val, bool):
                 speech = (N.altitude_to_speech(int(val)) if key in _ALTITUDE_KEYS
                           else N.digits_to_speech(str(int(val))))
@@ -325,7 +334,7 @@ class Composer:
                 return None
             options = REPLIES[kind]
             template = (options[0] if canonical else rng.choice(options)).replace("{REASON}", reason)
-            b.variant_ids.append(f"{kind}.{plan.reason_code}")
+            b.variant_ids.append(f"{kind}.{self._reason(plan)[0]}")
         elif kind == "checkin":
             parts = ["Gatwick Director, {CALLSIGN}"]
             if isinstance(rv.get("level_fl"), (int, float)):
@@ -333,7 +342,10 @@ class Composer:
                 parts.append("flight level {FLV}")
             elif isinstance(rv.get("alt"), (int, float)):
                 slots["ALTV"] = (str(int(rv["alt"])), N.altitude_to_speech(int(rv["alt"])))
-                parts.append("altitude {ALTV}")
+                parts.append("passing {ALTV}" if rv.get("passing") else "altitude {ALTV}")
+                if rv.get("passing") and isinstance(rv.get("cleared_alt"), (int, float)):
+                    slots["CLRV"] = (str(int(rv["cleared_alt"])), N.altitude_to_speech(int(rv["cleared_alt"])))
+                    parts.append("climbing {CLRV}")
             if rv.get("star") or rv.get("route"):
                 star = str(rv.get("star") or rv.get("route")).upper()
                 m = re.fullmatch(r"([A-Z]+)(\d)([A-Z]?)", star)

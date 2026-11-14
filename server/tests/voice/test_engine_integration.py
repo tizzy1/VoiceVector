@@ -171,3 +171,57 @@ def test_repeat_last_returns_the_previous_readback():
     repeat = pilot.handle_transmission(again, world.evaluate(again))[0]
     assert repeat.kind == "repeat_last"
     assert composer.compose(repeat.plan).tts_text == spoken.tts_text
+
+
+def test_every_pilot_call_the_simulator_generates_composes():
+    """Run the demo for 25 sim minutes (arrivals, departures, check-ins, requests, no-further-clearance)
+    and compose every spontaneous pilot call: all validated, none a fallback."""
+    from collections import Counter
+    world, pilot, bus = make("low")
+    composer = Composer(DATA)
+    calls = []
+    bus.subscribe(lambda e: calls.append(e) if e.type == "pilot_call" else None)
+    for _ in range(1500):
+        world.tick(1.0)
+        pilot.tick(world.t)
+    kinds = Counter(e.data.get("kind") for e in calls)
+    assert {"checkin", "request", "no_further_clearance"} <= set(kinds), kinds
+    for e in calls:
+        resp = pilot.on_sim_event(e)
+        readback = composer.compose(resp.plan)
+        assert readback.validated and not readback.fallback_used, (e.data, readback)
+        assert not readback.tts_text.lower().startswith("say again"), (e.data, readback.text)
+
+
+def test_unable_pilot_call_keeps_its_reason_when_it_arrives_in_report_values():
+    composer = Composer(DATA)
+    resp = pilot_response("unable", {"reason_code": "UNABLE_INTERCEPT_ANGLE", "what": "overshooting_localiser",
+                                     "runway": "26L"})
+    readback = composer.compose(resp.plan)
+    assert readback.validated and "intercept" in readback.tts_text and "say again" not in readback.tts_text
+
+
+def test_departure_checkin_is_spoken_as_passing_and_climbing():
+    composer = Composer(DATA)
+    resp = pilot_response("checkin", {"alt": 2000, "passing": True, "cleared_alt": 6000, "route": "NOVMA1X"},
+                          callsign="WZZ8BF")
+    readback = composer.compose(resp.plan)
+    assert readback.validated and not readback.fallback_used
+    assert readback.tts_text == ("Gatwick Director, wizz air eight bravo foxtrot, passing two thousand, "
+                                 "climbing six thousand, novma one xray")
+
+
+def pilot_response(kind, data, callsign="BAW117"):
+    from server.contracts import PilotResponse, ReadbackPlan
+    plan = ReadbackPlan(callsign=callsign, persona="crisp_airline", kind=kind, report_values=data, seed=3)
+    return PilotResponse(callsign=callsign, kind=kind, plan=plan)
+
+
+def test_callsigns_containing_x_ray_compose_and_validate():
+    from server.contracts import Instruction, ReadbackPlan
+    composer = Composer(DATA)
+    assert composer.callsign_speech("WZZ4XA")[1] == "wizz air four xray alpha"
+    plan = ReadbackPlan(callsign="WZZ4XA", persona="crisp_airline", kind="full", seed=1,
+                        elements=[Instruction(type="heading", value=90, turn_dir="R")])
+    readback = composer.compose(plan)
+    assert readback.validated and not readback.fallback_used and "xray alpha" in readback.tts_text

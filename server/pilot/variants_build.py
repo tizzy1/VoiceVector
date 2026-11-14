@@ -199,6 +199,7 @@ REASON_PHRASES: dict[str, list[tuple[str, tuple[str, ...]]]] = {
     "UNABLE_RATE": [("unable more than {max_rate} feet per minute", ("max_rate",)),
                     ("unable that rate of descent", ()), ("unable to descend that fast", ())],
     "UNABLE_INTERCEPT_ANGLE": [("unable, the intercept angle is too large", ()),
+                               ("we are going through the localiser, unable that intercept", ()),
                                ("unable to intercept from this heading", ())],
     "UNABLE_TOO_HIGH_GS": [("unable, we are too high to capture the glideslope", ()),
                            ("unable, too high for the glideslope", ())],
