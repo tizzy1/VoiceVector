@@ -38,6 +38,12 @@ Every placeholder the sim, pilot and rules use. Confirm or correct each one befo
 | 32 | Live import filter | airborne (≥ 60 kt), within 40 NM of the 26L threshold, 1,500–16,000 ft; arrival/departure only if the flight plan says EGKK; target older than 120 s skipped; snapshot older than 10 min refused, older than 60 s flagged stale | `server/sim/live_import.py` |
 | 33 | Live import initial state | arrival aligned with the localiser inside 15 NM (±1.5 NM, ±30°) starts established and cleared ILS; inside 12 NM on present heading; otherwise direct to the nearer of WILLO/TIMBA. Departure: SID from the filed route, cleared 6,000 ft if below. Level = present altitude to the nearest 100 ft. Unknown types fly as the nearest family (else A320) | `server/sim/live_import.py` |
 | 34 | VATSIM terms of use — NOT YET READ | User Agreement v1.5, Commercial Use Policy v2.0 and Data Protection and Handling Policy v1.4 are PDFs on cdn.vatsim.net. Read them before enabling the import in a demo; the code drops pilot names and CIDs at the parse step | `server/sim/live_import.py` |
+| 35 | Controlled-airspace lookup (A5, B2) | point inside a CTR/CTA/TMA volume between its base and top; adjacent-part slivers bridged by a 1.5 NM tolerance (London TMA parts 2, 12, 15 and 22 are not in the data) | `server/sim/airspace.py` `GAP_TOLERANCE_NM` |
+| 36 | A5 scope | only aircraft the controller has transmitted to, not on their own SID/STAR, hold or the localiser; flagged once per episode | `server/rules/rules_safety.py` |
+| 37 | B2 projection | straight line along the new heading at 30/60/90/120 s at the cleared level | `server/rules/rules_instruction.py` |
+| 38 | B3 Director top | climbs above 6,500 ft (KKAPP 5,500 + SPT) without "contact London" in the same transmission | `server/rules/rules_instruction.py` `DIRECTOR_TOP_FT` |
+| 39 | B9 threshold | forecast p_conflict ≥ 0.5 after the instruction (applied 3 s later) and < 0.5 before it | `server/rules/rules_instruction.py` |
+| 40 | C6 wording | readback correction without "I say again" (LOW) | `server/rules/rules_phraseology.py` |
 
 ## Post-MVP data checks
 

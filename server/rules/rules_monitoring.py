@@ -58,6 +58,8 @@ class MonitoringRules:
         execution = rec.mode == "execution_only"
         rid = "E1" if execution else "D1"
         what = "Execution error" if execution else "Readback error"
+        if rec.kind == "level_bust_overshoot":
+            rid, what = "E3", "Level bust"
         self.eng.add(
             rid, "POSITIVE", "CONTROLLER", [rec.callsign], t=e.t, tx_id=e.tx_id,
             title=f"{what} caught: {rec.callsign}",

@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from server.sim.aircraft import AircraftState
-from server.sim.airspace import area_minimum_ft
+from server.sim.airspace import area_minimum_ft, cas_base_ft, in_cas
 from server.sim.modes import loc_geometry
 from server.sim.stca import _in_trail_ok, separation
 
@@ -26,6 +26,8 @@ class SafetyRules:
         self.pred: dict[tuple[str, str], dict[str, Any]] = {}    # open A2 predictions
         self.wake: dict[tuple[str, str], dict[str, Any]] = {}    # open A3 episodes
         self.below_min: set[str] = set()                         # open A4 episodes
+        self.cas_seen: set[str] = set()                          # been inside CAS (A5)
+        self.outside_cas: set[str] = set()                       # open A5 episodes
         sep = eng.traffic.get("separation", {})
         self.min_nm = float(sep.get("radar_min_nm", 3.0))
         self.min_ft = float(sep.get("vertical_min_ft", 1000))
@@ -40,6 +42,40 @@ class SafetyRules:
         self._a2(t)
         self._a3(t, live)
         self._a4(t, live)
+        self._a5(t, live)
+
+    # A5 outside controlled airspace -------------------------------------------
+    def _a5(self, t: float, acs: list[AircraftState]) -> None:
+        """An aircraft that was inside controlled airspace leaves it (laterally or below the
+        base) while under our control. Only aircraft the controller has been working count:
+        one flying its own SID/STAR, hold or default track (never instructed) is the sim's
+        doing, and an untransferred departure is already B10."""
+        w = self.eng.world
+        for a in acs:
+            cs = a.callsign
+            inside = in_cas(w, a.x, a.y, a.alt)
+            if inside:
+                self.cas_seen.add(cs)
+                self.outside_cas.discard(cs)
+                continue
+            own_procedure = a.lat_mode == "LNAV" and a.route_name and a.phase in ("STAR", "SID")
+            if (cs not in self.cas_seen or cs in self.outside_cas or not a.on_frequency
+                    or own_procedure or a.lat_mode in ("LOC", "HOLD")
+                    or cs not in self.eng.last_tx_to):
+                continue
+            self.outside_cas.add(cs)
+            base = cas_base_ft(w, a.x, a.y)
+            where = (f"below the controlled-airspace base of {base} ft" if base is not None
+                     and a.alt < base else "outside the lateral limits of controlled airspace")
+            self.eng.add(
+                "A5", "HIGH", "CONTROLLER", [cs], t=t,
+                title=f"Outside controlled airspace: {cs}",
+                detail=f"At {int(round(a.alt, -2))} ft, {where}.",
+                correct_practice="Keep IFR traffic inside controlled airspace: check the base "
+                                 "of the airspace before descending and the boundary before "
+                                 "vectoring.",
+                evidence={"alt": round(a.alt), "base_ft": base, "x": round(a.x, 1),
+                          "y": round(a.y, 1)})
 
     # A1 loss of radar separation --------------------------------------------
     def _a1(self, t: float, acs: list[AircraftState]) -> None:

@@ -45,6 +45,15 @@ class PhraseologyRules:
             add("C4", "Non-standard phrase",
                 "Part of the transmission only made sense to the fallback parser.",
                 "Use standard CAP 413 phraseology.")
+        if "out_of_range" in tx.ambiguities and not any(
+                w in text for w in ("altitude", "flight level", "heading", "degrees", "knots")):
+            add("C3", f"Ambiguous number{': ' + tx.receiver if tx.receiver else ''}",
+                "A number was given without saying what it is (level, heading or speed).",
+                "Always name the value: 'heading two four zero', 'flight level two four zero'.")
+        if tx.intent == "readback_correction" and "say again" not in text:
+            add("C6", f"Readback correction phrasing{': ' + tx.receiver if tx.receiver else ''}",
+                "Correction given without 'I say again'.",
+                "Correct a readback with 'negative, I say again …' and the full correct element.")
         if len(tx.instructions) > MAX_ELEMENTS:
             add("C5", f"Overloaded transmission{': ' + tx.receiver if tx.receiver else ''}",
                 f"{len(tx.instructions)} instructions in one transmission.",

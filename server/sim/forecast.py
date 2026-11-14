@@ -126,15 +126,20 @@ def _levels_cross(a: AircraftState, b: AircraftState) -> bool:
     return lo_a - CONFLICT_FT < hi_b and lo_b - CONFLICT_FT < hi_a
 
 
-def forecast(w: "World") -> list[dict[str, Any]]:
+def forecast(w: "World", extra: Optional[list[tuple[float, str, Any]]] = None,
+             only: Optional[str] = None) -> list[dict[str, Any]]:
+    """All candidate pairs (or only pairs with `only`). `extra` = what-if clearances
+    [(seconds from now, callsign, Instruction)], used by rule B9; never applied."""
     airborne = [a for a in w.aircraft.values() if a.phase not in GROUND]
     pairs = candidate_pairs(airborne)
+    if only is not None:
+        pairs = [p for p in pairs if only in (airborne[p[0]].callsign, airborne[p[1]].callsign)]
     if not pairs:
         return []
     used = sorted({k for p in pairs for k in p})
     acs = [airborne[k] for k in used]
     local = {k: n for n, k in enumerate(used)}
-    traj = _simulate(w, acs)
+    traj = _simulate(w, acs, extra or [])
     out = []
     for i, j in pairs:
         f = _pair_result(w, traj, acs, local[i], local[j])
@@ -145,7 +150,8 @@ def forecast(w: "World") -> list[dict[str, Any]]:
 
 
 # =========================================================================================
-def _simulate(w: "World", acs: list[AircraftState]) -> dict[str, np.ndarray]:
+def _simulate(w: "World", acs: list[AircraftState],
+              extra: list[tuple[float, str, Any]]) -> dict[str, np.ndarray]:
     N, R = len(acs), ROLLOUTS
     S = HORIZON_S // STEP_S
     dt = float(STEP_S)
@@ -228,6 +234,9 @@ def _simulate(w: "World", acs: list[AircraftState]) -> dict[str, np.ndarray]:
     for at, _, cs, el in sorted(w._pending, key=lambda p: p[:2]):
         if cs in index:
             pend.append((at + el.delay_s - w.t, index[cs], el.intended))
+    for t_rel, cs, ins in extra:
+        if cs in index:
+            pend.append((float(t_rel), index[cs], ins))
     applied = np.zeros((len(pend), R), dtype=bool)
 
     S1 = S + 1
@@ -254,7 +263,8 @@ def _simulate(w: "World", acs: list[AircraftState]) -> dict[str, np.ndarray]:
         mode = np.where(cap, LOC, mode).astype(np.int8)
         tdir = np.where(cap, 0.0, tdir)
         gp = elev + gsft * np.maximum(along, 0.0)
-        gcap = gs_arm & (mode == LOC) & ~gs_on & (alt >= gp - GS_BELOW_FT) & (alt <= gp + GS_ABOVE_FT)
+        gcap = (gs_arm & (mode == LOC) & ~gs_on
+                & (alt >= gp - GS_BELOW_FT) & (alt <= gp + GS_ABOVE_FT))
         gs_on = gs_on | gcap
         # ---- lateral guidance: desired track per mode ----
         desired = tgt_hdg.copy()

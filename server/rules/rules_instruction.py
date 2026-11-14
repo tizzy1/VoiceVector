@@ -4,7 +4,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from server.contracts import Evaluation, Transmission
-from server.sim.airspace import TRANSITION_ALT_FT, area_minimum_ft
+import math
+
+from server.sim.airspace import TRANSITION_ALT_FT, area_minimum_ft, in_cas
 from server.sim.aircraft import AircraftState
 from server.sim.evaluate import GS_ABOVE_TOL_FT, _intercept_heading
 from server.sim.geo import hdg_diff
@@ -20,6 +22,13 @@ INTERCEPT_FAIL_DEG = 45.0          # B4 fail
 FAF_ALT_FT = 2000.0                # ⚠ VERIFY: FI26L assumed where the 3° glidepath meets 2,000 ft
 LATE_INTERCEPT_NM = 2.0            # B4: intercept closer than this before FI26L
 LATE_TRANSFER_NM = 4.0             # B10
+CAS_LOOKAHEAD_S = (30, 60, 90, 120)  # B2: straight-line projection points along the new heading
+DIRECTOR_TOP_FT = 6500.0           # B3: KKAPP 0-5,500 + SPT to 6,500 (⚠ VERIFY intent)
+B9_APPLY_S = 3.0                   # B9: readback + reaction before the clearance takes effect
+B9_P = 0.5                         # B9: forecast probability that counts as "into conflict"
+LATERAL = ("heading", "turn_by", "present_heading", "direct", "hold", "resume_nav")
+FAMILIES = {"level": LEVEL_TYPES, "lateral": LATERAL,
+            "speed": ("speed", "speed_min_clean", "speed_cancel")}
 
 
 class InstructionRules:
@@ -44,6 +53,107 @@ class InstructionRules:
         self._b4(tx, ac, ev)
         self._from_evals(tx, evals, ac, ev)
         self._b6_qnh(tx, ac, types, ev)
+        self._b2(tx, ac, ev)
+        self._b3(tx, ac, types, ev)
+        self._b8(tx, ac, ev)
+        self._b9(tx, ac, ev)
+
+    # B2 vectoring out of controlled airspace ----------------------------------
+    def _b2(self, tx, ac, ev) -> None:
+        hdg = None
+        for ins in tx.instructions:
+            if ins.type == "heading" and ins.value is not None:
+                hdg = float(ins.value)
+            elif ins.type == "turn_by" and ins.value is not None and ins.turn_dir:
+                hdg = ac.hdg + (1 if ins.turn_dir == "R" else -1) * float(ins.value)
+        if hdg is None:
+            return
+        w = self.eng.world
+        lvl = next((x for x in (cleared_level_ft(i) for i in tx.instructions
+                                if i.type in LEVEL_TYPES) if x is not None), ac.cleared_alt)
+        if not in_cas(w, ac.x, ac.y, ac.alt):
+            return                                       # already outside: A5's business
+        r = math.radians(hdg)
+        for s in CAS_LOOKAHEAD_S:
+            d = ac.gs * s / 3600.0
+            x, y = ac.x + d * math.sin(r), ac.y + d * math.cos(r)
+            if not in_cas(w, x, y, lvl):
+                self.eng.add(
+                    "B2", "MEDIUM", "CONTROLLER", [ac.callsign], t=tx.t, tx_id=tx.tx_id,
+                    title=f"Vectored out of controlled airspace: {ac.callsign}",
+                    detail=f"Heading {round(hdg) % 360 or 360:03d} at {int(lvl)} ft leaves "
+                           f"controlled airspace in about {s} s.",
+                    correct_practice="Keep vectors inside controlled airspace at the cleared "
+                                     "level, or climb the aircraft before turning it out.",
+                    evidence={**ev, "after_s": s, "level": int(lvl)})
+                return
+
+    # B3 level outside Director jurisdiction ------------------------------------
+    def _b3(self, tx, ac, types, ev) -> None:
+        if any(i.type == "contact" and i.unit == "london" for i in tx.instructions):
+            return                                       # handoff level with transfer: fine
+        for ins in tx.instructions:
+            lvl = cleared_level_ft(ins) if ins.type in LEVEL_TYPES else None
+            if lvl is None or lvl <= DIRECTOR_TOP_FT or lvl <= ac.alt + 50:
+                continue                                 # only climbs above Director airspace
+            self.eng.add(
+                "B3", "MEDIUM", "CONTROLLER", [ac.callsign], t=tx.t, tx_id=tx.tx_id,
+                title=f"Level outside Director airspace: {ac.callsign}",
+                detail=f"Climbed to {int(lvl)} ft; Gatwick Director owns up to "
+                       f"{int(DIRECTOR_TOP_FT)} ft.",
+                correct_practice="Climb above Director airspace only with London's agreement, "
+                                 "or transfer the aircraft: 'contact London Control …'.",
+                evidence={**ev, "level": int(lvl)})
+            return
+
+    # B8 conflicting instructions in one transmission ---------------------------
+    def _b8(self, tx, ac, ev) -> None:
+        if tx.self_corrections:
+            return
+        for fam, members in FAMILIES.items():
+            got = [i for i in tx.instructions if i.type in members]
+            sig = {(i.type, str(i.value), i.turn_dir, i.fix) for i in got}
+            if len(got) > 1 and len(sig) > 1:
+                said = ", ".join(
+                    f"{i.type.replace('_', ' ')} "
+                    f"{i.value if i.value is not None else i.fix or ''}".strip() for i in got)
+                self.eng.add(
+                    "B8", "MEDIUM", "CONTROLLER", [ac.callsign], t=tx.t, tx_id=tx.tx_id,
+                    title=f"Conflicting instructions: {ac.callsign}",
+                    detail=f"More than one {fam} instruction in one transmission ({said}).",
+                    correct_practice="Give one instruction of each kind; to change it, say "
+                                     "'correction' and the new value.",
+                    evidence={**ev, "family": fam})
+                return
+
+    # B9 instruction into conflict (forecast what-if) ---------------------------
+    def _b9(self, tx, ac, ev) -> None:
+        w = self.eng.world
+        if not hasattr(w, "forecaster"):
+            return
+        from server.sim.forecast import forecast
+        lateral_or_level = [i for i in tx.instructions
+                            if i.type in LEVEL_TYPES or i.type in LATERAL]
+        if not lateral_or_level:
+            return
+        before = {tuple(f["callsigns"]): f["p_conflict"] for f in forecast(w, only=ac.callsign)}
+        after = forecast(w, extra=[(B9_APPLY_S, ac.callsign, i) for i in lateral_or_level],
+                         only=ac.callsign)
+        for f in after:
+            key = tuple(f["callsigns"])
+            if f["p_conflict"] >= B9_P and before.get(key, 0.0) < B9_P:
+                other = key[0] if key[1] == ac.callsign else key[1]
+                self.eng.add(
+                    "B9", "MEDIUM", "CONTROLLER", [ac.callsign, other], t=tx.t, tx_id=tx.tx_id,
+                    title=f"Instruction into conflict: {ac.callsign} / {other}",
+                    detail=f"After this instruction a loss of separation with {other} becomes "
+                           f"likely ({f['p_conflict']:.0%} of forecast runs, median "
+                           f"{f['t_median_s']:.0f} s); before it, {before.get(key, 0.0):.0%}.",
+                    correct_practice="Check the new heading or level against nearby traffic "
+                                     "before you give it.",
+                    evidence={**ev, "p_before": before.get(key, 0.0),
+                              "p_after": f["p_conflict"], "t_median_s": f["t_median_s"]})
+                return
 
     # B1 descent below minimum ------------------------------------------------
     def _b1(self, tx, ac, types, ev) -> None:
