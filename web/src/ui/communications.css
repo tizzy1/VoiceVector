@@ -1,0 +1,17 @@
+.communications-panel { margin-top: 16px; border-top: 1px solid #2b3a40; padding: 12px 0; }
+.communications-panel > summary { cursor: pointer; color: #a7bbc3; font-size: 11px; font-weight: 500; }
+.communications-panel > summary span { float: right; color: #7c8b90; font: 10px "JetBrains Mono", ui-monospace, monospace; }
+.communications-latency { display: flex; justify-content: space-between; gap: 8px; margin-top: 14px; font-size: 11px; color: #a7bbc3; }
+.communications-latency strong { color: #e8eef0; font: 12px "JetBrains Mono", ui-monospace, monospace; }
+.communications-panel .communications-note { color: #7c8b90; font-size: 10px; line-height: 1.6; margin: 6px 0; }
+.communications-history { max-height: 280px; overflow-y: auto; overscroll-behavior: contain; margin-top: 12px; scrollbar-gutter: stable; }
+.communications-history article { padding: 10px 4px 10px 0; border-top: 1px solid #2b3a40; overflow-wrap: anywhere; }
+.communications-speaker { display: flex; justify-content: space-between; gap: 8px; color: #7c8b90; font-size: 10px; }
+.communications-speaker b { color: #4fd1e8; font: 11px "JetBrains Mono", ui-monospace, monospace; }
+.communications-history p { margin: 6px 0; font-size: 12px; }
+.communications-history .communications-plain { color: #a7bbc3; font-size: 11px; }
+.communications-history .communications-partial p { color: #7c8b90; }
+.communications-history .communications-reveal { color: #f2b544; }
+.communications-chips { display: flex; flex-wrap: wrap; gap: 5px; list-style: none; padding: 0; margin: 7px 0; }
+.communications-chips li { padding: 3px 5px; border: 1px solid #2b3a40; color: #a7bbc3; font: 10px "JetBrains Mono", ui-monospace, monospace; }
+.communications-panel .communications-latest { margin-top: 8px; padding: 6px 10px; border: 1px solid #3c515a; background: #171c20; color: #a7bbc3; font-size: 11px; }

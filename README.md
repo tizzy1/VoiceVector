@@ -47,6 +47,14 @@ SIMULATED. It shows the scenario observation time, wind, visibility, cloud,
 temperature/dew point and QNH, with an expandable raw METAR. This is fixed scenario
 weather matching the simulator, not a live weather feed. Missing or disconnected
 weather is marked unavailable instead of retaining an old observation.
+The controller's collapsible Communications pane retains the latest 200 caption
+entries, updating partial transcripts in place and showing supplied plain-English
+explanations, instruction chips and error reveals. It follows new messages until
+you scroll back; Jump to latest resumes following. Pilot response p50 is the median
+of the latest ten measured pilot transmissions (or all available when fewer than
+ten). It uses server-reported response timing, not measured browser playback latency;
+repeated caption updates do not add samples. History and samples clear on a session
+reset/change. The bottom strip continues to show only the latest three entries.
 Arrival and departure flight strips share selection with the radar and its
 aircraft dropdown. Departures are grouped as queued, taking off and airborne.
 The sidebar provides Easy/Medium/Busy traffic targets, 1×/2× simulation speed,

@@ -7,6 +7,8 @@ import { RadioLink, isTyping, type RadioStatus } from "./radioLink";
 import { TrafficPanel } from "../ui/TrafficPanel";
 import { AircraftDetails } from "../ui/AircraftDetails";
 import { WeatherPanel } from "../ui/WeatherPanel";
+import { CommunicationsPanel } from "../ui/CommunicationsPanel";
+import { updateResponseSamples, type ResponseSample } from "../ui/communications";
 import { CaptionStrip } from "../ui/CaptionStrip";
 import { updateCaptions } from "../ui/captions";
 import { SessionControls, type TrafficConfig } from "../ui/SessionControls";
@@ -22,6 +24,8 @@ export function App() {
   const [traffic, setTraffic] = useState<TrafficConfig | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
   const [captions, setCaptions] = useState<CaptionMsg[]>([]);
+  const [responseSamples, setResponseSamples] = useState<ResponseSample[]>([]);
+  const sessionCode = useRef<string | null>(null);
   const [events, setEvents] = useState<EventMsg[]>([]);
   const [text, setText] = useState("");
   const [selected, setSelected] = useState("");
@@ -57,12 +61,26 @@ export function App() {
     void load();
     const client = connect(role, message => {
       radio.current?.handle(message);
-      if (message.type === "session") setSession(message);
+      if (message.type === "session") {
+        if (sessionCode.current && sessionCode.current !== message.code) {
+          setCaptions([]);
+          setResponseSamples([]);
+        }
+        sessionCode.current = message.code;
+        setSession(message);
+      }
       if (message.type === "state") setState(message);
       if (message.type === "caption") {
         setCaptions(previous => updateCaptions(previous, message));
+        setResponseSamples(previous => updateResponseSamples(previous, message));
       }
-      if (message.type === "event") setEvents(previous => [...previous, message].slice(-12));
+      if (message.type === "event") {
+        if (message.event.type === "session_start") {
+          setCaptions([]);
+          setResponseSamples([]);
+        }
+        setEvents(previous => [...previous, message].slice(-12));
+      }
     }, nextStatus => {
       if (nextStatus !== "Connected") {
         setState(null);
@@ -248,6 +266,7 @@ export function App() {
           <AircraftDetails aircraft={state?.aircraft.find(ac => ac.callsign === selected)}
             alerts={state?.alerts ?? []} />
           <TrafficPanel state={state} selected={selected} onSelect={selectAircraft} />
+          {role === "radar" && <CommunicationsPanel messages={captions} samples={responseSamples} />}
           <details className="operations-settings">
             <summary>Session controls</summary>
             <SessionControls session={session} state={state} traffic={traffic}

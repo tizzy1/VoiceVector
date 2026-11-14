@@ -2,7 +2,7 @@ import type { CaptionMsg } from "../protocol";
 
 export function updateCaptions(messages: readonly CaptionMsg[], incoming: CaptionMsg): CaptionMsg[] {
   const index = messages.findIndex(m => m.tx_id === incoming.tx_id && m.speaker === incoming.speaker);
-  if (index < 0) return [...messages, incoming].slice(-30);
+  if (index < 0) return [...messages, incoming].slice(-200);
   const previous = messages[index];
   if (previous.stage === "final" && incoming.stage === "partial") return [...messages];
   const next = [...messages];

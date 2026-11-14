@@ -70,8 +70,8 @@ test("partial captions avoid live announcements and retention is bounded", () =>
   }));
   assert.match(html, /aria-live="off"/);
   let messages = [];
-  for (let i = 0; i < 40; i++) messages = updateCaptions(messages, caption(String(i)));
-  assert.equal(messages.length, 30);
+  for (let i = 0; i < 210; i++) messages = updateCaptions(messages, caption(String(i)));
+  assert.equal(messages.length, 200);
   assert.equal(messages[0].tx_id, "10");
 });
 test("pilot word captions follow playback time and fall back to full text without a clock", () => {
