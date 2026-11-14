@@ -71,6 +71,19 @@ def test_end_beat_publishes_report_and_pauses_both_views(tmp_path):
                 assert client.app.state.session.settings.paused
 
 
+def test_report_page_reconnection_receives_current_report_and_reset_clears_it(tmp_path):
+    with TestClient(create_app(FACTORIES, tmp_path)) as client:
+        with client.websocket_connect("/ws?role=radar") as radar:
+            beat(radar, 8)
+            report = receive_until(radar, lambda m: m["type"] == "report")["report"]
+            code = client.app.state.session.code
+            with client.websocket_connect(f"/ws?role=viz&session={code}") as page:
+                assert receive_until(page, lambda m: m["type"] == "report")["report"] == report
+            beat(radar, 1)
+            receive_until(radar, lambda m: m["type"] == "event" and m["event"]["type"] == "session_start")
+            assert client.app.state.session.report is None
+
+
 @pytest.mark.parametrize("key", [2, "1", True, None])
 def test_unknown_or_mistyped_beats_do_not_change_session(tmp_path, key):
     with TestClient(create_app(FACTORIES, tmp_path)) as client:

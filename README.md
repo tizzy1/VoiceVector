@@ -62,7 +62,16 @@ numeric clearance, and 8 pauses the session and generates the rules report.
 J toggles local judge mode (larger captions and PTT). Held keys, modifier shortcuts
 and text entry do not trigger demo actions. The box also provides clickable
 controls, disabled when unavailable. The generated report shows a score banner
-and can be downloaded as JSON; the full report screen is still a separate task.
+and opens a debrief overlay on both views. Close it or press Escape to return to
+the scope; View report reopens it. The Report link opens `/report?session=CODE`,
+a dedicated read-only view that receives the server's current completed report
+on connection. Reports include the score breakdown, category A–F findings,
+attached transcript/evidence and correct practice, pilot error/catch table,
+clickable timeline event details, supplied coaching and full-session latency
+sample counts/p50/p90. Missing data stays explicitly unavailable. JSON export is
+available from both report views. Timeline markers inspect events; they do not
+replay audio or aircraft motion. Reports remain available while the server keeps
+the session; reset/resume clears the old report.
 Arrival and departure flight strips share selection with the radar and its
 aircraft dropdown. Departures are grouped as queued, taking off and airborne.
 The sidebar provides Easy/Medium/Busy traffic targets, 1×/2× simulation speed,
@@ -88,7 +97,7 @@ The shared caption strip retains the latest three transmissions, updates partial
 in place, and displays parsed chips, plain-English summaries and supplied latency
 metrics. Pilot captions follow the audio engine clock when word timings are available,
 and otherwise display the complete sentence.
-3D, camera controls and the report UI are subsequent tasks. /report currently serves the foundation application.
+3D and camera controls are subsequent tasks.
 
 Tudor's simulator now runs independently of the radio pipeline. Both views
 show live aircraft, with Pause/Resume and Reset demo controls. /api/health

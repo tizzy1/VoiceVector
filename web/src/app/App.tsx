@@ -13,11 +13,13 @@ import { CaptionStrip } from "../ui/CaptionStrip";
 import { updateCaptions } from "../ui/captions";
 import { SessionControls, type TrafficConfig } from "../ui/SessionControls";
 import { PresenterConsole } from "../ui/PresenterConsole";
+import { ReportDialog, ReportPage } from "../report/ReportView";
 
 interface Health { ready: boolean; simulation_ready: boolean; missing_modules: string[] }
 
 export function App() {
-  const role = location.pathname === "/viz" ? "viz" : "radar";
+  const reportPage = location.pathname === "/report";
+  const role = location.pathname === "/viz" || reportPage ? "viz" : "radar";
   const [status, setStatus] = useState("Connecting");
   const [session, setSession] = useState<SessionMsg | null>(null);
   const [state, setState] = useState<StateMsg | null>(null);
@@ -36,6 +38,7 @@ export function App() {
   const [judge, setJudge] = useState(false);
   const [report, setReport] = useState<Report | null>(null);
   const [reportPending, setReportPending] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const radio = useRef<RadioLink | null>(null);
   const [radioStatus, setRadioStatus] = useState<RadioStatus>({
     enabled: false, micReady: false, keyed: false, error: "",
@@ -62,7 +65,7 @@ export function App() {
         if (!abort.signal.aborted) setError(String(reason));
       }
     }
-    void load();
+    if (!reportPage) void load();
     const client = connect(role, message => {
       radio.current?.handle(message);
       if (message.type === "session") {
@@ -70,6 +73,7 @@ export function App() {
           setCaptions([]);
           setResponseSamples([]);
           setReport(null);
+          setReportOpen(false);
           setReportPending(false);
         }
         sessionCode.current = message.code;
@@ -77,7 +81,9 @@ export function App() {
       }
       if (message.type === "state") setState(message);
       if (message.type === "report") {
+        radio.current?.up();
         setReport(message.report);
+        setReportOpen(true);
         setReportPending(false);
       }
       if (message.type === "caption") {
@@ -88,12 +94,14 @@ export function App() {
       if (message.type === "event") {
         if (message.event.type === "session_resume") {
           setReport(null);
+          setReportOpen(false);
           setReportPending(false);
         }
         if (message.event.type === "session_start") {
           setCaptions([]);
           setResponseSamples([]);
           setReport(null);
+          setReportOpen(false);
           setReportPending(false);
         }
         setEvents(previous => [...previous, message].slice(-12));
@@ -118,7 +126,7 @@ export function App() {
       radio.current = null;
       client.close();
     };
-  }, [role]);
+  }, [role, reportPage]);
 
   useEffect(() => {
     if (status !== "Connected") return;
@@ -145,6 +153,7 @@ export function App() {
   }, [state, selected]);
 
   useEffect(() => {
+    if (reportPage || reportOpen) return;
     const timer = setInterval(() => {
       setLevel(radio.current?.level() ?? 0);
       const clocks: Record<string, number> = {};
@@ -155,11 +164,12 @@ export function App() {
       setCaptionClock(clocks);
     }, 100);
     return () => clearInterval(timer);
-  }, [captions]);
+  }, [captions, reportPage, reportOpen]);
 
   useEffect(() => {
     function release() { radio.current?.up(); }
     function down(event: KeyboardEvent) {
+      if (reportPage || reportOpen) return;
       if (event.code !== "Space" || event.repeat || isTyping(event.target)) return;
       if (status !== "Connected" || !health?.ready || !radioStatus.micReady || role !== "radar") return;
       event.preventDefault();
@@ -182,7 +192,7 @@ export function App() {
       window.removeEventListener("blur", release);
       document.removeEventListener("visibilitychange", visibility);
     };
-  }, [status, health?.ready, radioStatus.micReady, radioStatus.keyed, role]);
+  }, [status, health?.ready, radioStatus.micReady, radioStatus.keyed, role, reportPage, reportOpen]);
 
   useEffect(() => {
     radio.current?.playback(playback);
@@ -257,11 +267,13 @@ export function App() {
       setError("Connection unavailable. Reconnect before changing the simulation.");
     }
   }
+  if (reportPage) return <ReportPage report={report} connectionStatus={status} onDownload={downloadReport} />;
+  const reportHref = `/report${session ? `?session=${encodeURIComponent(session.code)}` : ""}`;
   return (
     <div className={`shell${judge ? " judge-mode" : ""}`}>
       <header>
         <div><strong>SWEATBOX<span>AI</span></strong><small>GATWICK DIRECTOR</small></div>
-        <nav aria-label="Views"><a href="/">Radar</a><a href="/viz">Second screen</a></nav>
+        <nav aria-label="Views"><a href="/">Radar</a><a href="/viz">Second screen</a><a href={reportHref}>Report</a></nav>
         <div className="connection"><i className={connected ? "online" : ""} />{status}</div>
       </header>
       <div className="session-bar">
@@ -279,7 +291,7 @@ export function App() {
           onClick={() => control("load_scenario")}>Reset demo</button>
       </div>
       <div className="panel-toolbar">
-        <PresenterConsole enabled={connected && Boolean(health?.simulation_ready)}
+        <PresenterConsole enabled={connected && Boolean(health?.simulation_ready) && !reportOpen}
           radioReady={Boolean(health?.ready)} judge={judge} onJudge={() => setJudge(value => !value)}
           reportPending={reportPending} reportReady={Boolean(report)} onBeat={presenterBeat} />
         <button ref={sidebarToggle} aria-expanded={sidebarOpen} aria-controls="traffic-sidebar"
@@ -290,6 +302,7 @@ export function App() {
       {(reportPending || report) && <div className="report-notice" role="status">
         {reportPending ? <span>Generating session report…</span> : report && <>
           <span>Session ended · Score {report.score} / 100 · {report.findings.length} findings</span>
+          <button onClick={() => { radio.current?.up(); setReportOpen(true); }}>View report</button>
           <button onClick={downloadReport}>Download report JSON</button>
         </>}
       </div>}
@@ -405,6 +418,8 @@ export function App() {
       {error && <p role="alert" className="error">{error}</p>}
       <footer>{role === "viz" ? "SECOND SCREEN · FOUNDATION VIEW" : "CONTROLLER · TYPED INPUT"}
         <span>{health?.simulation_ready ? "LIVE SIMULATION" : "INTEGRATION PENDING"}</span></footer>
+      {report && reportOpen && <ReportDialog report={report} open={reportOpen} href={reportHref}
+        onClose={() => setReportOpen(false)} onDownload={downloadReport} />}
     </div>
   );
 }
