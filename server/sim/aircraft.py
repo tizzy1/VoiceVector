@@ -1,0 +1,56 @@
+"""Full server-side aircraft state (SIM_SPEC §1.1)."""
+from __future__ import annotations
+
+from typing import Any, Optional
+
+from pydantic import BaseModel, Field
+
+from server.contracts import Flow, LatMode, Phase, TurnDir, VertMode, Wake
+
+
+class AircraftState(BaseModel):
+    callsign: str
+    spoken: str                                 # "speedbird one one seven"
+    spoken_plain: str                           # "British Airways 117"
+    actype: str
+    wake: Wake
+    persona: str
+    flow: Flow
+    phase: Phase
+    # kinematics
+    x: float
+    y: float
+    alt: float
+    vs: float = 0.0
+    hdg: float
+    track: float
+    ias: float
+    tas: float
+    gs: float
+    # autopilot targets
+    lat_mode: LatMode = "HDG"
+    vert_mode: VertMode = "ALT"
+    tgt_hdg: Optional[float] = None
+    turn_dir: Optional[TurnDir] = None
+    route: list[str] = Field(default_factory=list)
+    route_idx: int = 0
+    route_name: Optional[str] = None
+    cleared_alt: float
+    vs_constraint: Optional[tuple[str, int]] = None
+    tgt_ias: Optional[float] = None
+    spd_constraint: Optional[str] = None
+    no_speed_restriction: bool = False
+    # clearances & expectations
+    approach_cleared: Optional[dict[str, Any]] = None
+    loc_armed: bool = False
+    gs_armed: bool = False
+    established: bool = False
+    expect: dict[str, Any] = Field(default_factory=dict)
+    conditionals: list[dict[str, Any]] = Field(default_factory=list)
+    squawk: str = "2000"
+    qnh: int = 1013
+    freq_unit: str = "director"
+    on_frequency: bool = True
+    in_jurisdiction: bool = True
+    emergency: bool = False
+    transmitting: bool = False
