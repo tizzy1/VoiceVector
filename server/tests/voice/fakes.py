@@ -203,3 +203,26 @@ class FakeSTT:
 
     async def cancel(self):
         self.cancelled = True
+
+
+class FakeTimedTTS(FakeTTS):
+    """Also offers stream_timed: perfectly regular 0.06 s per character alignment."""
+
+    def __init__(self, *args, break_alignment=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.break_alignment = break_alignment
+
+    async def stream_timed(self, text, voice_id, settings=None):
+        self.requests.append((text, voice_id, settings or {}))
+        half = len(text) // 2
+        pieces = [text[:half], text[half:]]
+        offset = 0
+        for i in range(self.chunks):
+            align = None
+            if i < 2:
+                chars = list(pieces[i]) if not self.break_alignment else list("garbage")
+                align = {"characters": chars,
+                         "character_start_times_seconds": [(offset + k) * 0.06 for k in range(len(chars))],
+                         "character_end_times_seconds": [(offset + k) * 0.06 + 0.05 for k in range(len(chars))]}
+                offset += len(chars)
+            yield bytes([i % 250]) * self.chunk_bytes, align

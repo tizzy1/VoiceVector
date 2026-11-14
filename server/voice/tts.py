@@ -7,6 +7,7 @@ seven") and "say again" repeats cost no characters and no latency.
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 from collections import OrderedDict
@@ -106,6 +107,62 @@ class ElevenLabsTTS:
                         if data:
                             collected.append(data)
                             yield data
+        except httpx.HTTPError as error:
+            raise TTSError(f"ElevenLabs TTS network error: {error!r}") from error
+        self._cache[key] = collected
+        while len(self._cache) > self._cache_size:
+            self._cache.popitem(last=False)
+
+
+    async def stream_timed(self, text: str, voice_id: str,
+                           settings: Optional[dict] = None) -> AsyncIterator[tuple[bytes, Optional[dict]]]:
+        """Like ``stream`` but via /stream/with-timestamps: yields (pcm, alignment-or-None).
+
+        Alignment dicts carry ``characters`` / ``character_start_times_seconds`` /
+        ``character_end_times_seconds`` for the next slice of ``text``; times are absolute from the
+        start of the audio (verified against the live API).
+        """
+        key = ("timed",) + self._key(voice_id, text, settings)
+        hit = self._cache.get(key)
+        if hit is not None:
+            self._cache.move_to_end(key)
+            for item in hit:
+                yield item
+            return
+        collected: list = []
+        carry = b""
+        body = {"text": text, "model_id": self.model}
+        if settings:
+            body["voice_settings"] = settings
+        try:
+            async with self._slots:
+                async with self.client.stream(
+                    "POST", f"/v1/text-to-speech/{voice_id}/stream/with-timestamps",
+                    params={"output_format": self.output_format},
+                    headers={"xi-api-key": self.api_key, "Content-Type": "application/json"},
+                    content=json.dumps(body),
+                ) as response:
+                    if response.status_code != 200:
+                        detail = (await response.aread())[:200].decode("utf-8", "replace")
+                        raise TTSError(f"ElevenLabs TTS {response.status_code}: {detail}")
+                    async for line in response.aiter_lines():
+                        if not line.strip():
+                            continue
+                        try:
+                            obj = json.loads(line)
+                        except ValueError:
+                            continue
+                        data = carry + base64.b64decode(obj.get("audio_base64") or "")
+                        if self.audio_format == "pcm_s16le" and len(data) % 2:
+                            data, carry = data[:-1], data[-1:]
+                        else:
+                            carry = b""
+                        alignment = obj.get("alignment") or None
+                        if alignment and not alignment.get("characters"):
+                            alignment = None
+                        if data or alignment:
+                            collected.append((data, alignment))
+                            yield data, alignment
         except httpx.HTTPError as error:
             raise TTSError(f"ElevenLabs TTS network error: {error!r}") from error
         self._cache[key] = collected

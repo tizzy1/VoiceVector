@@ -351,3 +351,28 @@ async def test_unrelated_injects_do_not_create_overlaps():
     bus.emit(Event(t=1.0, type="inject", actor="INSTRUCTOR", data={"kind": "force_overlap", "callers": ["BAW117"]}))
     await pipe.speak(heading_response("BAW117"))
     assert hub.of("audio_start")[0].overlap_group is None
+
+
+
+@pytest.mark.asyncio
+async def test_pilot_words_use_real_tts_timestamps_mapped_onto_display_words():
+    from server.tests.voice.fakes import FakeTimedTTS
+    pipe, world, pilot, hub, bus, _ = make(tts=FakeTimedTTS(chunks=3))
+    await type_and_settle(pipe, hub)
+    text = hub.captions("pilot_text")[0].text
+    words = hub.captions("pilot_words")[0].words
+    assert [w.w for w in words] == text.split()
+    tts_text = pipe.tts.requests[0][0]
+    numeric = next(w for w in words if any(c.isdigit() for c in w.w))
+    spoken_start = tts_text.index(next(t for t in ("two four zero", "two") if t in tts_text)) * 0.06
+    assert abs(numeric.t0 - spoken_start) < 0.07, "the number starts when its first spoken digit starts"
+    assert numeric.t1 - numeric.t0 > 0.3, "and spans all of its spoken digits"
+
+
+@pytest.mark.asyncio
+async def test_mismatched_alignment_falls_back_to_an_even_spread():
+    from server.tests.voice.fakes import FakeTimedTTS
+    pipe, world, pilot, hub, bus, _ = make(tts=FakeTimedTTS(chunks=3, break_alignment=True))
+    await type_and_settle(pipe, hub)
+    words = hub.captions("pilot_words")[0].words
+    assert words and words[0].t0 == 0 and words[-1].t1 == pytest.approx(3 * 490 / 44100, abs=0.01)

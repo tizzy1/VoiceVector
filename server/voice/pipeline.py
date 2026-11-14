@@ -20,7 +20,8 @@ from typing import Any, Callable, Literal, Optional
 
 from server.contracts import (AudioChunkMsg, AudioEndMsg, AudioStartMsg, CaptionMsg, Event,
                               PilotResponse, Transmission)
-from server.voice.captions import chips_for, estimated_words, plain_english
+from server.voice.captions import (align_display_words, chips_for, estimated_words, plain_english,
+                                  spoken_word_times)
 from server.voice.frequency import FrequencyManager
 from server.voice.metrics import Metrics, Stamps
 from server.voice.parser import default_runways, parse
@@ -290,13 +291,23 @@ class VoicePipeline:
         return "; ".join(lines) or None
 
     async def _produce(self, text: str, voice_id: str, settings: dict, queue: asyncio.Queue,
-                       stamps: Stamps) -> None:
+                       stamps: Stamps, alignment: list) -> None:
         try:
             stamps.mark("t_tts_req")
-            async for chunk in self.tts.stream(text, voice_id, settings):
-                if "t_tts_first" not in stamps:
-                    stamps.mark("t_tts_first")
-                await queue.put(chunk)
+            timed = getattr(self.tts, "stream_timed", None)
+            if timed is not None:                       # word-synced captions (ElevenLabs timestamps)
+                async for chunk, align in timed(text, voice_id, settings):
+                    if align:
+                        alignment.append(align)
+                    if chunk:
+                        if "t_tts_first" not in stamps:
+                            stamps.mark("t_tts_first")
+                        await queue.put(chunk)
+            else:
+                async for chunk in self.tts.stream(text, voice_id, settings):
+                    if "t_tts_first" not in stamps:
+                        stamps.mark("t_tts_first")
+                    await queue.put(chunk)
             await queue.put(None)
         except asyncio.CancelledError:
             raise
@@ -320,10 +331,12 @@ class VoicePipeline:
         not_before = time.monotonic() + max(0.0, resp.reaction_delay_s)
 
         queue: asyncio.Queue = asyncio.Queue()
+        alignment: list[dict] = []
         producer = None
         first: Any = None
         if self.tts is not None:
-            producer = asyncio.create_task(self._produce(readback.tts_text, voice.id, settings, queue, stamps))
+            producer = asyncio.create_task(self._produce(readback.tts_text, voice.id, settings, queue, stamps,
+                                                         alignment))
             try:
                 first = await asyncio.wait_for(queue.get(), FIRST_AUDIO_TIMEOUT_S)
             except asyncio.TimeoutError:
@@ -381,7 +394,7 @@ class VoicePipeline:
             else:
                 duration = len(words) * EST_SPEECH_S_PER_WORD
             await self.hub.send(CaptionMsg(tx_id=tx_id, speaker=cs, stage="pilot_words", text=readback.text,
-                                           words=estimated_words(readback.text, duration)))
+                                           words=self._word_times(readback, alignment, duration)))
             # The pilot stays on the air for the length of the speech (audio arrives faster than realtime).
             await asyncio.sleep(max(0.0, started + duration - time.monotonic()))
             stamps.mark("t_audio_end")
@@ -405,6 +418,22 @@ class VoicePipeline:
                 recall = None
             if recall is not None:
                 self.hub.spawn(self.speak(recall))
+
+    @staticmethod
+    def _word_times(readback, alignment: list[dict], duration: float):
+        """Real per-word timings from the TTS alignment; an even spread if unavailable or mismatched."""
+        if alignment:
+            chars, starts, ends = [], [], []
+            for a in alignment:
+                chars += list(a.get("characters") or [])
+                starts += list(a.get("character_start_times_seconds") or [])
+                ends += list(a.get("character_end_times_seconds") or [])
+            spoken = spoken_word_times(readback.tts_text, chars, starts, ends)
+            words = align_display_words(readback.text, spoken) if spoken else None
+            if words:
+                return words
+            logger.info("TTS alignment did not line up with the caption; spreading words evenly")
+        return estimated_words(readback.text, duration)
 
     async def _meet(self, group: _OverlapGroup, cs: str, not_before: float) -> Optional[_OverlapGroup]:
         """Wait (after the reaction delay) until every caller in the group is ready, then go together."""

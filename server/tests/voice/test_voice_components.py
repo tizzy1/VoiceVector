@@ -358,3 +358,44 @@ def test_stamps_span():
     s.mark("a", 1.0)
     s.mark("b", 3.5)
     assert s.span("a", "b") == 2.5 and s.span("a", "zzz") is None
+
+
+
+@pytest.mark.asyncio
+async def test_tts_timed_stream_parses_ndjson_audio_and_alignment():
+    lines = [
+        {"audio_base64": base64.b64encode(b"\x01\x02\x03").decode(), "alignment": {
+            "characters": list("left "), "character_start_times_seconds": [0, .1, .2, .3, .4],
+            "character_end_times_seconds": [.1, .2, .3, .4, .5]}},
+        {"audio_base64": base64.b64encode(b"\x04").decode(), "alignment": {"characters": []}},
+        {"audio_base64": "", "alignment": None},
+    ]
+    body = "\n".join(json.dumps(l) for l in lines) + "\n"
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(200, content=body.encode())
+
+    tts = tts_with(handler)
+    items = [x async for x in tts.stream_timed("left", "v")]
+    assert calls[0].url.path == "/v1/text-to-speech/v/stream/with-timestamps"
+    assert b"".join(a for a, _ in items) == b"\x01\x02\x03\x04"
+    assert all(len(a) % 2 == 0 for a, _ in items)
+    assert [al["characters"] for _, al in items if al] == [list("left ")]
+    again = [x async for x in tts.stream_timed("left", "v")]
+    assert again == items and len(calls) == 1
+
+
+def test_word_alignment_helpers():
+    from server.voice.captions import align_display_words, spoken_word_times
+    text = "Q N H one zero one three, easy four five alpha bravo"
+    t = [i * 0.05 for i in range(len(text))]
+    spoken = spoken_word_times(text, list(text), t, [x + 0.04 for x in t])
+    words = align_display_words("QNH 1013, Easy 45AB", spoken)
+    assert [w.w for w in words] == ["QNH", "1013,", "Easy", "45AB"]
+    assert words[0].t0 == 0 and words[1].t0 == pytest.approx(text.index("one") * 0.05)
+    assert words[-1].t1 == pytest.approx(t[-1] + 0.04, abs=1e-3)
+    assert align_display_words("Right heading 240", spoken_word_times(
+        "left heading two four zero", list("left heading two four zero"), t, t)) is None
+    assert spoken_word_times("abc", list("xyz"), [0, 1, 2], [1, 2, 3]) is None

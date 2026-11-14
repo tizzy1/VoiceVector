@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Iterable, Optional
 
 from server.contracts import CaptionWord, Instruction, ParsedChip, Transmission
+from server.voice.normalise import normalise_tokens
 
 
 def _num(value) -> str:
@@ -133,4 +134,73 @@ def estimated_words(text: str, duration_s: float) -> list[CaptionWord]:
         span = duration_s * weight / total
         out.append(CaptionWord(w=w, t0=round(t, 3), t1=round(t + span, 3)))
         t += span
+    return out
+
+
+def spoken_word_times(text: str, chars: list[str], starts: list[float], ends: list[float]
+                      ) -> Optional[list[tuple[str, float, float]]]:
+    """Character alignment of ``text`` -> (word, t0, t1) per whitespace-separated word."""
+    if "".join(chars) != text[:len(chars)] or len(chars) < len(text.rstrip()):
+        return None
+    words: list[tuple[str, float, float]] = []
+    i = 0
+    for word in text.split():
+        i = text.index(word, i)
+        j = i + len(word) - 1
+        if j >= len(starts):
+            return None
+        words.append((word, float(starts[i]), float(ends[j])))
+        i = j + 1
+    return words
+
+
+def _key(word: str) -> str:
+    return "".join(normalise_tokens(word))
+
+
+def align_display_words(display: str, spoken: list[tuple[str, float, float]]) -> Optional[list[CaptionWord]]:
+    """Map spoken-word timings onto the displayed words ("240" <- "two four zero", "QNH" <- "Q N H").
+
+    Alphabetic display words match the next spoken word (or a run of spelled letters); words with
+    digits take every spoken word up to the next alphabetic match. Returns None if the two texts
+    do not line up, so the caller can fall back to an even spread.
+    """
+    shown = display.split()
+    keys = [_key(w) for w in shown]
+    said = [_key(w) for w in (s[0] for s in spoken)]
+    out: list[CaptionWord] = []
+    j = 0
+
+    def match_at(pos: int, key: str) -> int:
+        """Number of spoken words starting at ``pos`` that spell ``key`` (0 if none)."""
+        acc = ""
+        for k in range(pos, min(pos + 6, len(said))):
+            acc += said[k]
+            if acc == key:
+                return k - pos + 1
+            if not key.startswith(acc):
+                return 0
+        return 0
+
+    for i, (word, key) in enumerate(zip(shown, keys)):
+        if j >= len(spoken):
+            return None
+        if not key:                                   # punctuation-only: no time of its own
+            out.append(CaptionWord(w=word, t0=spoken[j][1], t1=spoken[j][1]))
+            continue
+        if key.isalpha():
+            n = match_at(j, key)
+            if n == 0:
+                return None
+        else:
+            nxt = next((k for k in keys[i + 1:] if k and k.isalpha()), None)
+            n = 1
+            while j + n < len(spoken) and not (nxt and match_at(j + n, nxt)):
+                n += 1
+            if nxt is None:
+                n = len(spoken) - j
+        out.append(CaptionWord(w=word, t0=round(spoken[j][1], 3), t1=round(spoken[j + n - 1][2], 3)))
+        j += n
+    if j != len(spoken):
+        return None
     return out
