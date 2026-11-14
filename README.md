@@ -42,6 +42,11 @@ The selected-aircraft pane compares observed level, heading and IAS with their
 assigned targets and shows route, next fix, radio status and relevant alerts.
 Selecting a track opens the sliding right sidebar and reveals its flight strip.
 Session settings are collapsible beneath the operational panels.
+The controller's right sidebar includes a collapsible EGKK weather pane, labelled
+SIMULATED. It shows the scenario observation time, wind, visibility, cloud,
+temperature/dew point and QNH, with an expandable raw METAR. This is fixed scenario
+weather matching the simulator, not a live weather feed. Missing or disconnected
+weather is marked unavailable instead of retaining an old observation.
 Arrival and departure flight strips share selection with the radar and its
 aircraft dropdown. Departures are grouped as queued, taking off and airborne.
 The sidebar provides Easy/Medium/Busy traffic targets, 1×/2× simulation speed,

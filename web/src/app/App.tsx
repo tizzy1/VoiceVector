@@ -6,6 +6,7 @@ import { createAudioEngine } from "../audio/index";
 import { RadioLink, isTyping, type RadioStatus } from "./radioLink";
 import { TrafficPanel } from "../ui/TrafficPanel";
 import { AircraftDetails } from "../ui/AircraftDetails";
+import { WeatherPanel } from "../ui/WeatherPanel";
 import { CaptionStrip } from "../ui/CaptionStrip";
 import { updateCaptions } from "../ui/captions";
 import { SessionControls, type TrafficConfig } from "../ui/SessionControls";
@@ -243,6 +244,7 @@ export function App() {
           }}>
           <div className="sidebar-content">
           <button className="sidebar-close" onClick={closeSidebar}>Close panels</button>
+          {role === "radar" && <WeatherPanel metar={state?.metar} connected={connected} />}
           <AircraftDetails aircraft={state?.aircraft.find(ac => ac.callsign === selected)}
             alerts={state?.alerts ?? []} />
           <TrafficPanel state={state} selected={selected} onSelect={selectAircraft} />

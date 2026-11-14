@@ -1,0 +1,13 @@
+.weather-panel { padding: 12px 0; border-bottom: 1px solid #2b3a40; }
+.weather-panel > summary { cursor: pointer; color: #a7bbc3; font-size: 11px; font-weight: 500; }
+.weather-panel > summary span { float: right; font-size: 9px; letter-spacing: .05em; }
+.weather-panel .weather-source { color: #f2b544; }
+.weather-panel .weather-observed { margin: 10px 0; font-size: 10px; color: #7c8b90; }
+.weather-panel dl { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 8px; margin: 0; }
+.weather-panel dt { color: #7c8b90; font-size: 10px; }
+.weather-panel dd { margin: 4px 0 0; font: 11px "JetBrains Mono", ui-monospace, monospace; line-height: 1.6; }
+.weather-panel .weather-cloud { grid-column: 1 / -1; }
+.weather-cloud dd span { display: block; }
+.weather-raw { margin-top: 12px; font-size: 10px; color: #7c8b90; }
+.weather-raw summary { cursor: pointer; }
+.weather-raw code { margin-top: 8px; color: #a7bbc3; white-space: normal; overflow-wrap: anywhere; font: 10px/1.7 "JetBrains Mono", ui-monospace, monospace; }
