@@ -1,7 +1,7 @@
 """World — the deterministic Gatwick simulator (owner: Tudor).
 
 One 1 Hz tick: due clearances -> guidance (modes) -> physics (kinematics) -> traffic
-generator -> STCA. `evaluate` still says OK to everything (unable/query rules come next).
+generator -> STCA. `evaluate` (unable / query) lives in sim/evaluate.py.
 """
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from server.contracts import (
 from server.sim import kinematics, modes, registry, stca
 from server.sim.aircraft import AircraftState
 from server.sim.geo import Projection, norm_hdg, wind_vector
+from server.sim.evaluate import evaluate as evaluate_tx
 from server.sim.traffic import ArrivalGenerator
 
 TRANSITION_ALT_FT = 6000
@@ -233,8 +234,8 @@ class World:
         self.alerts = now
 
     def evaluate(self, tx: Transmission) -> list[Evaluation]:
-        """Stub: every instruction is acceptable. Pure — no state change."""
-        return [Evaluation(instr_idx=i, status="OK") for i in range(len(tx.instructions))]
+        """OK / UNABLE / QUERY per instruction (see sim/evaluate.py). Pure — no state change."""
+        return evaluate_tx(self, tx)
 
     def set_transmitting(self, callsign: str, on: bool) -> None:
         ac = self.aircraft.get(callsign)
