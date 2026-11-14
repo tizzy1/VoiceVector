@@ -1,0 +1,329 @@
+{
+ "_meta": {
+  "note": "Traffic generator config. Sim values, not real schedules. Separation/wake values = ICAO PANS-ATM defaults; UK CAP 493 and RECAT-EU differ -> Tudor to VERIFY before demo.",
+  "runway": "26L",
+  "mode": "single runway, mixed mode"
+ },
+ "arrival_entries": {
+  "ABSAV": {
+   "stars": [
+    "ABSAV1G"
+   ],
+   "weight": 1.0,
+   "entry_fl_range": [
+    90,
+    140
+   ]
+  },
+  "AMDUT": {
+   "stars": [
+    "AMDUT1G"
+   ],
+   "weight": 1.0,
+   "entry_fl_range": [
+    90,
+    140
+   ]
+  },
+  "ARNUN": {
+   "stars": [
+    "ARNUN1G"
+   ],
+   "weight": 1.0,
+   "entry_fl_range": [
+    90,
+    140
+   ]
+  },
+  "BARMI": {
+   "stars": [
+    "BARMI1G"
+   ],
+   "weight": 1.0,
+   "entry_fl_range": [
+    90,
+    140
+   ]
+  },
+  "DISIT": {
+   "stars": [
+    "DISIT1G"
+   ],
+   "weight": 1.0,
+   "entry_fl_range": [
+    90,
+    140
+   ]
+  },
+  "GWC": {
+   "stars": [
+    "GWC1G"
+   ],
+   "weight": 1.0,
+   "entry_fl_range": [
+    90,
+    140
+   ]
+  },
+  "KIDLI": {
+   "stars": [
+    "KIDLI1G"
+   ],
+   "weight": 1.0,
+   "entry_fl_range": [
+    90,
+    140
+   ]
+  },
+  "KONAN": {
+   "stars": [
+    "KONAN2G"
+   ],
+   "weight": 1.0,
+   "entry_fl_range": [
+    90,
+    140
+   ]
+  },
+  "KUNAV": {
+   "stars": [
+    "KUNAV1G"
+   ],
+   "weight": 1.0,
+   "entry_fl_range": [
+    90,
+    140
+   ]
+  },
+  "MID": {
+   "stars": [
+    "MID1X"
+   ],
+   "weight": 1.0,
+   "entry_fl_range": [
+    90,
+    140
+   ]
+  },
+  "NEVIL": {
+   "stars": [
+    "NEVIL1G"
+   ],
+   "weight": 1.0,
+   "entry_fl_range": [
+    90,
+    140
+   ]
+  },
+  "OTMET": {
+   "stars": [
+    "OTMET1G"
+   ],
+   "weight": 1.0,
+   "entry_fl_range": [
+    90,
+    140
+   ]
+  },
+  "SIRIC": {
+   "stars": [
+    "SIRIC1G"
+   ],
+   "weight": 1.0,
+   "entry_fl_range": [
+    90,
+    140
+   ]
+  },
+  "TEBRA": {
+   "stars": [
+    "TEBRA2G"
+   ],
+   "weight": 1.0,
+   "entry_fl_range": [
+    90,
+    140
+   ]
+  },
+  "TELTU": {
+   "stars": [
+    "TELTU1G"
+   ],
+   "weight": 1.0,
+   "entry_fl_range": [
+    90,
+    140
+   ]
+  },
+  "VASUX": {
+   "stars": [
+    "VASUX1G"
+   ],
+   "weight": 1.0,
+   "entry_fl_range": [
+    90,
+    140
+   ]
+  }
+ },
+ "departure_sids": {
+  "BOGNA1X": {
+   "weight": 1.0
+  },
+  "HARDY1X": {
+   "weight": 1.0
+  },
+  "NOVMA1X": {
+   "weight": 1.0
+  },
+  "SFD1X": {
+   "weight": 1.0
+  },
+  "DAGGA1X": {
+   "weight": 1.0
+  },
+  "TIGER1X": {
+   "weight": 1.0
+  },
+  "WIZAD1X": {
+   "weight": 1.0
+  }
+ },
+ "fleet_mix": [
+  {
+   "airline": "EZY",
+   "types": {
+    "A319": 2,
+    "A320": 4,
+    "A20N": 3,
+    "A21N": 1
+   },
+   "weight": 40
+  },
+  {
+   "airline": "BAW",
+   "types": {
+    "A320": 3,
+    "A20N": 2,
+    "A321": 1
+   },
+   "weight": 12
+  },
+  {
+   "airline": "WZZ",
+   "types": {
+    "A321": 2,
+    "A21N": 3
+   },
+   "weight": 8
+  },
+  {
+   "airline": "VLG",
+   "types": {
+    "A320": 3,
+    "A20N": 1
+   },
+   "weight": 6
+  },
+  {
+   "airline": "RYR",
+   "types": {
+    "B738": 1
+   },
+   "weight": 6
+  },
+  {
+   "airline": "TOM",
+   "types": {
+    "B738": 3,
+    "B789": 1
+   },
+   "weight": 8
+  },
+  {
+   "airline": "EJU",
+   "types": {
+    "A320": 2,
+    "A20N": 2
+   },
+   "weight": 6
+  },
+  {
+   "airline": "UAE",
+   "types": {
+    "B77W": 1
+   },
+   "weight": 3
+  },
+  {
+   "airline": "QTR",
+   "types": {
+    "B789": 1
+   },
+   "weight": 3
+  },
+  {
+   "airline": "THY",
+   "types": {
+    "A333": 1,
+    "A321": 2
+   },
+   "weight": 4
+  },
+  {
+   "airline": "DLH",
+   "types": {
+    "A321": 1,
+    "A320": 1
+   },
+   "weight": 4
+  }
+ ],
+ "callsign_number_range": [
+  1,
+  9999
+ ],
+ "separation": {
+  "radar_min_nm": 3.0,
+  "vertical_min_ft": 1000,
+  "final_approach_wake_nm": {
+   "H>H": 4,
+   "H>M": 5,
+   "H>L": 6,
+   "M>L": 5,
+   "default": 3
+  },
+  "departure_wake_min": {
+   "H>M": 2,
+   "H>L": 2,
+   "M>L": 2
+  },
+  "departure_same_route_min": 2,
+  "departure_diverging_45deg_min": 1,
+  "arrival_spawn_min_spacing_nm": 10,
+  "runway_occupancy_s": {
+   "arrival": 55,
+   "departure": 45
+  },
+  "departure_release_gap_nm": 6
+ },
+ "difficulty_presets": {
+  "easy": {
+   "arr_per_hr": 10,
+   "dep_per_hr": 8
+  },
+  "medium": {
+   "arr_per_hr": 18,
+   "dep_per_hr": 14
+  },
+  "busy": {
+   "arr_per_hr": 26,
+   "dep_per_hr": 20
+  },
+  "ramp": {
+   "start": "easy",
+   "end": "busy",
+   "over_min": 30
+  }
+ }
+}

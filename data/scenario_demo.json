@@ -1,0 +1,95 @@
+{
+ "_meta": {
+  "name": "Demo: Gatwick 26L evening arrivals",
+  "runway": "26L",
+  "qnh": 1013,
+  "note": "Initial states for the 3-minute demo. Positions at real STAR fixes; levels/headings plausible for a sim, not real procedure values."
+ },
+ "aircraft": [
+  {
+   "callsign": "BAW117",
+   "type": "A320",
+   "persona": "crisp_airline",
+   "star": "GWC1G",
+   "at_fix": "WILLO",
+   "xy_nm": [
+    -0.7454,
+    -9.9423
+   ],
+   "alt_ft": 8000,
+   "hdg": 75,
+   "ias_kt": 220
+  },
+  {
+   "callsign": "EZY45AB",
+   "type": "A20N",
+   "persona": "crisp_airline",
+   "star": "KONAN2G",
+   "at_fix": "TIMBA",
+   "xy_nm": [
+    16.3222,
+    -12.3072
+   ],
+   "alt_ft": 9000,
+   "hdg": 305,
+   "ias_kt": 220
+  },
+  {
+   "callsign": "DLH4KA",
+   "type": "A321",
+   "persona": "accented",
+   "star": "SIRIC1G",
+   "at_fix": "HOLLY",
+   "xy_nm": [
+    2.8935,
+    -15.8373
+   ],
+   "alt_ft": 11000,
+   "hdg": 350,
+   "ias_kt": 250
+  },
+  {
+   "callsign": "UAE15",
+   "type": "B77W",
+   "persona": "calm_longhaul",
+   "star": "ARNUN1G",
+   "at_fix": "SFD",
+   "xy_nm": [
+    11.0598,
+    -23.399
+   ],
+   "alt_ft": 12000,
+   "hdg": 330,
+   "ias_kt": 250
+  },
+  {
+   "callsign": "WZZ4471",
+   "type": "A321",
+   "persona": "rushed",
+   "star": "BARMI1G",
+   "at_fix": "LARCK",
+   "xy_nm": [
+    23.2816,
+    -14.3432
+   ],
+   "alt_ft": 13000,
+   "hdg": 285,
+   "ias_kt": 250
+  }
+ ],
+ "injects": [
+  {
+   "t_s": 120,
+   "type": "readback_error",
+   "callsign": "EZY45AB",
+   "field": "alt",
+   "wrong_value": 5000
+  },
+  {
+   "t_s": 150,
+   "type": "mayday",
+   "callsign": "DLH4KA",
+   "reason": "engine failure"
+  }
+ ]
+}

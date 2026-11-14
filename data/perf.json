@@ -1,0 +1,124 @@
+{
+ "_meta": {
+  "source": "OpenAP (TU Delft) WRAP kinematic model, default values; min_clean_kt are rough sim estimates",
+  "units": "fpm, kt (CAS), ft",
+  "rules": {
+   "max_ias_below_fl100_kt": 250,
+   "accel_kt_per_s": 1.2,
+   "decel_kt_per_s_level": 0.8,
+   "max_bank_deg": 25
+  },
+  "note": "A20N uses A320 data in OpenAP (synonym)"
+ },
+ "A319": {
+  "climb_fpm_low": 2185,
+  "climb_fpm_mid": 1998,
+  "descent_fpm": 1937,
+  "descent_fpm_low": 1157,
+  "descent_cas_kt": 282,
+  "vapp_kt": 130,
+  "min_clean_kt": 200,
+  "ceiling_ft": 41010,
+  "wake": "M"
+ },
+ "A320": {
+  "climb_fpm_low": 2018,
+  "climb_fpm_mid": 1659,
+  "descent_fpm": 1974,
+  "descent_fpm_low": 1197,
+  "descent_cas_kt": 280,
+  "vapp_kt": 140,
+  "min_clean_kt": 205,
+  "ceiling_ft": 41010,
+  "wake": "M"
+ },
+ "A321": {
+  "climb_fpm_low": 1846,
+  "climb_fpm_mid": 1608,
+  "descent_fpm": 1852,
+  "descent_fpm_low": 1183,
+  "descent_cas_kt": 292,
+  "vapp_kt": 146,
+  "min_clean_kt": 215,
+  "ceiling_ft": 41010,
+  "wake": "M"
+ },
+ "A20N": {
+  "climb_fpm_low": 2018,
+  "climb_fpm_mid": 1659,
+  "descent_fpm": 1974,
+  "descent_fpm_low": 1197,
+  "descent_cas_kt": 280,
+  "vapp_kt": 140,
+  "min_clean_kt": 205,
+  "ceiling_ft": 41010,
+  "wake": "M"
+ },
+ "B738": {
+  "climb_fpm_low": 2089,
+  "climb_fpm_mid": 2016,
+  "descent_fpm": 1959,
+  "descent_fpm_low": 1226,
+  "descent_cas_kt": 282,
+  "vapp_kt": 150,
+  "min_clean_kt": 210,
+  "ceiling_ft": 41010,
+  "wake": "M"
+ },
+ "B77W": {
+  "climb_fpm_low": 1770,
+  "climb_fpm_mid": 1683,
+  "descent_fpm": 1781,
+  "descent_fpm_low": 1240,
+  "descent_cas_kt": 303,
+  "vapp_kt": 152,
+  "min_clean_kt": 230,
+  "ceiling_ft": 42979,
+  "wake": "H"
+ },
+ "B789": {
+  "climb_fpm_low": 1862,
+  "climb_fpm_mid": 1709,
+  "descent_fpm": 1799,
+  "descent_fpm_low": 1219,
+  "descent_cas_kt": 299,
+  "vapp_kt": 150,
+  "min_clean_kt": 225,
+  "ceiling_ft": 42979,
+  "wake": "H"
+ },
+ "A333": {
+  "climb_fpm_low": 1736,
+  "climb_fpm_mid": 1506,
+  "descent_fpm": 1778,
+  "descent_fpm_low": 1130,
+  "descent_cas_kt": 292,
+  "vapp_kt": 142,
+  "min_clean_kt": 220,
+  "ceiling_ft": 41010,
+  "wake": "H"
+ },
+ "E190": {
+  "climb_fpm_low": 2055,
+  "climb_fpm_mid": 1758,
+  "descent_fpm": 1787,
+  "descent_fpm_low": 1161,
+  "descent_cas_kt": 288,
+  "vapp_kt": 136,
+  "min_clean_kt": 200,
+  "ceiling_ft": 41010,
+  "wake": "M"
+ },
+ "C172": {
+  "climb_fpm_low": 700,
+  "climb_fpm_mid": 500,
+  "descent_fpm": 500,
+  "descent_fpm_low": 500,
+  "descent_cas_kt": 110,
+  "vapp_kt": 65,
+  "min_clean_kt": 70,
+  "ceiling_ft": 14000,
+  "wake": "L",
+  "max_ias_kt": 125
+ }
+}
