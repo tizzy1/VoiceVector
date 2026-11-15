@@ -375,7 +375,6 @@ export function App() {
         </aside>}
         <section className="scope">
           <Radar state={state} data={data} activeSpeakers={speakers} selected={selected} onSelect={selectAircraft} />
-          {role === "radar" && <CoachCard coach={coach} />}
           {health && !health.simulation_ready && (
             <div className="waiting">
               <h1>Platform connected</h1>
@@ -383,6 +382,7 @@ export function App() {
               <p>The scope will display live aircraft when the simulator is available.</p>
             </div>
           )}
+          {role === "radar" && <CoachCard coach={coach} />}
         </section>
       </main>
       {role === "radar" && <section className="controller-bottom" aria-label="Operational communications and alerts">
