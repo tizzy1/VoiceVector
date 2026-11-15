@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AircraftPublic, StateMsg } from "../protocol";
 import { headingLabel, levelLabel, project, scaleFor, zoomAt } from "./geometry";
 import type { Point, View } from "./geometry";
+import { stripLevel } from "../ui/stripValues";
 import { MotionBuffer, vectorEnd } from "./motion";
 import { overlaps, placeTag, type LabelBox } from "./labels";
 import "./radar.css";
@@ -202,8 +203,12 @@ export function Radar({ state, data, selected, onSelect, activeSpeakers = [] }: 
           ac.tgt_hdg == null ? "" : `H${headingLabel(ac.tgt_hdg)}`,
           ac.tgt_ias == null ? "" : `S${Math.round(ac.tgt_ias)}`,
         ].filter(Boolean).join(" ");
+        const cfl = stripLevel(ac);
+        const sfl = ac.selected_level;
+        const mismatch = sfl != null && cfl != null && Math.abs(sfl-cfl)>1;
         const lines = [ac.callsign + (ac.traffic_source ? " · SNAP" : ""),
-          `${levelLabel(ac.alt)}${trend}${levelLabel(ac.cleared_alt)} ${Math.round(ac.gs)}kt`, assigned];
+          `${levelLabel(ac.alt)}${trend}${cfl == null ? "—" : levelLabel(cfl)} ${Math.round(ac.gs)}kt`,
+          assigned + (sfl == null ? "" : ` SFL ${levelLabel(sfl)}`)];
         const width = Math.max(...lines.map(text => ctx.measureText(text).width));
         const box = placeTag(x, y, width + 4, size.width, size.height, tagBoxes);
         tagBoxes.push(box);
@@ -213,7 +218,8 @@ export function Radar({ state, data, selected, onSelect, activeSpeakers = [] }: 
         ctx.fillStyle = "#0e1417";
         ctx.fillRect(labelX - 2, labelY - 12, width + 4, 48);
         ctx.fillStyle = color;
-        lines.forEach((text, index) => ctx.fillText(text, labelX, labelY + index * 16));
+        lines.forEach((text, index) => {ctx.fillStyle = index === 2 && mismatch ? "#f2b544" : color;
+          ctx.fillText(text, labelX, labelY + index * 16);});
         hits.current.push({ callsign: ac.callsign, x: labelX, y: labelY, width });
         hits.current.push({ callsign: ac.callsign, x: x - 8, y: y - 8, width: 16 });
     }

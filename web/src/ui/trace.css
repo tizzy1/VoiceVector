@@ -1,0 +1,23 @@
+.trace-panel {position:fixed;z-index:15;color:#e8eef0;background:#11191df5;border:1px solid #3c515a;box-shadow:0 8px 24px #0005;padding:12px;overflow:auto;scrollbar-width:thin;font:11px Inter,sans-serif;}
+.trace-controller {right:12px;top:110px;bottom:50px;width:min(650px,calc(100vw - 24px));}
+.trace-audience {left:18px;bottom:200px;width:min(560px,calc(100vw - 36px));max-height:45vh;}
+.trace-panel>header {display:flex;align-items:center;justify-content:space-between;padding:0 0 10px;border-bottom:1px solid #2b3a40;}
+.trace-panel header small {display:inline;color:#7c8b90;font-size:8px;margin-left:10px;}
+.trace-panel header button {padding:2px 7px;color:#a7bbc3;background:transparent;border:1px solid #35434a;}
+.trace-heading {display:grid;gap:8px;margin:12px 0;font-family:var(--data-font);font-size:10px;}
+.trace-heading b {font-size:23px;font-weight:400;color:#4fd1e8;}
+.trace-heading b small {font-size:10px;color:#7c8b90;}
+.trace-panel nav {display:flex;gap:4px;flex-wrap:wrap;margin:12px 0;}
+.trace-panel nav button {padding:4px;font-size:9px;}
+.trace-panel nav button[aria-pressed='true'] {color:#4fd1e8;border-color:#4fd1e8;}
+.trace-waterfall svg {display:block;width:100%;min-width:420px;}
+.trace-waterfall {overflow:auto;}
+.trace-stage text {font:11px var(--data-font);fill:#d8e4e8;}
+.trace-tick {font:9px var(--data-font);fill:#7c8b90;}
+.trace-stage rect {fill:#687a83;animation:trace-appear 180ms ease;}
+.trace-stt rect {fill:#348ea0;}.trace-language rect {fill:#797489;}.trace-sim rect {fill:#bd8b35;}.trace-pilot rect {fill:#886528;}.trace-voice rect {fill:#3b8d66;}.trace-playback rect {fill:#3b6554;}
+.trace-stage .trace-duration {fill:#fff;font-size:9px;paint-order:stroke;stroke:#11191d;stroke-width:2px;}
+.trace-panel details {font-size:10px;margin-top:8px;}.trace-panel details p {overflow-wrap:anywhere;line-height:1.6;border-bottom:1px solid #2b3a40;padding-bottom:6px;}
+.trace-panel .trace-note {font-size:9px;color:#7c8b90;line-height:1.6;}
+@keyframes trace-appear {from{opacity:0;}to{opacity:1;}}
+@media(prefers-reduced-motion:reduce){.trace-stage rect{animation:none;}}

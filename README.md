@@ -30,10 +30,10 @@ use a shared hotspot or open /viz on an extended display.
 The foundation view serves the Gatwick map, session and connection status,
 caption feed and typed input. /viz is a separate 3D audience presentation.
 The controller uses a compact EuroScope-inspired workstation: weather and selected
-aircraft on the left, the radar centrally, and flight strips in the right-sliding
-drawer. The lower communications/alerts dock scrolls independently and can be
+aircraft on the left, the radar centrally, and editable flight lists docked across
+the top. The lower communications/alerts dock scrolls independently and can be
 resized using its lower-right handle. Aircraft/weather and flight lists can be
-collapsed independently; the List width slider adjusts the right drawer. Narrow
+collapsed independently; flight lists resize vertically. Narrow
 screens use overlay panes and a stacked lower dock. Flight strips compare observed
 and assigned heading/IAS as well as current/cleared level. Selection highlights
 matching pilot/callsign-chip transcript entries. Map labels and track data blocks
@@ -235,3 +235,14 @@ part of the repository.
 Automated radio transport tests use mocked audio engines, and Sanju's tests use
 a fake AudioContext. Physical microphone input, real provider credentials,
 aviation pronunciation and room/headset routing require a live rehearsal.
+
+Controller lists now dock across the top of the scope. Click a parameter to edit the
+controller's record; Enter saves and Escape cancels. An edit never flies a clearance.
+The simulator must publish flight-plan/strip fields before editing enables. Selecting
+an aircraft highlights its row and details without opening panels. Each list has
+filter/sort/reset, collapse/restore and a vertical resize handle.
+
+PIPELINE (T) opens server-measured transmission stages: a controller drawer with five
+traces, or the latest trace in the audience view. Until the voice producer emits
+TraceMsg, the panel explicitly waits for measurements. It never estimates timings.
+See docs/NOV15_HANDOFF.md for outstanding simulator and voice integration work.

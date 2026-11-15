@@ -153,6 +153,8 @@ class Session:
         self.bus.subscribe(self.on_sim_event)
         self.world.configure(self.settings)
         self.world.load_scenario(self.settings.scenario, self.settings.seed)
+        if hasattr(self.world, "strip_autofill"):
+            self.world.strip_autofill = self.settings.strip_autofill
         if self.pilot is not None:
             self.pilot.set_error_rate(self.settings.error_rate)
         self.emit("session_start")
@@ -211,7 +213,25 @@ class Session:
             if not self.simulation_ready:
                 raise ValueError("Waiting for simulator module")
             action, params = message.action, message.params
-            if action in ("new_session", "load_scenario"):
+            if action == "edit_strip":
+                edit = getattr(self.world, "edit_strip", None)
+                if not callable(edit):
+                    raise ValueError("Strip editing is unavailable in this simulator")
+                if (set(params) != {"callsign", "field", "value"}
+                        or not isinstance(params["callsign"], str)
+                        or not isinstance(params["field"], str)):
+                    raise ValueError("Strip edit requires callsign, field and value")
+                if not edit(params["callsign"], params["field"], params["value"]):
+                    raise ValueError("Strip edit rejected: check the aircraft, field and value")
+            elif action == "set_strip_autofill":
+                if set(params) != {"on"} or type(params["on"]) is not bool:
+                    raise ValueError("Strip auto-fill requires a boolean on value")
+                if not hasattr(self.world, "strip_autofill"):
+                    raise ValueError("Strip auto-fill is unavailable in this simulator")
+                self.world.strip_autofill = params["on"]
+                self.settings.strip_autofill = params["on"]
+                self.emit("settings_changed")
+            elif action in ("new_session", "load_scenario"):
                 settings = SessionSettings.model_validate({
                     **self.settings.model_dump(), **params,
                 })

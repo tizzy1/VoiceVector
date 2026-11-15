@@ -1,11 +1,12 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import type { CSSProperties } from "react";
-import type { ControlMsg, CaptionMsg, EventMsg, SessionMsg, StateMsg, Report } from "../protocol";
+import type { ControlMsg, CaptionMsg, EventMsg, SessionMsg, StateMsg, Report, PipelineTrace } from "../protocol";
 import { Radar, type Airspace } from "../radar/Radar";
 import { connect } from "./connection";
 import { createAudioEngine } from "../audio/index";
 import { RadioLink, isTyping, type RadioStatus } from "./radioLink";
-import { TrafficPanel } from "../ui/TrafficPanel";
+import { FlightLists } from "../ui/FlightLists";
+import { TracePanel } from "../ui/TracePanel";
+import { updateTraces } from "../ui/traces";
 import { AircraftDetails } from "../ui/AircraftDetails";
 import { WeatherPanel } from "../ui/WeatherPanel";
 import { CommunicationsPanel } from "../ui/CommunicationsPanel";
@@ -40,7 +41,9 @@ export function App() {
   const [selected, setSelected] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [contextOpen, setContextOpen] = useState(() => matchMedia("(min-width: 1101px)").matches);
-  const [trafficWidth, setTrafficWidth] = useState(340);
+  const [traces,setTraces] = useState<PipelineTrace[]>([]);
+  const [pipelineOpen,setPipelineOpen] = useState(false);
+  const pipelineToggle = useRef<HTMLButtonElement>(null);
   const sidebarToggle = useRef<HTMLButtonElement>(null);
   const [error, setError] = useState("");
   const [judge, setJudge] = useState(false);
@@ -76,8 +79,10 @@ export function App() {
     if (!reportPage) void load();
     const client = connect(role, message => {
       radio.current?.handle(message);
+      if(message.type === "trace") setTraces(previous=>updateTraces(previous,message.trace));
       if (message.type === "session") {
         if (sessionCode.current && sessionCode.current !== message.code) {
+          setTraces([]);
           setCaptions([]);
           setResponseSamples([]);
           setReport(null);
@@ -106,6 +111,7 @@ export function App() {
           setReportPending(false);
         }
         if (message.event.type === "session_start") {
+          setTraces([]);
           setCaptions([]);
           setResponseSamples([]);
           setReport(null);
@@ -116,6 +122,7 @@ export function App() {
       }
     }, nextStatus => {
       if (nextStatus !== "Connected") {
+        setTraces([]);
         setState(null);
         setReportPending(false);
         radio.current?.dispose();
@@ -232,13 +239,21 @@ export function App() {
 
   function selectAircraft(callsign: string) {
     setSelected(callsign);
-    if (callsign) { setSidebarOpen(true); setContextOpen(true); }
+
   }
 
-  function closeSidebar() {
-    setSidebarOpen(false);
-    sidebarToggle.current?.focus();
-  }
+  useEffect(()=>{
+    function key(event:KeyboardEvent){
+      const editing = event.target instanceof HTMLElement && (event.target.isContentEditable || Boolean(event.target.closest('input,textarea,select')));
+      if(reportPage || reportOpen || editing || event.defaultPrevented || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+      if(event.key.toLowerCase()==='t'){event.preventDefault();setPipelineOpen(v=>!v);}
+      if(event.key==='Escape' && pipelineOpen){event.preventDefault();setPipelineOpen(false);pipelineToggle.current?.focus();}
+    }
+    window.addEventListener('keydown',key);
+    return ()=>window.removeEventListener('keydown',key);
+  },[pipelineOpen,reportPage,reportOpen]);
+  const pipeline = <><button ref={pipelineToggle} aria-expanded={pipelineOpen} onClick={()=>setPipelineOpen(v=>!v)}>PIPELINE · T</button>
+    {pipelineOpen && <TracePanel traces={traces} audience={role==='viz'} onClose={()=>{setPipelineOpen(false);pipelineToggle.current?.focus();}}/>}</>;
 
   const connected = status === "Connected";
   function sendControl(message: ControlMsg) {
@@ -280,7 +295,7 @@ export function App() {
   if (role === "viz") return <Suspense fallback={<div className="viz-loading">Loading audience view…</div>}>
     <AudienceView state={state} data={data as SceneAirspace | null} session={session} status={status}
       selected={selected} onSelect={selectAircraft} speakers={speakers} captions={captions} clocks={captionClock}
-      events={events} judge={judge} audio={{ started: audioStarted, enabled: radioStatus.enabled,
+      pipeline={pipeline} events={events} judge={judge} audio={{ started: audioStarted, enabled: radioStatus.enabled,
         playback, volume, error: radioStatus.error, enable: enableRadio, disable: stopRadio,
         setPlayback, setVolume }}
       presenter={<PresenterConsole enabled={connected && Boolean(health?.simulation_ready) && !reportOpen}
@@ -307,7 +322,7 @@ export function App() {
   </>;
   return (
     <div className={`shell ${role === "radar" ? "controller-shell" : "audience-shell"}${judge ? " judge-mode" : ""}`}
-      style={{ "--traffic-width": `${trafficWidth}px` } as CSSProperties}>
+      >
       <header>
         <div><strong>SWEATBOX<span>AI</span></strong><small>GATWICK DIRECTOR</small></div>
         <nav aria-label="Views"><a href="/">Radar</a><a href="/viz">Second screen</a><a href={reportHref}>Report</a></nav>
@@ -334,14 +349,15 @@ export function App() {
         {role === "radar" && <div className="workspace-controls">
           <button aria-expanded={contextOpen} aria-controls="controller-context" onClick={() => setContextOpen(value => !value)}>
             Aircraft / weather</button>
-          <label>List width<input type="range" min="300" max="440" step="20" value={trafficWidth}
-            aria-label="Flight list width" onChange={event => setTrafficWidth(Number(event.target.value))} /></label>
         </div>}
-        <button ref={sidebarToggle} aria-expanded={sidebarOpen} aria-controls="traffic-sidebar"
+        {pipeline}
+        <button ref={sidebarToggle} aria-expanded={sidebarOpen} aria-controls="docked-flight-lists"
           onClick={() => setSidebarOpen(open => !open)}>
           {sidebarOpen ? "Hide arrivals / departures" : "Show arrivals / departures"}
         </button>
       </div>
+      {sidebarOpen && <div id="docked-flight-lists"><FlightLists state={state} data={data} selected={selected} onSelect={selectAircraft}
+        enabled={connected && Boolean(health?.simulation_ready)} send={sendControl}/></div>}
       {(reportPending || report) && <div className="report-notice" role="status">
         {reportPending ? <span>Generating session report…</span> : report && <>
           <span>Session ended · Score {report.score} / 100 · {report.findings.length} findings</span>
@@ -364,16 +380,6 @@ export function App() {
             </div>
           )}
         </section>
-        <aside id="traffic-sidebar" className="traffic-sidebar"
-          aria-label="Traffic and session panels" aria-hidden={!sidebarOpen} inert={!sidebarOpen}
-          onKeyDown={event => {
-            if (event.key === "Escape") { event.preventDefault(); closeSidebar(); }
-          }}>
-          <div className="sidebar-content">
-          <button className="sidebar-close" onClick={closeSidebar}>Close panels</button>
-          <TrafficPanel state={state} selected={selected} onSelect={selectAircraft} />
-          </div>
-        </aside>
       </main>
       {role === "radar" && <section className="controller-bottom" aria-label="Operational communications and alerts">
         <CommunicationsPanel messages={captions} samples={responseSamples} selected={selected} />

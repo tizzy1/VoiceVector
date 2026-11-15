@@ -25,6 +25,7 @@ export function SessionControls({ session, state, traffic, selected,
     <h2>Session controls</h2>
     <fieldset disabled={!enabled || !settings}>
       <legend>Traffic intensity</legend>
+      <label className="strip-autofill"><input type="checkbox" checked={settings?.strip_autofill ?? true} onChange={e=>send({type:'control',action:'set_strip_autofill',params:{on:e.target.checked}})}/><span>Auto-fill strips from controller transmissions</span></label>
       <div className="preset-buttons">
         {(["easy", "medium", "busy"] as const).map(name => {
           const preset = traffic?.difficulty_presets[name];

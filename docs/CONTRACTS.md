@@ -144,8 +144,8 @@ all imported tracks subsequently move as simulated aircraft. No raw provider JSO
 
 **Trace shapes (exact; additive).** Added to `server/contracts.py` and mirrored in
 `web/src/protocol.ts`, including `TraceMsg` in `ServerMsg`. Sanju can now import and
-emit these shapes. Trace production, persistence and the PIPELINE panel are separate
-integration work; their presence in the contracts does not mean those features run yet.
+emit these shapes. The PIPELINE panel consumes them; trace production and persistence
+remain separate integration work for Sanju.
 ```python
 TraceCategory = Literal["capture", "stt", "language", "sim", "pilot", "voice", "playback"]
 
@@ -180,8 +180,8 @@ The following additive contract definitions are now present. Flight-plan values 
 `selected_level` default to `None` (unknown), and `strip` defaults to an independent empty
 dictionary, so older producers remain valid. RFL is a flight-level number; `selected_level`
 and strip CFL are feet. Assigned squawks are strings, preserving leading zeroes.
-Tudor must populate `World._public`; session routing and the editable-list UI are still
-required before a browser can use `edit_strip`. Adding the action alone does not execute it.
+Tudor must populate `World._public`; session routing and the editable-list UI now consume
+these fields. Editing enables when the simulator publishes the flight-plan/strip data.
 | Change | Where | Producer → consumer |
 |---|---|---|
 | `AircraftPublic`: `flight_rules`, `adep`, `ades`, `rfl` (FL number), `assigned_squawk`, `selected_level` (Mode S SFL = the aircraft's real cleared level), `strip: dict` (controller-edited list fields: `cfl`, `ahdg`, `aspd`, `dct`, `sts`, `clr`, `rwy`, `sid`/`star`) | `StateMsg` | World (Tudor) → lists and tags (Bhavin) |
@@ -261,3 +261,15 @@ Later checkpoints: **19:00** voice round trip · **22:00** MVP (errors + correct
 - Secrets in `.env` (git-ignored): `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `FAL_KEY`.
 - All randomness via a seeded `random.Random(settings.seed + salt)` — the demo must be reproducible.
 - Every AI agent starts with: "Read CLAUDE.md, docs/CONTRACTS.md, server/contracts.py, and my assignment. Work only in my folders."
+
+### 15 Nov platform follow-up
+
+`SessionSettings.strip_autofill: bool = True` and
+`ControlAction/set_strip_autofill` with `{on: bool}` are additive definitions, mirrored
+in Python/TypeScript. The session routes this to `world.strip_autofill`, broadcasts
+settings and preserves the value across scenario reload. `edit_strip` now routes to
+`World.edit_strip`; the simulator remains the owner of published strip values/events.
+`AircraftPublic.distance_to_touchdown_nm: Optional[float] = None` is the simulator's
+remaining track distance in NM, consumed by the arrival list's DIST and sequence.
+The PIPELINE panel now consumes `TraceMsg`. Trace production/persistence remains
+Sanju's responsibility. See `NOV15_HANDOFF.md` for the exact remaining producer work.

@@ -143,3 +143,7 @@
   .controller-shell .radar { min-height: 450px; }
 }
 @media (prefers-reduced-motion: reduce) { .controller-shell main { transition: none; } }
+/* Docked lists replace the former right-hand traffic drawer (15 Nov). */
+.controller-shell main,.controller-shell main.sidebar-open,.controller-shell main.sidebar-closed {grid-template-columns:var(--context-width) minmax(0,1fr);}
+#docked-flight-lists {flex:none;min-width:0;max-height:40vh;overflow:auto;}
+@media(max-width:760px){.controller-shell main,.controller-shell main.sidebar-open,.controller-shell main.sidebar-closed {grid-template-columns:minmax(0,1fr);}}

@@ -16,7 +16,7 @@ interface Props {
   state: StateMsg | null; data: SceneAirspace | null; session: SessionMsg | null; status: string;
   selected: string; onSelect: (callsign: string) => void; speakers: readonly string[];
   captions: readonly CaptionMsg[]; clocks: Readonly<Record<string, number>>; events: readonly EventMsg[];
-  audio: AudioControls; presenter: ReactNode; reportAction: ReactNode; reportOverlay: ReactNode; judge: boolean;
+  pipeline: ReactNode; audio: AudioControls; presenter: ReactNode; reportAction: ReactNode; reportOverlay: ReactNode; judge: boolean;
 }
 
 export default function AudienceView(props: Props) {
@@ -68,7 +68,7 @@ export default function AudienceView(props: Props) {
         <span>{state ? state.paused ? "PAUSED" : "LIVE SIMULATION" : "WAITING"}</span></div>
     </header>
     <div className="viz-tools">
-      {props.presenter}<button disabled={fallback} aria-expanded={flightsOpen && !fallback} aria-controls="viz-flight-rail" onClick={() => setFlightsOpen(value => !value)}>Flights · {aircraft.length}</button>
+      {props.presenter}{props.pipeline}<button disabled={fallback} aria-expanded={flightsOpen && !fallback} aria-controls="viz-flight-rail" onClick={() => setFlightsOpen(value => !value)}>Flights · {aircraft.length}</button>
       <button disabled={fallback || !focused} aria-expanded={detailsOpen && Boolean(focused)} aria-controls="viz-inspector"
         onClick={() => setDetailsOpen(value => !value)}>Flight details</button>
       <div className="viz-audio">

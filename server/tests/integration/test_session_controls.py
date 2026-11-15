@@ -61,3 +61,35 @@ def test_invalid_speed_is_rejected_without_changing_settings(tmp_path):
             receive_until(radar, lambda m: m["type"] == "caption"
                           and "speed must" in m["text"])
             assert client.app.state.session.settings.sim_speed == 1
+
+
+def test_strip_edit_routes_to_world_without_changing_flight_targets(tmp_path):
+    with TestClient(create_app(FACTORIES, tmp_path)) as client:
+        with client.websocket_connect('/ws?role=radar') as radar:
+            world = client.app.state.session.world
+            before = world.aircraft['BAW117'].cleared_alt
+            radar.send_json({'type':'control','action':'edit_strip',
+                'params':{'callsign':'BAW117','field':'cfl','value':'F70'}})
+            receive_until(radar,lambda m:m['type']=='session')
+            assert world.strip('BAW117')['cfl'] == 7000
+            assert world.aircraft['BAW117'].cleared_alt == before
+            radar.send_json({'type':'control','action':'edit_strip',
+                'params':{'callsign':'BAW117','field':'assr','value':'9999'}})
+            receive_until(radar,lambda m:m['type']=='caption' and 'rejected' in m['text'])
+            assert world.aircraft['BAW117'].cleared_alt == before
+
+
+def test_strip_autofill_setting_syncs_and_survives_demo_reset(tmp_path):
+    with TestClient(create_app(FACTORIES, tmp_path)) as client:
+        with client.websocket_connect('/ws?role=radar') as radar:
+            with client.websocket_connect('/ws?role=viz') as viz:
+                radar.send_json({'type':'control','action':'set_strip_autofill','params':{'on':False}})
+                for viewer in (radar,viz):
+                    receive_until(viewer,lambda m:m['type']=='session' and m['settings']['strip_autofill'] is False)
+                assert client.app.state.session.world.strip_autofill is False
+                radar.send_json({'type':'control','action':'load_scenario','params':{'scenario':'demo'}})
+                receive_until(radar,lambda m:m['type']=='session' and m['settings']['strip_autofill'] is False)
+                assert client.app.state.session.world.strip_autofill is False
+                radar.send_json({'type':'control','action':'set_strip_autofill','params':{'on':'false'}})
+                receive_until(radar,lambda m:m['type']=='caption' and 'boolean' in m['text'])
+                assert client.app.state.session.world.strip_autofill is False

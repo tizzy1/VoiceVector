@@ -6,3 +6,6 @@
 .session-controls button[aria-pressed="true"] { border-color: #4fd1e8; color: #4fd1e8; }
 .session-controls p { color: #7c8b90; font-size: 11px; margin: 8px 0; }
 .session-controls :disabled { color: #7c8b90; cursor: default; }
+
+.session-controls .strip-autofill input {flex:none;width:14px;height:14px;margin:0;accent-color:#4fd1e8;}
+.session-controls .strip-autofill span {min-width:0;line-height:1.5;}
