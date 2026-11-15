@@ -142,6 +142,31 @@ all imported tracks subsequently move as simulated aircraft. No raw provider JSO
 | `ConflictForecast` | Simulator forecast engine (Tudor) | `StateMsg`, radar and viz overlays (Bhavin) |
 | `LiveImportMsg` / `LiveImportStatus` | Session/fetcher (Bhavin) after `World.import_live` (Tudor) | Both views |
 
+**Trace shapes (exact; additive, optional).** Bhavin adds these to `server/contracts.py` and mirrors them in `web/src/protocol.ts` (with `TraceMsg` added to `ServerMsg`) in one commit before Sanju emits traces:
+```python
+TraceCategory = Literal["capture", "stt", "language", "sim", "pilot", "voice", "playback"]
+
+class TraceStage(BaseModel):
+    name: str                      # VOICE_PIPELINE §20.1 stage table (exact names)
+    category: TraceCategory
+    t0_ms: float                   # relative to the anchor (PTT up, or compose start)
+    t1_ms: float
+    status: Literal["ok", "fallback", "error", "skipped"] = "ok"
+    detail: dict[str, Any] = Field(default_factory=dict)
+
+class PipelineTrace(BaseModel):
+    tx_id: str
+    speaker: Speaker               # "CTRL" or a callsign (pilot-initiated)
+    reply_callsign: Optional[str] = None
+    stages: list[TraceStage] = Field(default_factory=list)
+    total_ms: float = 0.0          # anchor -> first pilot audio played
+    final: bool = False            # False = provisional, stages still arriving
+
+class TraceMsg(BaseModel):
+    type: Literal["trace"] = "trace"
+    trace: PipelineTrace
+```
+
 These are roadmap additions, not part of the current wire contract until merged. Before any owner implements them, Bhavin adds the optional/defaulted models and fields to `server/contracts.py` and mirrors the client-visible shapes in `web/src/protocol.ts` in the same commit. Forecast output is informational and never drives aircraft or replaces deterministic evaluation/STCA. Live source data is read-only input to the simulation; the app must not connect to or transmit commands on VATSIM or any real-world network.
 
 ### 3.2 Flight plans, editable lists and pronunciation (requested 15 Nov, not yet in the wire contract)

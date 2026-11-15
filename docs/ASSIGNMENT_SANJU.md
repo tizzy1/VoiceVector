@@ -123,7 +123,7 @@ Voice round trip works on the venue network with p50 machine latency shown on sc
 ## 11. Post-MVP technical-depth track (planned)
 Start only after the complete voice-to-simulation MVP works. Own per-transmission instrumentation and reproducible voice benchmarks; coordinate any contract additions with Bhavin before implementation.
 
-- Emit trace records with a stable `trace_id`, session/transaction IDs, aircraft/callsign where safe, stage name, start/end/duration, outcome, and provider/model metadata. Instrument capture, STT, parser, evaluation, response planning, composer, TTS, and delivery/playback; use monotonic timing and preserve failures/timeouts.
+- Emit `TraceMsg`s with the exact 15 stage names, categories and detail keys in `VOICE_PIPELINE.md` §20.1 (`speech` … `apply_scheduled`), anchored at PTT up (or compose start), stamped with `perf_counter_ns`: provisional after `validate`, updated at release, final at audio end; one `blocked` trace for a blocked transmission. `machine_ms` must equal the latency chip; never reveal a planned error in `pilot_decision` unless "Reveal errors" is on.
 - Support provisional transcript revisions and the final transcript as distinct events linked to the same trace. Keep audio and transcripts out of trace logs by default; record only text when explicitly allowed by the existing run-data policy.
 - Store run traces append-only under the run directory and make UI payloads optional/additive. Do not let tracing failures interrupt the voice path.
 - Build `server/tests/voice/bench/` scripts and fixed input manifests for parser accuracy, STT word error rate, and end-to-end latency. Report corpus/sample count, provider/model/version, hardware, conditions, and p50/p95/p99; keep baselines versioned and comparable.

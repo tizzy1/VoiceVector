@@ -496,8 +496,39 @@ tests/  golden_parse.jsonl  test_parser.py  test_validator.py  test_corrections.
 - **fal:** wizper typical latency for 3–6 s clips (measure); credits.
 - **Tudor:** readback-correction phraseology wording; which non-standard readback variants are acceptable for realism; separation/wake numbers in `traffic.json`.
 
-## 20. Post-MVP observability and benchmarks (planned)
+## 20. Live pipeline trace and benchmarks
 
-Add this after the end-to-end voice-to-simulation loop is stable. The live pipeline should emit one correlated trace per controller transmission, linked by `trace_id` and the existing transaction/session IDs. Record monotonic start/end/duration, outcome, and provider/model/version for capture, STT, parsing, evaluation, response planning, composition, TTS, and delivery/playback. Link provisional transcript updates and the final transcript to the same trace. Keep tracing append-only under the run directory, optional at the contract boundary, and fail-open so logging cannot interrupt voice processing. Audio and transcript text are excluded from traces by default.
+### 20.1 Pipeline trace (owner: Sanju, data; Bhavin, panel — not built yet)
+Goal: for every transmission, an on-screen waterfall (like browser dev tools) of every stage in milliseconds, so judges see what is actually happening: speech → speech-to-text → parse → sim check → pilot decision → readback → validation → voice → playback. Bars fill in as stages complete. Every number is measured on the server, never estimated.
+
+**Timing.** Stamp every stage with `time.perf_counter_ns()`. Anchor = **PTT up** for a controller transmission, **compose start** for a pilot-initiated call. Speech before PTT up has a negative `t0_ms`.
+
+**Stages — exact names** (the panel keys colours and labels off these):
+| name | category | from → to | detail keys |
+|---|---|---|---|
+| `speech` | capture | PTT down → PTT up | `duration_ms` |
+| `stt_partials` | stt | first partial → last partial | `count` |
+| `stt_final` | stt | PTT up → committed final text | `provider` ("scribe" \| "fal_wizper" \| "local") |
+| `normalise` | language | — | `tokens` |
+| `parse` | language | — | `path` ("regex" \| "llm" \| "mixed"), `clauses`, `unparsed` |
+| `llm_fallback` | language | only if used | `model`, `ttft_ms` |
+| `callsign_match` | language | — | `callsign`, `score` |
+| `evaluate` | sim | `world.evaluate()` | `statuses` (e.g. ["OK", "UNABLE"]) |
+| `pilot_decision` | pilot | `pilot.handle_transmission()` | `kind`, `error_policy`: "evaluated" — **never reveal a planned error** unless "Reveal errors" is on (then `planned_error_kind`) |
+| `compose` | voice | — | `variant_ids`, `persona` |
+| `validate` | voice | — | `attempts`, `fallback` (bool) |
+| `tts_first_audio` | voice | TTS request → first chunk | `model`, `voice`, `machine_ms` |
+| `reaction_hold` | playback | first chunk → release | `persona_delay_ms` |
+| `playback` | playback | release → audio end | — |
+| `apply_scheduled` | sim | audio end → `schedule_apply` call | `apply_at_sim_s` |
+
+- `total_ms` = anchor → release (first pilot audio heard). `machine_ms` = anchor → first TTS chunk; it must equal the latency chip.
+- **When to send** a `TraceMsg` (all clients): **provisional** after `validate` (`final=false`), updated at release, **final** at audio end (`final=true`).
+- **Blocked transmission:** one trace with `stt_final` … then a `blocked` stage (category `sim`, status `error`).
+- Append every final trace to `runs/<session>/traces.jsonl` (the benchmarks read it). Tracing must fail open: an exception in tracing never interrupts the voice path. No audio and no transcript text in the trace by default.
+- **Acceptance:** 20 consecutive transmissions each produce exactly one final trace; no negative durations except `speech`; `machine_ms` matches the latency chip.
+- Message shapes: `CONTRACTS.md` §3.1. Panel: `ASSIGNMENT_BHAVIN.md` §11.
+
+### 20.2 Benchmarks
 
 The offline suite should live under `server/tests/voice/bench/` and use fixed, versioned input manifests. Report parser exact accuracy and confusion matrix, STT word error rate, validator/property coverage, phrasing variety, and end-to-end p50/p95/p99. Every result must include sample count, corpus version, model/provider version, hardware, and run conditions. Initial targets are parser ≥95% on 100+ labelled utterances, STT WER ≤10% on 50+ clips, and p95 voice-to-caption ≤1,500 ms on 50+ runs. These are proposed acceptance targets, not measured claims. Preserve the original MVP's latency readout separately; benchmark percentiles must not be inferred from its last 10 samples.
