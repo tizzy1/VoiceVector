@@ -33,3 +33,18 @@ test('trace updates retain five transmissions, lock finals and preserve negative
  assert.equal(history.length,5);assert.equal(history[0].tx_id,'3');
  assert.deepEqual(updateTraces(history,{...trace,total_ms:NaN}),history);
 });
+
+test('provisional and blocked traces never advertise a default zero as measured release',async()=>{
+ const {createElement}=await import('react');
+ const {renderToStaticMarkup}=await import('react-dom/server');
+ let {outputText}=ts.transpileModule(await readFile(new URL('../src/ui/TracePanel.tsx',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.ES2022,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}});
+ outputText=outputText.replace(/import ['"]\.\/trace.css['"];?/,'')
+  .replaceAll('"react/jsx-runtime"',JSON.stringify(import.meta.resolve('react/jsx-runtime')))
+  .replaceAll("'react'",JSON.stringify(import.meta.resolve('react')))
+  .replaceAll("'./traces'",JSON.stringify(await compile('../src/ui/traces.ts')));
+ const {TracePanel}=await import('data:text/javascript;base64,'+Buffer.from(outputText).toString('base64'));
+ const props={audience:false,onClose(){},traces:[{tx_id:'a',speaker:'CTRL',stages:[],total_ms:0,final:false}]};
+ assert.match(renderToStaticMarkup(createElement(TracePanel,props)),/Pending release/);
+ props.traces[0].stages=[{name:'blocked',category:'sim',t0_ms:1,t1_ms:1,status:'error',detail:{}}];
+ assert.match(renderToStaticMarkup(createElement(TracePanel,props)),/Blocked/);
+});

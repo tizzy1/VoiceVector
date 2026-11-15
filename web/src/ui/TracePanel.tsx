@@ -23,7 +23,7 @@ export function TracePanel({traces,audience,onClose}:{traces:readonly PipelineTr
      {ticks.map(t=><g key={t}><line x1={180+(t-domain[0])/span*430} x2={180+(t-domain[0])/span*430} y1="22" y2={35+trace.stages.length*30} stroke="#2b3a40"/>
       {Math.abs(t/250)%Math.max(1,Math.ceil(ticks.length/7))===0&&<text x={180+(t-domain[0])/span*430} y="14" textAnchor="middle" className="trace-tick">{t}</text>}</g>)}
      {trace.stages.map((s,i)=><g key={`${s.name}:${i}`} className={`trace-stage trace-${s.category}`}>
-      <title>{s.name}: {(s.t1_ms-s.t0_ms).toFixed(1)} ms · {s.status} · {JSON.stringify(s.detail)}</title>
+      <title>{`${s.name}: ${(s.t1_ms-s.t0_ms).toFixed(1)} ms · ${s.status} · ${JSON.stringify(s.detail)}`}</title>
       <text x="3" y={43+i*30}>{s.name.replaceAll('_',' ')}</text>
       <rect x={180+(s.t0_ms-domain[0])/span*430} y={28+i*30} width={Math.max(2,(s.t1_ms-s.t0_ms)/span*430)} height="19" rx="2"/>
       <text className="trace-duration" x="607" y={43+i*30} textAnchor="end">{(s.t1_ms-s.t0_ms).toFixed(0)} ms</text>
