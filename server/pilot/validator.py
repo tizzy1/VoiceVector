@@ -19,6 +19,7 @@ from typing import Optional
 
 from server.contracts import Instruction
 from server.voice.normalise import normalise_tokens
+from server.voice.parser.spelled import join_spelled_points
 from server.voice.numbers import (DECIMAL_WORDS, DIGIT_WORDS, MULTIPLIERS, NUM_RE, TENS_WORDS)
 from server.voice.parser import default_fixes
 from server.voice.parser.callsign import PHONETIC
@@ -92,7 +93,9 @@ def parse_element(plan: Instruction, speech: str) -> list[Instruction]:
     fam = FAMILY.get(plan.type)
     if fam is None:
         return []
-    return classify(Clause(fam, normalise_tokens(speech)), set(default_fixes()), None)
+    fixes = set(default_fixes())
+    tokens = join_spelled_points(normalise_tokens(speech), fixes)     # "kilo kilo sierra two five" -> kks25
+    return classify(Clause(fam, tokens), fixes, None)
 
 
 def check_element(plan: Instruction, speech: str) -> list[str]:

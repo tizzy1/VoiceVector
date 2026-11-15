@@ -25,6 +25,7 @@ from typing import Optional
 
 from server.contracts import Instruction, Readback, ReadbackPlan
 from server.pilot import validator as V
+from server.voice.pronounce import is_spelled_point, respell, spell
 from server.pilot.variants_build import (CONNECTORS, DEFAULT_BANK, PARTIAL_LEADS, PERSONA_PREFIX,
                                          PERSONA_STYLE_WEIGHTS, PERSONA_SUFFIX, REASON_PHRASES,
                                          REPLIES)
@@ -132,9 +133,14 @@ class Composer:
 
     # ------------------------------------------------------------ navaids
     def fix_speech(self, ident: str) -> tuple[str, str]:
-        """(display, speech): navaids by station name ("SFD" -> "Seaford"), fixes as written."""
+        """(display, speech): navaids by station name ("SFD" -> "Seaford"), RNAV points with digits
+        spelled ("KKS25" -> "kilo kilo sierra two five"), other fixes as written."""
         name = self.navaid_names.get(ident.upper())
-        return (name, name.lower()) if name else (ident, ident.lower())
+        if name:
+            return name, name.lower()
+        if is_spelled_point(ident):
+            return ident.upper(), spell(ident)
+        return ident, ident.lower()
 
     # ------------------------------------------------------------- callsigns
     def callsign_speech(self, callsign: str) -> tuple[str, str]:
@@ -492,7 +498,8 @@ class Composer:
 
     def _finish(self, plan: ReadbackPlan, b: Built, fallback: bool, validated: bool) -> Readback:
         self.last_variant.update(b.chosen)
-        result = Readback(text=b.text, tts_text=b.speech, variant_ids=b.variant_ids,
+        # ICAO respellings ("leema") only now, after validation of the plain speech (§11.1)
+        result = Readback(text=b.text, tts_text=respell(b.speech), variant_ids=b.variant_ids,
                           validated=validated, fallback_used=fallback)
         self.last_readback[plan.callsign] = result
         return result

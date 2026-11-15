@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 
 from server.voice.numbers import DIGIT_WORDS, MULTIPLIERS, NUM_RE, TENS_WORDS
+from server.voice.pronounce import UNRESPELL
 
 # Multi-word phrases collapsed to the single tokens the grammar keys on.
 _PHRASES: dict[tuple[str, ...], tuple[str, ...]] = {
@@ -49,6 +50,7 @@ _WORD_FIXES = {
     "intercepting": "intercept", "squawking": "squawk", "expecting": "expect",
     "cancelling": "cancel", "contacting": "contact",
 }
+_WORD_FIXES.update(UNRESPELL)      # TTS respellings ("leema", "kebeck") back to ICAO words (§11.1)
 _HOMOPHONES = {"for": "four", "won": "one", "ate": "eight"}
 
 

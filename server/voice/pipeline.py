@@ -29,6 +29,7 @@ from server.voice.parser import llm_fallback
 from server.voice.stt_fallback import WizperSTT
 from server.voice.stt_scribe import STATIC_KEYTERMS, ScribeStream, STTError, build_keyterms
 from server.voice.tts import ElevenLabsTTS, TTSError
+from server.voice.pronounce import respell
 from server.voice.prosody import compensated_speed, restore_word_times, shape
 from server.voice.voices import Voices, settings_for, target_wps
 
@@ -375,7 +376,7 @@ class VoicePipeline:
         voice = self.voices.voice_for(cs, persona)
         settings = settings_for(persona, stressed, voice)
         speech = getattr(self.composer, "callsign_speech", None)
-        shaped = shape(readback.tts_text, persona, callsign_speech=speech(cs)[1] if speech else "",
+        shaped = shape(readback.tts_text, persona, callsign_speech=respell(speech(cs)[1]) if speech else "",
                        seed=resp.plan.seed, stressed=stressed)
         shaped_pair = None
         if shaped.text != readback.tts_text:
