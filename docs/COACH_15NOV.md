@@ -6,7 +6,11 @@ adds one coaching sentence that quotes the better wording. It is built for the j
 are the controllers and get feedback on their own voice immediately.
 
 **Where it lives.** Branch `sanju/coach`, based on `main` and independent of `sanju/team-sim` (PR #1).
-The two merge cleanly in either order (checked with `git merge-tree`).
+Both edit `App.tsx`; the coach card was placed after the waiting block so the two merge without
+conflicts in either order (checked with a real test merge).
+
+**On screen** the card never names the model: it shows "Reviewing…" while the tip is on its way,
+then the tip labelled "Tip".
 
 ## How it works
 
