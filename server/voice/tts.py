@@ -35,6 +35,7 @@ def format_info(output_format: str) -> tuple[str, int]:
 
 
 class ElevenLabsTTS:
+    prosody = True          # honours "word...", digit-run commas and <break/> (see server/voice/prosody.py)
     def __init__(self, api_key: str, *, client: Optional[httpx.AsyncClient] = None,
                  model: str = DEFAULT_MODEL, output_format: str = DEFAULT_FORMAT,
                  timeout: float = 4.0, cache_size: int = 200):

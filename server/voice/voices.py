@@ -53,14 +53,20 @@ TARGET_WPS = {"student": 2.7, "calm_longhaul": 3.5, "crisp_airline": 3.9, "stres
 SPEED_RANGE = (0.7, 1.2)                 # ElevenLabs voice_settings.speed limits
 
 
+def target_wps(persona: str, stressed: bool = False) -> float:
+    """The real-pilot pace (words/s) a persona aims for."""
+    if stressed:
+        return TARGET_WPS["stressed"]
+    return TARGET_WPS.get(persona, TARGET_WPS[DEFAULT_PERSONA])
+
+
 def settings_for(persona: str, stressed: bool = False, voice: "Voice | None" = None) -> dict[str, float]:
     """Voice settings for a persona; with a calibrated voice the speed hits the real-pilot pace."""
     base = dict(PERSONA_SETTINGS.get(persona, PERSONA_SETTINGS[DEFAULT_PERSONA]))
     if stressed:
         base.update(PERSONA_SETTINGS["stressed"])
     if voice is not None and voice.natural_wps > 0:
-        target = TARGET_WPS["stressed" if stressed else persona] if (stressed or persona in TARGET_WPS) \
-            else TARGET_WPS[DEFAULT_PERSONA]
+        target = target_wps(persona, stressed)
         if voice.max_wps > voice.natural_wps:      # two measured points: speed is not linear in pace
             speed = 1.0 + (SPEED_RANGE[1] - 1.0) * (target - voice.natural_wps) / (voice.max_wps - voice.natural_wps)
         else:

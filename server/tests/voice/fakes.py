@@ -147,6 +147,9 @@ class FakeComposer:
     def compose(self, plan):
         return self.real.compose(plan)
 
+    def callsign_speech(self, callsign):
+        return self.real.callsign_speech(callsign)
+
 
 class FakeTTS:
     """Streams a few PCM chunks; ``delay`` simulates network latency to first audio."""
@@ -208,9 +211,10 @@ class FakeSTT:
 class FakeTimedTTS(FakeTTS):
     """Also offers stream_timed: perfectly regular 0.06 s per character alignment."""
 
-    def __init__(self, *args, break_alignment=False, **kwargs):
+    def __init__(self, *args, break_alignment=False, prosody=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.break_alignment = break_alignment
+        self.prosody = prosody
 
     async def stream_timed(self, text, voice_id, settings=None):
         self.requests.append((text, voice_id, settings or {}))

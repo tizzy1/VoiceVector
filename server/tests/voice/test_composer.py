@@ -519,3 +519,11 @@ def test_confirm_reply_states_the_level_without_cleared():
                                    report_values={"cleared_fl": 80})).tts_text
     assert alt.startswith("altitude five thousand") and fl.startswith("flight level eight zero")
     assert "cleared" not in alt + fl
+
+
+def test_numeric_squawk_is_read_as_four_digits_not_a_decimal(composer):
+    for value in (4521, 4521.0, 712, "4521"):
+        rb = composer.compose(ReadbackPlan(callsign="BAW117", persona="crisp_airline", kind="full",
+                                           elements=[Instruction(type="squawk", value=value)], seed=1))
+        assert "decimal" not in rb.tts_text and rb.validated, rb.tts_text
+        assert ("zero seven one two" if value == 712 else "four five two one") in rb.tts_text

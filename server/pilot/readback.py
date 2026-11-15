@@ -188,7 +188,8 @@ class Composer:
             s["RATE"] = (str(int(value)), N.altitude_to_speech(int(value)))
             s["CON"] = {"max": ("or less",) * 2, "min": ("or greater",) * 2}.get(el.constraint or "", _empty())
         elif el.type == "squawk" and value is not None:
-            code = str(value)
+            # A numeric code (e.g. an injected error's int, coerced to 4521.0) is still four digits.
+            code = f"{int(value):04d}" if isinstance(value, (int, float)) else str(value)
             s["SQ"] = (code, "ident" if code == "ident" else N.squawk_to_speech(code))
         elif el.type == "qnh" and value is not None:
             s["QNH"] = (str(int(value)), N.qnh_to_speech(int(value)))

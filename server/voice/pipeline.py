@@ -29,7 +29,8 @@ from server.voice.parser import llm_fallback
 from server.voice.stt_fallback import WizperSTT
 from server.voice.stt_scribe import STATIC_KEYTERMS, ScribeStream, STTError, build_keyterms
 from server.voice.tts import ElevenLabsTTS, TTSError
-from server.voice.voices import Voices, settings_for
+from server.voice.prosody import compensated_speed, restore_word_times, shape
+from server.voice.voices import Voices, settings_for, target_wps
 
 logger = logging.getLogger(__name__)
 
@@ -316,12 +317,20 @@ class VoicePipeline:
         return "; ".join(lines) or None
 
     async def _produce(self, text: str, voice_id: str, settings: dict, queue: asyncio.Queue,
-                       stamps: Stamps, alignment: list, engines: list, meta: dict) -> None:
-        """Stream from the first engine that works; fall back only if nothing was produced yet."""
+                       stamps: Stamps, alignment: list, engines: list, meta: dict,
+                       shaped: Optional[tuple[str, dict]] = None) -> None:
+        """Stream from the first engine that works; fall back only if nothing was produced yet.
+
+        ``shaped`` = (text with prosody markup, its settings) for engines that set ``prosody``;
+        every other engine gets the plain text. ``meta["spoken_text"]`` records what was sent.
+        """
         stamps.mark("t_tts_req")
         last_error: Exception = TTSError("no TTS engine")
+        plain = (text, settings)
         for engine in engines:
             meta["engine"] = engine
+            text, settings = shaped if (shaped and getattr(engine, "prosody", False)) else plain
+            meta["spoken_text"] = text
             produced = False
             try:
                 timed = getattr(engine, "stream_timed", None)
@@ -365,6 +374,13 @@ class VoicePipeline:
         stressed = resp.kind in ("mayday", "pan") or persona == "stressed"
         voice = self.voices.voice_for(cs, persona)
         settings = settings_for(persona, stressed, voice)
+        speech = getattr(self.composer, "callsign_speech", None)
+        shaped = shape(readback.tts_text, persona, callsign_speech=speech(cs)[1] if speech else "",
+                       seed=resp.plan.seed, stressed=stressed)
+        shaped_pair = None
+        if shaped.text != readback.tts_text:
+            shaped_pair = (shaped.text, compensated_speed(settings, len(readback.tts_text.split()),
+                                                          target_wps(persona, stressed), shaped.extra_s))
         not_before = time.monotonic() + max(0.0, resp.reaction_delay_s)
 
         queue: asyncio.Queue = asyncio.Queue()
@@ -376,7 +392,7 @@ class VoicePipeline:
         engines = [e for e in ([self.emergency] if emergency_call else []) + [self.tts] if e is not None]
         if engines:
             producer = asyncio.create_task(self._produce(readback.tts_text, voice.id, settings, queue, stamps,
-                                                         alignment, engines, meta))
+                                                         alignment, engines, meta, shaped_pair))
             try:
                 first = await asyncio.wait_for(
                     queue.get(), EMERGENCY_FIRST_AUDIO_S if emergency_call else FIRST_AUDIO_TIMEOUT_S)
@@ -437,7 +453,8 @@ class VoicePipeline:
             else:
                 duration = len(words) * EST_SPEECH_S_PER_WORD
             await self.hub.send(CaptionMsg(tx_id=tx_id, speaker=cs, stage="pilot_words", text=readback.text,
-                                           words=self._word_times(readback, alignment, duration)))
+                                           words=self._word_times(readback, alignment, duration,
+                                                                  meta.get("spoken_text"))))
             # The pilot stays on the air for the length of the speech (audio arrives faster than realtime).
             await asyncio.sleep(max(0.0, started + duration - time.monotonic()))
             stamps.mark("t_audio_end")
@@ -463,7 +480,7 @@ class VoicePipeline:
                 self.hub.spawn(self.speak(recall))
 
     @staticmethod
-    def _word_times(readback, alignment: list[dict], duration: float):
+    def _word_times(readback, alignment: list[dict], duration: float, spoken_text: Optional[str] = None):
         """Real per-word timings from the TTS alignment; an even spread if unavailable or mismatched."""
         if alignment:
             chars, starts, ends = [], [], []
@@ -471,7 +488,10 @@ class VoicePipeline:
                 chars += list(a.get("characters") or [])
                 starts += list(a.get("character_start_times_seconds") or [])
                 ends += list(a.get("character_end_times_seconds") or [])
-            spoken = spoken_word_times(readback.tts_text, chars, starts, ends)
+            sent = spoken_text or readback.tts_text
+            spoken = spoken_word_times(sent, chars, starts, ends)
+            if spoken and sent != readback.tts_text:            # drop breaks/fillers, back to plain words
+                spoken = restore_word_times(readback.tts_text, spoken)
             words = align_display_words(readback.text, spoken) if spoken else None
             if words:
                 return words
