@@ -1,0 +1,268 @@
+{
+ "_meta": {
+  "what": "Airports used for flight plans (owner: Tudor). Coordinates from public aerodrome data; magnetic variation in degrees, east positive, approximate for 2026 (\u26a0 VERIFY).",
+  "hubs": "Airline home bases used when the direction fits (traffic.json fleet airline -> ICAO)."
+ },
+ "hubs": {
+  "UAE": "OMDB",
+  "QTR": "OTHH",
+  "THY": "LTFM",
+  "DLH": "EDDF",
+  "VLG": "LEBL",
+  "RYR": "EIDW"
+ },
+ "airports": {
+  "EGKK": {
+   "name": "London Gatwick",
+   "lat": 51.1481,
+   "lon": -0.1903,
+   "var": 0.6
+  },
+  "LEMD": {
+   "name": "Madrid",
+   "lat": 40.4719,
+   "lon": -3.5626,
+   "var": 0.5
+  },
+  "LEBL": {
+   "name": "Barcelona",
+   "lat": 41.2971,
+   "lon": 2.0785,
+   "var": 1.5
+  },
+  "LEMG": {
+   "name": "Malaga",
+   "lat": 36.6749,
+   "lon": -4.4991,
+   "var": -0.5
+  },
+  "LEAL": {
+   "name": "Alicante",
+   "lat": 38.2822,
+   "lon": -0.5582,
+   "var": 0.5
+  },
+  "LEPA": {
+   "name": "Palma",
+   "lat": 39.5517,
+   "lon": 2.7388,
+   "var": 1.8
+  },
+  "LPPT": {
+   "name": "Lisbon",
+   "lat": 38.7742,
+   "lon": -9.1342,
+   "var": -1.5
+  },
+  "LPFR": {
+   "name": "Faro",
+   "lat": 37.0144,
+   "lon": -7.9659,
+   "var": -1.5
+  },
+  "GCTS": {
+   "name": "Tenerife South",
+   "lat": 28.0445,
+   "lon": -16.5725,
+   "var": -4.5
+  },
+  "GCLP": {
+   "name": "Gran Canaria",
+   "lat": 27.9319,
+   "lon": -15.3866,
+   "var": -4.3
+  },
+  "GCRR": {
+   "name": "Lanzarote",
+   "lat": 28.9455,
+   "lon": -13.6052,
+   "var": -3.8
+  },
+  "LFPG": {
+   "name": "Paris CDG",
+   "lat": 49.0097,
+   "lon": 2.5479,
+   "var": 1.5
+  },
+  "LFMN": {
+   "name": "Nice",
+   "lat": 43.6584,
+   "lon": 7.2159,
+   "var": 3.0
+  },
+  "LIRF": {
+   "name": "Rome Fiumicino",
+   "lat": 41.8003,
+   "lon": 12.2389,
+   "var": 4.0
+  },
+  "LIMC": {
+   "name": "Milan Malpensa",
+   "lat": 45.6306,
+   "lon": 8.7281,
+   "var": 3.0
+  },
+  "LGAV": {
+   "name": "Athens",
+   "lat": 37.9364,
+   "lon": 23.9445,
+   "var": 5.0
+  },
+  "LMML": {
+   "name": "Malta",
+   "lat": 35.8575,
+   "lon": 14.4775,
+   "var": 4.0
+  },
+  "LGIR": {
+   "name": "Heraklion",
+   "lat": 35.3397,
+   "lon": 25.1803,
+   "var": 5.0
+  },
+  "LTFM": {
+   "name": "Istanbul",
+   "lat": 41.2753,
+   "lon": 28.7519,
+   "var": 6.0
+  },
+  "LCLK": {
+   "name": "Larnaca",
+   "lat": 34.8751,
+   "lon": 33.6249,
+   "var": 5.0
+  },
+  "HEGN": {
+   "name": "Hurghada",
+   "lat": 27.1783,
+   "lon": 33.7994,
+   "var": 4.0
+  },
+  "EHAM": {
+   "name": "Amsterdam",
+   "lat": 52.3105,
+   "lon": 4.7683,
+   "var": 2.0
+  },
+  "EDDF": {
+   "name": "Frankfurt",
+   "lat": 50.0379,
+   "lon": 8.5622,
+   "var": 3.5
+  },
+  "EDDB": {
+   "name": "Berlin",
+   "lat": 52.3667,
+   "lon": 13.5033,
+   "var": 5.0
+  },
+  "EKCH": {
+   "name": "Copenhagen",
+   "lat": 55.6181,
+   "lon": 12.6561,
+   "var": 5.0
+  },
+  "ESSA": {
+   "name": "Stockholm Arlanda",
+   "lat": 59.6519,
+   "lon": 17.9186,
+   "var": 7.0
+  },
+  "ENGM": {
+   "name": "Oslo",
+   "lat": 60.1976,
+   "lon": 11.1004,
+   "var": 4.0
+  },
+  "LSZH": {
+   "name": "Zurich",
+   "lat": 47.4647,
+   "lon": 8.5492,
+   "var": 3.5
+  },
+  "LSGG": {
+   "name": "Geneva",
+   "lat": 46.2381,
+   "lon": 6.1089,
+   "var": 2.5
+  },
+  "LOWW": {
+   "name": "Vienna",
+   "lat": 48.1103,
+   "lon": 16.5697,
+   "var": 5.0
+  },
+  "EPWA": {
+   "name": "Warsaw",
+   "lat": 52.1657,
+   "lon": 20.9671,
+   "var": 7.0
+  },
+  "LHBP": {
+   "name": "Budapest",
+   "lat": 47.4369,
+   "lon": 19.2556,
+   "var": 6.0
+  },
+  "LKPR": {
+   "name": "Prague",
+   "lat": 50.1008,
+   "lon": 14.26,
+   "var": 4.5
+  },
+  "OMDB": {
+   "name": "Dubai",
+   "lat": 25.2532,
+   "lon": 55.3657,
+   "var": 2.0
+  },
+  "OTHH": {
+   "name": "Doha",
+   "lat": 25.2731,
+   "lon": 51.6081,
+   "var": 3.0
+  },
+  "EGPH": {
+   "name": "Edinburgh",
+   "lat": 55.95,
+   "lon": -3.3725,
+   "var": -1.5
+  },
+  "EGPF": {
+   "name": "Glasgow",
+   "lat": 55.8719,
+   "lon": -4.4331,
+   "var": -2.5
+  },
+  "EGAA": {
+   "name": "Belfast International",
+   "lat": 54.6575,
+   "lon": -6.2158,
+   "var": -3.0
+  },
+  "EIDW": {
+   "name": "Dublin",
+   "lat": 53.4213,
+   "lon": -6.2701,
+   "var": -2.5
+  },
+  "EGJJ": {
+   "name": "Jersey",
+   "lat": 49.2079,
+   "lon": -2.1955,
+   "var": -0.5
+  },
+  "KJFK": {
+   "name": "New York JFK",
+   "lat": 40.6413,
+   "lon": -73.7781,
+   "var": -13.0
+  },
+  "KMCO": {
+   "name": "Orlando",
+   "lat": 28.4312,
+   "lon": -81.3081,
+   "var": -6.0
+  }
+ }
+}

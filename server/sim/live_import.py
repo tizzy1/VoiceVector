@@ -95,6 +95,7 @@ def normalize_vatsim(raw: dict[str, Any], fetched_at: Optional[datetime] = None,
             "arr": str(fp.get("arrival") or "").upper(),
             "route": str(fp.get("route") or ""),
             "flight_rules": str(fp.get("flight_rules") or ""),
+            "rfl": _filed_level(fp.get("altitude")),
             "squawk": str(p.get("transponder") or ""),
             "last_updated": p.get("last_updated"),
         })
@@ -103,6 +104,16 @@ def normalize_vatsim(raw: dict[str, Any], fetched_at: Optional[datetime] = None,
 
 
 # =========================================================================================
+def _filed_level(raw: Any) -> int:
+    """VATSIM filed cruise "FL350" / "35000" / "350" -> FL number (0 if unknown)."""
+    txt = str(raw or "").upper().strip().lstrip("F").lstrip("L")
+    try:
+        v = int(float(txt))
+    except ValueError:
+        return 0
+    return v // 100 if v >= 1000 else v
+
+
 def map_type(actype: str, perf: dict[str, Any]) -> tuple[str, bool]:
     """(perf type, exact?) — unknown types fly as an A320."""
     t = actype.upper()
@@ -220,6 +231,10 @@ def _convert(w: "World", tg: dict[str, Any], var: float, now: datetime,
         wake=w.perf[actype]["wake"], persona=persona, flow=flow, x=x, y=y, alt=alt, hdg=hdg,
         track=hdg, ias=ias, tas=tas, gs=tas, tgt_hdg=hdg, cleared_alt=level, qnh=w.qnh,
         squawk=squawk if re.fullmatch(r"[0-7]{4}", squawk) else "2000", spawn_t=w.t,
+        adep=dep if re.fullmatch(r"[A-Z]{4}", dep) else "",
+        ades=arr if re.fullmatch(r"[A-Z]{4}", arr) else "",
+        rfl=int(tg.get("rfl") or 0),
+        flight_rules=str(tg.get("flight_rules") or "I")[:1] or "I",
     )
     if flow == "ARR":
         ac = _arrival(w, base)

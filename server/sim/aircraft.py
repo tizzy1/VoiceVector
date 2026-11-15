@@ -76,3 +76,10 @@ class AircraftState(BaseModel):
     dep_checked_in: bool = False
     levelled_t: Optional[float] = None
     higher_requested: bool = False
+    # flight plan (SIM_SPEC §1.8, sim/flightplan.py)
+    flight_rules: str = "I"
+    adep: str = ""
+    ades: str = ""
+    rfl: int = 0                                # requested cruise level, FL number
+    assigned_squawk: str = ""                   # ASSR
+    strip: dict[str, Any] = Field(default_factory=dict)   # controller's list record (§5.5)

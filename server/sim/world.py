@@ -15,6 +15,7 @@ from server.contracts import (
     EventType, InjectKind, Instruction, SessionSettings, StateMsg, Transmission, WorldSnapshot,
 )
 from server.sim import kinematics, modes, registry, runway as rwy_mgr, stca, weather
+from server.sim import flightplan
 from server.sim.forecast import Forecaster
 from server.sim.aircraft import AircraftState
 from server.sim.geo import Projection, heading_for_track, norm_hdg, wind_vector
@@ -141,6 +142,7 @@ class World:
                              key=lambda i: float(i["t_s"]))
 
     def add_aircraft(self, ac: AircraftState, checkin: bool) -> None:
+        flightplan.assign(self, ac)                     # ADEP/ADES, RFL, ASSR (SIM_SPEC §1.8)
         self.aircraft[ac.callsign] = ac
         self.used_callsigns.add(ac.callsign)
         self.emit("spawn", ac.callsign, {"flow": ac.flow, "actype": ac.actype,
@@ -261,9 +263,13 @@ class World:
     def pilot_call(self, ac: AircraftState, kind: str, **values: Any) -> None:
         # spoken-text keys the readback composer reads, alongside the contract keys
         if kind == "request" and "request" not in values:
-            values["request"] = {"higher": "higher level",
-                                 "expected_approach": "expected approach"}.get(
-                                     str(values.get("what")), str(values.get("what", "vectors")))
+            what = str(values.get("what", "vectors"))
+            if what == "higher" and ac.rfl and ac.rfl * 100 > ac.cleared_alt:
+                values.setdefault("level_fl", ac.rfl)     # asks for its requested level
+                values["request"] = "climb " + flightplan.spoken_level(self, ac.rfl)
+            else:
+                values["request"] = {"higher": "higher level",
+                                     "expected_approach": "expected approach"}.get(what, what)
         if kind in ("mayday", "pan") and values.get("reason") and "nature" not in values:
             values["nature"] = values["reason"]
         self.emit("pilot_call", ac.callsign, {"kind": kind, **values}, actor="PILOT")
