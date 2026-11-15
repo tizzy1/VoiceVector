@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import type { ControlMsg, CaptionMsg, EventMsg, SessionMsg, StateMsg, Report, PipelineTrace } from "../protocol";
+import type { ControlMsg, CaptionMsg, CoachMsg, EventMsg, SessionMsg, StateMsg, Report, PipelineTrace } from "../protocol";
 import { Radar, type Airspace } from "../radar/Radar";
 import { connect } from "./connection";
 import { createAudioEngine } from "../audio/index";
@@ -12,6 +12,7 @@ import { WeatherPanel } from "../ui/WeatherPanel";
 import { CommunicationsPanel } from "../ui/CommunicationsPanel";
 import { updateResponseSamples, type ResponseSample } from "../ui/communications";
 import { CaptionStrip } from "../ui/CaptionStrip";
+import { CoachCard, mergeCoach } from "../ui/CoachCard";
 import { updateCaptions } from "../ui/captions";
 import { SessionControls, type TrafficConfig } from "../ui/SessionControls";
 import { PresenterConsole } from "../ui/PresenterConsole";
@@ -42,6 +43,7 @@ export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [contextOpen, setContextOpen] = useState(() => matchMedia("(min-width: 1101px)").matches);
   const [traces,setTraces] = useState<PipelineTrace[]>([]);
+  const [coach, setCoach] = useState<CoachMsg | null>(null);   // phraseology coach (15 Nov, Sanju)
   const [pipelineOpen,setPipelineOpen] = useState(false);
   const pipelineToggle = useRef<HTMLButtonElement>(null);
   const sidebarToggle = useRef<HTMLButtonElement>(null);
@@ -80,6 +82,7 @@ export function App() {
     const client = connect(role, message => {
       radio.current?.handle(message);
       if(message.type === "trace") setTraces(previous=>updateTraces(previous,message.trace));
+      if(message.type === "coach") setCoach(previous=>mergeCoach(previous,message));
       if (message.type === "session") {
         if (sessionCode.current && sessionCode.current !== message.code) {
           setTraces([]);
@@ -372,6 +375,7 @@ export function App() {
         </aside>}
         <section className="scope">
           <Radar state={state} data={data} activeSpeakers={speakers} selected={selected} onSelect={selectAircraft} />
+          {role === "radar" && <CoachCard coach={coach} />}
           {health && !health.simulation_ready && (
             <div className="waiting">
               <h1>Platform connected</h1>

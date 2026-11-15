@@ -79,6 +79,9 @@ export interface PipelineTrace {
   stages: TraceStage[]; total_ms: number; final: boolean;
 }
 export interface TraceMsg { type: "trace"; trace: PipelineTrace }
+// Phraseology coach (added 15 Nov, Sanju): rules first, then the same tx_id again with Claude's tip
+export interface CoachNote { level: "good" | "tip" | "fix"; text: string }
+export interface CoachMsg { type: "coach"; tx_id: string; callsign: string | null; score: number; notes: CoachNote[]; tip: string | null }
 
 export interface AudioStartMsg {
   type: "audio_start"; tx_id: string; callsign: string; format: "pcm_s16le" | "mp3"; sample_rate: number;
@@ -120,7 +123,7 @@ export interface SessionMsg {
 }
 
 export type ServerMsg = StateMsg | CaptionMsg | AudioStartMsg | AudioChunkMsg | AudioEndMsg
-  | EventMsg | ReportMsg | SessionMsg | TraceMsg;
+  | EventMsg | ReportMsg | SessionMsg | TraceMsg | CoachMsg;
 
 // ---- client -> server ----
 export type ControlAction = "new_session" | "pause" | "resume" | "set_speed" | "set_traffic"

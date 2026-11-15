@@ -1,0 +1,19 @@
+.coach-card { position: absolute; right: 12px; bottom: 44px; width: min(360px, calc(100% - 24px)); z-index: 5;
+  background: rgba(14, 20, 23, .94); border: 1px solid #3c515a; border-radius: 3px; padding: 8px 10px; color: #e8eef0;
+  font: 11px/1.45 system-ui, sans-serif; box-shadow: 0 6px 18px rgba(0, 0, 0, .35); }
+.coach-card header { display: flex; align-items: center; gap: 8px; }
+.coach-title { font: 9px var(--data-font, ui-monospace, monospace); letter-spacing: .08em; color: #a7bbc3; flex: 1; }
+.coach-score { font: 600 14px var(--data-font, ui-monospace, monospace); padding: 0 6px; border-radius: 2px; }
+.coach-good { color: #7cf0b4; } .coach-ok { color: #f2c200; } .coach-low { color: #ff5a52; }
+.coach-card header button { background: transparent; border: 0; color: #a7bbc3; font-size: 14px; cursor: pointer; padding: 0 2px; }
+.coach-card ul { margin: 6px 0 4px; padding: 0; list-style: none; display: grid; gap: 3px; }
+.coach-note { padding-left: 14px; position: relative; }
+.coach-note::before { position: absolute; left: 0; }
+.coach-note.coach-good::before { content: "✓"; color: #7cf0b4; }
+.coach-note.coach-tip::before { content: "•"; color: #f2c200; }
+.coach-note.coach-fix::before { content: "!"; color: #ff5a52; font-weight: 700; }
+.coach-tip { margin: 4px 0 0; padding-top: 5px; border-top: 1px solid #263840; color: #cfdbe0; }
+.coach-tip b { color: #4fd1e8; font-weight: 600; margin-right: 4px; }
+.coach-wait { color: #7c8b90; font-style: italic; }
+.coach-reopen { position: absolute; right: 12px; bottom: 44px; z-index: 5; background: #11181c; color: #a7bbc3;
+  border: 1px solid #3c515a; font: 10px var(--data-font, ui-monospace, monospace); padding: 3px 8px; cursor: pointer; }

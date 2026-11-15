@@ -450,6 +450,22 @@ class PipelineTrace(BaseModel):
     final: bool = False                        # provisional updates until audio ends
 
 
+class CoachNote(BaseModel):
+    level: Literal["good", "tip", "fix"]
+    text: str
+
+
+class CoachMsg(BaseModel):
+    """Phraseology feedback on one controller transmission (added 15 Nov by Sanju; additive).
+    Sent once from the rules (``tip`` empty), then again with the same tx_id when Claude's tip arrives."""
+    type: Literal["coach"] = "coach"
+    tx_id: str
+    callsign: Optional[str] = None
+    score: int = 100                           # 0-100
+    notes: list[CoachNote] = Field(default_factory=list)
+    tip: Optional[str] = None                  # one sentence from Claude Haiku, when available
+
+
 class TraceMsg(BaseModel):
     type: Literal["trace"] = "trace"
     trace: PipelineTrace
