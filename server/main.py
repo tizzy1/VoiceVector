@@ -38,7 +38,7 @@ def create_app(factories: dict | None = None, runs_dir: Path | None = None) -> F
         await app.state.session.stop()
         await app.state.hub.close()
 
-    app = FastAPI(title="SweatboxAI", lifespan=lifespan)
+    app = FastAPI(title="VoiceVector", lifespan=lifespan)
 
     @app.get("/api/health")
     async def health():

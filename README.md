@@ -1,6 +1,6 @@
 Imperial AI Hackathon 2026
 
-# SweatboxAI
+# VoiceVector
 
 Gatwick air traffic control training with AI pilots. The server, controller radar
 and second screen share one session and the interfaces in

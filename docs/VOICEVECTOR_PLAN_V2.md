@@ -1,8 +1,8 @@
-# SweatboxAI — Plan v2 (Track 2: Voice, Vision & Generative Media)
+# VoiceVector — Plan v2 (Track 2: Voice, Vision & Generative Media)
 
 > **One line:** A training simulator where trainee controllers talk to AI pilots on a shared frequency. The pilots read back, push back, step on each other, make mistakes on purpose, and fly the instructions on a real radar — with traffic generated continuously, arrivals and departures, at whatever intensity the mentor sets.
 
-Supersedes `SWEATBOX_PLAN.md`. Written Sat 14 Nov 2026, 11:30.
+Supersedes `VOICEVECTOR_PLAN.md`. Written Sat 14 Nov 2026, 11:30.
 
 ---
 

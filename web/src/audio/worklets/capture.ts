@@ -3,11 +3,11 @@
 // bundler configuration. The processor batches 128-sample render quanta into ~21 ms blocks of
 // mono float32 and posts them to the main thread, where they are resampled to 16 kHz PCM16.
 
-export const CAPTURE_PROCESSOR_NAME = "sweatbox-capture";
+export const CAPTURE_PROCESSOR_NAME = "voicevector-capture";
 export const CAPTURE_BLOCK = 1024;
 
 export const CAPTURE_WORKLET_SOURCE = `
-class SweatboxCapture extends AudioWorkletProcessor {
+class VoiceVectorCapture extends AudioWorkletProcessor {
   constructor() {
     super();
     this.buffer = new Float32Array(${CAPTURE_BLOCK});
@@ -30,5 +30,5 @@ class SweatboxCapture extends AudioWorkletProcessor {
     return true;
   }
 }
-registerProcessor("${CAPTURE_PROCESSOR_NAME}", SweatboxCapture);
+registerProcessor("${CAPTURE_PROCESSOR_NAME}", VoiceVectorCapture);
 `;

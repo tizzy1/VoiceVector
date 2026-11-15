@@ -37,6 +37,9 @@ VOICES_JSON = ROOT / "data" / "voices.json"
 # measured 14 Nov: eleven_ttv_v3 designs 3 previews in ~8 s; eleven_multilingual_ttv_v2 hung past 240 s
 DESIGN_MODEL = "eleven_ttv_v3"
 DESIGN_ATTEMPTS = 2
+# The designed voices are saved in the ElevenLabs account under their original "Sweatbox …"
+# names (project since renamed VoiceVector). Renaming the prefix would stop us finding them
+# and re-design all 14, so the account names and data/voices.json keep the old prefix.
 NAME_PREFIX = "Sweatbox"
 
 DELIVERY = ("An experienced airline pilot talking to air traffic control on a busy approach frequency: "

@@ -1,6 +1,6 @@
 # Git & collaboration rules — Bhavin's agent
 
-You are building **Bhavin's part** of SweatboxAI (server shell, WebSocket hub, both front-end apps, design, controls, demo, report UI, submission). Bhavin is also the **repo owner and merge owner** for the shared files. Three people and three AI agents work in one repo at the same time. These rules keep us from overwriting each other. Follow them exactly.
+You are building **Bhavin's part** of VoiceVector (server shell, WebSocket hub, both front-end apps, design, controls, demo, report UI, submission). Bhavin is also the **repo owner and merge owner** for the shared files. Three people and three AI agents work in one repo at the same time. These rules keep us from overwriting each other. Follow them exactly.
 
 ## 1. What you may edit
 ```

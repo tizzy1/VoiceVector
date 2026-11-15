@@ -1,4 +1,4 @@
-"""Build data/egkk.json (v2): full Gatwick airspace pack for SweatboxAI.
+"""Build data/egkk.json (v2): full Gatwick airspace pack for VoiceVector.
 
 Usage: python -I build_airspace.py <UK-Sector-File> <ourairports-data> <existing egkk.json> <out.json>
 Adds: SIDs/STARs for 26L + 08R (RNAV and conventional), all referenced fixes,

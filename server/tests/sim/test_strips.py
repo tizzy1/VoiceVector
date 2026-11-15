@@ -71,3 +71,31 @@ def test_autofill_can_be_turned_off(world, bus):
     world.strip_autofill = False
     say(bus, world, "BAW117", Instruction(type="heading", value=100))
     assert "ahdg" not in world.strip("BAW117")
+
+
+def test_public_state_carries_flight_plan_strip_and_distance(world, bus):
+    from server.contracts import StateMsg
+    world.edit_strip("BAW117", "cfl", "A40")
+    state = world.public_state()
+    StateMsg.model_validate(state.model_dump())
+    baw = next(a for a in state.aircraft if a.callsign == "BAW117")
+    assert baw.flight_rules == "I" and baw.ades == "EGKK" and baw.adep and baw.rfl >= 70
+    assert baw.assigned_squawk and baw.selected_level == 8000 and baw.strip["cfl"] == 4000
+    assert baw.strip["sts"] == "VECT" and "_manual" not in baw.strip
+    assert 10 < baw.distance_to_touchdown_nm < 40
+    e = bus.of("strip_edit")[-1]
+    assert e.callsign == "BAW117" and e.data == {"field": "cfl", "by": "controller", "value": 4000}
+    uae = next(a for a in state.aircraft if a.callsign == "UAE15")   # on its STAR: route miles
+    assert uae.distance_to_touchdown_nm > baw.distance_to_touchdown_nm
+
+
+def test_distance_on_final_is_distance_along_the_localiser(bus, data_dir):
+    import math
+    from server.sim.world import World
+    from server.tests.sim.test_sim_behaviour import empty, on_final, place
+    w = empty(World(bus, data_dir))
+    x, y = on_final(w, 7.0)
+    ac = place(w, "FIN1", x=x, y=y, alt=2400, ias=170)
+    ac.lat_mode, ac.established = "LOC", True
+    pub = w.public_state().aircraft[0]
+    assert math.isclose(pub.distance_to_touchdown_nm, 7.0, abs_tol=0.1)

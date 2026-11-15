@@ -1,7 +1,7 @@
-# SweatboxAI — Simulation Spec (aircraft, rules, airspace, radar, integration)
+# VoiceVector — Simulation Spec (aircraft, rules, airspace, radar, integration)
 
 > Deterministic simulator for the Gatwick Director position. Realistic *enough*, never the focus — the voice agent is.
-> Companion to `SWEATBOX_PLAN_V2.md` and `VOICE_PIPELINE.md`. Ground movement out of scope.
+> Companion to `VOICEVECTOR_PLAN_V2.md` and `VOICE_PIPELINE.md`. Ground movement out of scope.
 > Values marked **⚠ VERIFY** are defaults that Tudor must check before the demo.
 
 ---

@@ -65,7 +65,7 @@ def main() -> None:
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
-    with tempfile.TemporaryDirectory(prefix="sweatbox-smoke-") as directory:
+    with tempfile.TemporaryDirectory(prefix="voicevector-smoke-") as directory:
         if args.real:
             setup = "from server.main import app"
         else:

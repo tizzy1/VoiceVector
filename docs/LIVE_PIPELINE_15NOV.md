@@ -110,3 +110,16 @@ with `--no-verify` on Sanju's decision. The branch is pushed, not merged.
 **Seen in the live run (not changed here).** fal Chatterbox is slow: 9.7 s in one run, over its 10 s limit
 in the other. The fallback works and the page makes it visible. If the demo uses a mayday, consider
 triggering one early so fal is warm.
+
+## Merge of `main` (15 Nov, after Tudor's rename)
+
+`main` (4 new commits, including the SweatboxAI → VoiceVector rename) was merged into this branch:
+- `server/sim/evaluate.py`: only a stale comment conflicted. `main`'s version was taken for that hunk. Our
+  approach-speed rule (160–200 kt below 5,000 ft) stays.
+- `server/sim/world.py`: Tudor's `main` publishes the same flight-plan fields as PR #1. His version of
+  those lines and his `_track_distance` were kept (it also handles the hold), and ours was removed.
+- `web/src/app/App.tsx`: VoiceVector logo from `main`; our pop-out and **Pipeline ↗** links kept.
+- New text from our branches renamed too: the pipeline page header, tab title and lane label.
+
+After the merge: 1,143 Python tests and 104 web tests pass (`node --test` over `web/tests` and
+`web/src/**/tests`), plus the smoke test and the build.

@@ -134,7 +134,7 @@ export function ReportDialog({ report, open, onClose, onDownload, href }: Props 
 export function ReportPage({ report, connectionStatus, onDownload }: {
   report: Report | null; connectionStatus: string; onDownload: () => void;
 }) {
-  return <div className="report-page"><header><strong>SWEATBOX<span>AI</span></strong>
+  return <div className="report-page"><header><strong>VOICE<span>VECTOR</span></strong>
     <nav aria-label="Views"><a href="/">Radar</a><a href="/viz">Second screen</a></nav>
     <span className="muted">{connectionStatus}</span></header>
     {report ? <ReportView report={report} onDownload={onDownload} /> : <section className="report-empty">

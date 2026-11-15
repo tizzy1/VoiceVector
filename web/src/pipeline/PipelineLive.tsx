@@ -25,7 +25,7 @@ export function PipelineLive() {
   const code = useRef<string | null>(null);
 
   useEffect(() => {
-    document.title = "SweatboxAI · Live pipeline";
+    document.title = "VoiceVector · Live pipeline";
     const client = connect("viz", msg => {
       if (msg.type === "session") {
         if (code.current && code.current !== msg.code) dispatch({ reset: true });
@@ -57,7 +57,7 @@ export function PipelineLive() {
   return (
     <div className={`pl-shell${mayday ? " pl-mayday-on" : ""}`}>
       <header className="pl-head">
-        <div className="pl-brand"><strong>SWEATBOX<span>AI</span></strong><small>LIVE PIPELINE</small></div>
+        <div className="pl-brand"><strong>VOICE<span>VECTOR</span></strong><small>LIVE PIPELINE</small></div>
         <div className={`pl-ptt${micLive ? " live" : ""}`} aria-live="polite">
           <i />{micLive ? `TRANSMITTING · ${fmtMs(now - s.nodes.mic.startedAt)}` : "Waiting for push-to-talk"}
         </div>

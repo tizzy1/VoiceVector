@@ -102,7 +102,7 @@ def test_check_page_covers_every_letter_navaid_fix_and_point(composer):
     assert "Leema" in lima["text"] and lima["live"]
     for i in todo:
         i["file"] = "x.wav"
-    html = page(todo, "Sweatbox test", radio=False)
+    html = page(todo, "VoiceVector test", radio=False)
     assert html.count("<audio") == len(todo) and "Export" in html
 
 

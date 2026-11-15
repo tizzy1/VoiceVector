@@ -5,7 +5,7 @@ import type { ActivityMsg, ActivityNode, ServerMsg } from "../protocol";
 export type Lane = "browser" | "server" | "ai" | "sim";
 export const LANES: { id: Lane; label: string }[] = [
   { id: "browser", label: "Controller's browser" },
-  { id: "server", label: "Sweatbox server · Python" },
+  { id: "server", label: "VoiceVector server · Python" },
   { id: "ai", label: "AI services (APIs)" },
   { id: "sim", label: "Flight simulator" },
 ];

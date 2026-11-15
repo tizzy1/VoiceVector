@@ -1,6 +1,6 @@
 # Git & collaboration rules — Tudor's agent
 
-You are building **Tudor's part** of SweatboxAI (simulation, pilot logic, rules, data). Three people and three AI agents work in one repo at the same time. These rules keep us from overwriting each other. Follow them exactly.
+You are building **Tudor's part** of VoiceVector (simulation, pilot logic, rules, data). Three people and three AI agents work in one repo at the same time. These rules keep us from overwriting each other. Follow them exactly.
 
 ## 1. What you may edit
 ```
@@ -22,7 +22,7 @@ server/tests/voice/golden_parse.jsonl   (the parser golden set — you write it,
 
 ## 2. One-time setup
 ```sh
-git clone <repo-url> && cd sweatbox-ai
+git clone <repo-url> voicevector && cd voicevector
 sh tools/git/install-hook.sh tudor      # blocks commits outside your area
 cp .env.example .env                    # keys from Tudor
 python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt

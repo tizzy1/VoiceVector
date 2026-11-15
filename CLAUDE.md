@@ -1,4 +1,4 @@
-# SweatboxAI — shared agent context
+# VoiceVector — shared agent context
 
 ATC training simulator for the Imperial AI Hackathon (Track 2: Voice, Vision & Generative Media;
 sub-bounties ElevenLabs + fal). A trainee controller speaks on push-to-talk; AI pilots read back in

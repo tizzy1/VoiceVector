@@ -1,9 +1,9 @@
-# SweatboxAI — Voice & Pilot Pipeline Spec
+# VoiceVector — Voice & Pilot Pipeline Spec
 
 > Controller speaks (PTT) → transcript → parsed clearance → right pilot → error policy → sim + varied spoken readback → corrections handled.
 > Goal: **sub-second machine latency**, with realism delay layered on top. Every number here is an estimate from vendor figures — **measure and display the real ones**.
 
-Companion to `SWEATBOX_PLAN_V2.md`. Owners: **B** (voice, parser, TTS), **Tudor** (pilot logic, errors, sim hooks, phraseology sign-off).
+Companion to `VOICEVECTOR_PLAN_V2.md`. Owners: **B** (voice, parser, TTS), **Tudor** (pilot logic, errors, sim hooks, phraseology sign-off).
 
 ---
 

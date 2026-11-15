@@ -1,4 +1,4 @@
-"""Build data/egkk.json for SweatboxAI from the VATSIM UK sector file + OurAirports.
+"""Build data/egkk.json for VoiceVector from the VATSIM UK sector file + OurAirports.
 
 Usage: python build_egkk.py <UK-Sector-File dir> <ourairports-data dir> <out.json>
 """

@@ -305,7 +305,7 @@ export function App() {
     const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `sweatbox-${report.session_id.replace(/[^a-zA-Z0-9_-]/g, "_")}-report.json`;
+    link.download = `voicevector-${report.session_id.replace(/[^a-zA-Z0-9_-]/g, "_")}-report.json`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -353,12 +353,12 @@ export function App() {
     <div className={`shell ${role === "radar" ? "controller-shell" : "audience-shell"}${judge ? " judge-mode" : ""}`}
       >
       <header>
-        <div><strong>SWEATBOX<span>AI</span></strong><small>GATWICK DIRECTOR</small></div>
+        <div><strong>VOICE<span>VECTOR</span></strong><small>GATWICK DIRECTOR</small></div>
         <nav aria-label="Views"><a href="/">Radar</a>
           <a href={vizHref(session?.code)} onClick={event => {
             // 15 Nov (Sanju for Bhavin): the second screen opens in its own window (drag it to the projector)
-            if (window.open(vizHref(session?.code), "sweatbox-second-screen", "popup,width=1280,height=800")) event.preventDefault();
-          }}>Second screen ↗</a><a href={pipelineHref(session?.code)} target="sweatbox-pipeline">Pipeline ↗</a><a href={reportHref}>Report</a></nav>
+            if (window.open(vizHref(session?.code), "voicevector-second-screen", "popup,width=1280,height=800")) event.preventDefault();
+          }}>Second screen ↗</a><a href={pipelineHref(session?.code)} target="voicevector-pipeline">Pipeline ↗</a><a href={reportHref}>Report</a></nav>
         <div className="connection"><i className={connected ? "online" : ""} />{status}</div>
       </header>
       <div className="session-bar">

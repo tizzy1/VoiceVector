@@ -1,4 +1,4 @@
-// SweatboxAI WebSocket protocol — mirror of server/contracts.py (client-facing parts).
+// VoiceVector WebSocket protocol — mirror of server/contracts.py (client-facing parts).
 // Change ONLY together with server/contracts.py, in the same commit. File owner: Bhavin.
 
 export type Wake = "H" | "M" | "L";
