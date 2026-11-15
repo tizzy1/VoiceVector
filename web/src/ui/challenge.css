@@ -15,7 +15,7 @@
 .challenge-name input { flex: 1; min-width: 0; background: #0b1013; color: #e8eef0; border: 1px solid #3c515a; padding: 3px 5px; }
 .challenge-name button { background: #f2c200; color: #0e1417; border: 0; padding: 3px 10px; font-weight: 600; cursor: pointer; }
 .challenge-name button:disabled { opacity: .5; cursor: default; }
-.challenge-board { position: fixed; right: 18px; top: 70px; width: min(380px, calc(100vw - 36px)); z-index: 30;
+.challenge-board { position: fixed; right: 18px; top: 112px; width: min(380px, calc(100vw - 36px)); z-index: 30;
   background: rgba(10, 14, 16, .92); border: 1px solid #f2c200; border-radius: 4px; padding: 12px 14px; color: #e8eef0;
   font: 14px/1.4 system-ui, sans-serif; }
 .challenge-board header b { font: 600 20px var(--data-font, ui-monospace, monospace); color: #f2c200; }

@@ -20,7 +20,9 @@ from server.contracts import ChallengeEntry, ChallengeMsg, Event
 logger = logging.getLogger(__name__)
 
 TARGET_CALLSIGN = "BAW117"
-FAST_S, SLOW_S = 360.0, 1200.0          # full time points within 6 min, 10 of 40 at 20 min
+# A clean run from TIMBA (base leg, intercept beyond 9 NM) lands in ~11 sim minutes (live check:
+# 675 s), so full time points up to 9 min is reachable only with tight vectors; 10 of 40 at 25 min.
+FAST_S, SLOW_S = 540.0, 1500.0
 TIME_POINTS, PHRASE_POINTS, SAFETY_POINTS = 40, 40, 20
 DEFAULT_PHRASE = 75.0                   # no coached calls yet (typed-only before the coach lands)
 TOP_N = 10

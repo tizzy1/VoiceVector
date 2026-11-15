@@ -33,7 +33,7 @@ def test_clock_runs_from_first_call_to_landing_and_records_the_entry(tmp_path):
     c.tick(400)                                   # clock stops at touchdown
     m = c.message()
     assert m.status == "landed" and m.elapsed_s == 300 and m.calls == 2
-    assert m.score == round(40 + 40 * 0.80 + 20) and m.rank == 1
+    assert m.score == round(40 + 40 * 0.80 + 20) and m.rank == 1        # 300 s: inside the 9-min full-points window
     saved = json.loads((tmp_path / "lb.json").read_text())
     assert saved[0]["score"] == m.score and saved[0]["time_s"] == 300
 
@@ -51,7 +51,7 @@ def test_go_arounds_alerts_and_errors_change_the_score(tmp_path):
 
 
 def test_time_points_shape():
-    assert time_points(200) == 40 and time_points(1200) == 10 and 10 < time_points(780) < 40
+    assert time_points(500) == 40 and time_points(1500) == 10 and 10 < time_points(675) < 40
 
 
 def test_leaderboard_keeps_top_ten_survives_restart_and_takes_a_name(tmp_path):
@@ -102,7 +102,7 @@ def test_a_real_judge_run_scores_on_landing(tmp_path):
         if c.status == "landed":
             break
     m = c.message()
-    assert m.status == "landed" and 200 < m.elapsed_s < 1200 and m.score and m.rank == 1
+    assert m.status == "landed" and 200 < m.elapsed_s < 1500 and m.score and m.rank == 1
 
 
 @pytest.mark.asyncio

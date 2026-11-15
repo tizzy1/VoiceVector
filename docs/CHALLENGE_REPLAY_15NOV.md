@@ -17,7 +17,8 @@ this PR then shows only its own commits.
 - **Clock:** starts at the judge's first transmission and stops at touchdown, in simulator seconds.
   At 2× sim speed, real time is half.
 - **Score (0–100):**
-  - time: 40 points, full within 6 minutes, falling linearly to 10 at 20 minutes;
+  - time: 40 points, full within 9 minutes, falling linearly to 10 at 25 minutes (a clean run from
+    TIMBA takes about 11 sim minutes; the live check landed in 675 s);
   - phraseology: 40 × the coach's average score (75 % assumed until the first coached call);
   - safety: 20 points, minus 10 per go-around and minus 5 per STCA alert;
   - plus 5 for each pilot readback error caught, minus 5 for each missed.
@@ -62,4 +63,8 @@ made with `--no-verify` on Sanju's decision, and the branch is pushed, not merge
   persistence + names, a real simulator run that lands and scores, and the session control path.
 - `server/tests/voice/test_replay.py` (3): only spoken errors kept, radio WAV, oldest dropped, the
   pipeline captures the audio, the route serves WAV / 404.
-- Live: a scripted judge run against the real server and voice pipeline (see the PR for the result).
+- Live (real server, ElevenLabs, Claude, 2× sim speed): two calls ("turn left heading 360, descend
+  altitude 3000 feet, QNH 1013", then "turn left heading 290, cleared ILS approach runway 26 left" at
+  5 NM from the centreline). Both coached 100 with Claude tips; landed after 675 sim s with no go-around;
+  score 89 with the first time scale; name "Rehearsal" saved; the projector leaderboard showed it.
+  The time scale was then recalibrated (9 / 25 min) and the rehearsal entry deleted.
