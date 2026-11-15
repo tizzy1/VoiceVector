@@ -151,7 +151,14 @@ function MissedReplay({ report, errorId }: { report: Report; errorId: unknown })
   if (typeof errorId !== "string") return null;
   const error = report.errors.find(e => e.id === errorId);
   if (!error || error.mode === "execution_only") return null;
-  const fmt = (v: unknown) => typeof v === "number" ? Math.round(v).toLocaleString("en-GB") : String(v);
+  const fmt = (v: unknown): string => {
+    if (v && typeof v === "object") {                      // {value: 240, turn_dir: "L"} etc.
+      const o = v as Record<string, unknown>;
+      return [fmt(o.value ?? o.fix ?? o.runway ?? o.frequency ?? ""), typeof o.turn_dir === "string" ? o.turn_dir : ""]
+        .filter(Boolean).join(" ");
+    }
+    return typeof v === "number" ? Math.round(v).toLocaleString("en-GB") : String(v ?? "");
+  };
   return <div className="report-replay">
     <p><b>Hear what the pilot said</b> · read back {fmt(error.readback_value)}, you cleared {fmt(error.intended)}</p>
     <audio controls preload="none" src={`/api/replay/${encodeURIComponent(errorId)}`}>Audio not supported.</audio>
