@@ -30,6 +30,7 @@ from server.voice.stt_fallback import WizperSTT
 from server.voice.stt_scribe import STATIC_KEYTERMS, ScribeStream, STTError, build_keyterms
 from server.voice.tts import ElevenLabsTTS, TTSError
 from server.voice.pronounce import respell
+from server.voice import trace as T
 from server.voice.prosody import compensated_speed, restore_word_times, shape
 from server.voice.voices import Voices, settings_for, target_wps
 
@@ -51,6 +52,7 @@ class _Ptt:
     stepped_on: dict[str, str] = field(default_factory=dict)     # pilot tx_id -> callsign
     stt: Optional[ScribeStream] = None
     last_partial: float = 0.0
+    partials: int = 0                                         # all partials received (trace count)
     audio: bytearray = field(default_factory=bytearray)      # kept for the batch STT fallback
 
 
@@ -101,6 +103,8 @@ class VoicePipeline:
         self.reveal_errors = False
         self._ptt: Optional[_Ptt] = None
         self._tx_stamps: dict[str, Stamps] = {}
+        self._ctrl_traces: dict[str, list] = {}       # ctrl tx_id -> [Trace, replies claimed]
+        self._trace_dir = T.session_dir(bus)
         self._overlaps: dict[str, _OverlapGroup] = {}
         self._counter = 0
         subscribe = getattr(bus, "subscribe", None)
@@ -184,6 +188,10 @@ class VoicePipeline:
         await self._ptt_up()
 
     def _on_partial(self, ptt: _Ptt, text: str) -> None:
+        ptt.partials += 1
+        if "t_partial_first" not in ptt.stamps:
+            ptt.stamps.mark("t_partial_first")
+        ptt.stamps.mark("t_partial_last")
         now = time.monotonic()
         if now - ptt.last_partial < PARTIAL_INTERVAL_S:
             return
@@ -211,10 +219,12 @@ class VoicePipeline:
             return
         if ptt.stt is None and self.stt_fallback is None:
             await self._notice("Voice input unavailable. Use the typed input.", ptt.tx_id)
+            await self._ctrl_trace_failed(ptt, "no speech-to-text")
             return
         if len(ptt.audio) / 32000 < MIN_TRANSMISSION_S:
             if ptt.stt is not None:
                 await ptt.stt.cancel()
+            await self._ctrl_trace_failed(ptt, "too short", status="skipped")
             return
         text: Optional[str] = None
         if ptt.stt is not None:
@@ -231,12 +241,42 @@ class VoicePipeline:
                 logger.warning("backup speech-to-text failed: %s", error)
         if text is None:
             await self._notice("Could not hear that. Try again or use the typed input.", ptt.tx_id)
+            await self._ctrl_trace_failed(ptt, "no transcript")
             return
         ptt.stamps.mark("t_final")
+        ptt.stamps["partials"] = float(ptt.partials)
         if not text.strip():
             await self._notice("Nothing heard. Try again.", ptt.tx_id)
+            await self._ctrl_trace_failed(ptt, "empty transcript", status="skipped")
             return
         await self._process_text(text, "voice", ptt.tx_id, ptt.stamps)
+
+    def _capture_stages(self, trace: "T.Trace", stamps: Stamps, typed: bool) -> None:
+        """speech, stt_partials, stt_final: shared by normal, failed and blocked transmissions."""
+        down, up = stamps.get("t_ptt_down"), stamps.get("t_ptt_up")
+        if typed:
+            trace.add("speech", up, up, "skipped", duration_ms=0, provider="typed")
+            trace.add("stt_final", up, stamps.get("t_final", up), "skipped", provider="typed")
+            return
+        if down is not None and up is not None:
+            trace.add("speech", down, up, duration_ms=round((up - down) * 1000, 1))
+        if "t_partial_first" in stamps:
+            trace.add("stt_partials", stamps["t_partial_first"], stamps["t_partial_last"],
+                      count=int(stamps.get("partials", 0)))
+        if "t_final" in stamps:
+            fallback = "stt_fallback" in stamps
+            trace.add("stt_final", up, stamps["t_final"], "fallback" if fallback else "ok",
+                      provider="fal_wizper" if fallback else "scribe")
+
+    async def _ctrl_trace_failed(self, ptt: _Ptt, reason: str, status: str = "error") -> None:
+        try:
+            up = ptt.stamps.get("t_ptt_up", time.perf_counter())
+            trace = T.Trace(ptt.tx_id, "CTRL", up)
+            self._capture_stages(trace, ptt.stamps, typed=False)
+            trace.add("stt_final", up, time.perf_counter(), status, provider="scribe", reason=reason)
+            await T.send(self.hub, trace, True, self._trace_dir)
+        except Exception:                                            # noqa: BLE001  (fail open)
+            logger.exception("trace failed")
 
     async def _blocked(self, ptt: _Ptt) -> None:
         """Controller keyed over a pilot: the instruction is not delivered; the pilot re-calls."""
@@ -245,6 +285,16 @@ class VoicePipeline:
         self._emit("ctrl_blocked", "CONTROLLER", tx_id=ptt.tx_id,
                    callsigns=sorted(set(ptt.stepped_on.values())))
         await self._notice("Transmission blocked: the frequency was in use.", ptt.tx_id)
+        try:
+            up = ptt.stamps.get("t_ptt_up", time.perf_counter())
+            trace = T.Trace(ptt.tx_id, "CTRL", up, sorted(set(ptt.stepped_on.values()))[0])
+            self._capture_stages(trace, ptt.stamps, typed=False)
+            trace.add("stt_final", up, up, "skipped", provider="scribe", reason="blocked")
+            trace.add("blocked", up, time.perf_counter(), "error",
+                      callsigns=sorted(set(ptt.stepped_on.values())))
+            await T.send(self.hub, trace, True, self._trace_dir)
+        except Exception:                                            # noqa: BLE001
+            logger.exception("trace failed")
         for tx_id, callsign in ptt.stepped_on.items():
             try:
                 resp = self.pilot.on_blocked(callsign, tx_id)
@@ -266,9 +316,11 @@ class VoicePipeline:
             for stage in ("t_ptt_down", "t_ptt_up", "t_final"):
                 stamps.mark(stage)
         callsigns = self.world.callsigns()
+        stamps.mark("t_parse0")
         tx = parse(text, callsigns=callsigns, fixes=set(self.world.fixes()), source=source,
                    tx_id=tx_id, t=float(self.world.t))
         stamps.mark("t_parsed")
+        regex_timings, regex_done = dict(tx.timings), stamps["t_parsed"]
         parse_s = stamps.span("t_final", "t_parsed")
         self._tx_stamps[tx_id] = stamps
         while len(self._tx_stamps) > 64:
@@ -281,7 +333,9 @@ class VoicePipeline:
 
         latency = {"parse_s": round(parse_s or 0.0, 4)}
         await self.hub.send(caption(tx, latency))        # the fast regex result is shown immediately
-        if llm_fallback.needs_fallback(tx):
+        llm_used = llm_fallback.needs_fallback(tx)
+        if llm_used:
+            stamps.mark("t_llm0")
             refined = await llm_fallback.refine(tx, callsigns, set(self.world.fixes()), default_runways(),
                                                 client=self.llm_client)
             stamps.mark("t_parsed")                       # the decision is final only now
@@ -290,14 +344,72 @@ class VoicePipeline:
                 await self.hub.send(caption(refined, latency))   # same tx_id: the UI replaces the caption
             tx = refined
         tx.timings = {**tx.timings, **stamps}
+        stamps.mark("t_eval0")
         evals = self.world.evaluate(tx)
+        stamps.mark("t_eval1")
         self._emit("ctrl_transmission", "CONTROLLER", tx.receiver, tx_id,
                    tx=tx.model_dump(mode="json"), evals=[e.model_dump(mode="json") for e in evals])
-        for resp in self.pilot.handle_transmission(tx, evals):
+        stamps.mark("t_pd0")
+        responses = self.pilot.handle_transmission(tx, evals)
+        stamps.mark("t_pd1")
+        trace = self._ctrl_trace(tx_id, source, stamps, regex_timings, regex_done, llm_used, tx, evals, responses)
+        speaking = [r for r in responses if r.kind != "silence" and r.callsign and r.plan is not None]
+        if trace is not None:
+            if speaking:
+                self._ctrl_traces[tx_id] = [trace, 0]
+                while len(self._ctrl_traces) > 64:
+                    self._ctrl_traces.pop(next(iter(self._ctrl_traces)))
+            else:                                         # nobody answers: the trace ends here
+                trace.total_ms = (stamps["t_pd1"] - trace.anchor) * 1000
+                await T.send(self.hub, trace, True, self._trace_dir)
+        for resp in responses:
             if resp.in_reply_to is None:
                 resp.in_reply_to = tx_id
             self.hub.spawn(self.speak(resp))
         return tx
+
+    def _ctrl_trace(self, tx_id, source, stamps, rt, regex_done, llm_used, tx, evals, responses):
+        """Controller-side stages: capture, STT, language, sim check, pilot decision. Never raises."""
+        try:
+            trace = T.Trace(tx_id, "CTRL", stamps["t_ptt_up"])
+            self._capture_stages(trace, stamps, typed=source == "typed")
+            p0 = stamps["t_parse0"]
+            n1 = p0 + rt.get("normalise_s", 0.0)
+            c1 = n1 + rt.get("callsign_s", 0.0)
+            trace.add("normalise", p0, n1, tokens=int(rt.get("tokens", 0)))
+            trace.add("parse", c1, regex_done, path=tx.parse_path, clauses=int(rt.get("clauses", 0)),
+                      unparsed="unparsed_clause" in tx.ambiguities)
+            if llm_used:
+                trace.add("llm_fallback", stamps["t_llm0"], stamps["t_parsed"],
+                          "ok" if tx.parse_path != "regex" else "fallback",
+                          model=llm_fallback_model(), ttft_ms=None, streaming=False,
+                          response_ms=round((stamps["t_parsed"] - stamps["t_llm0"]) * 1000, 1))
+            trace.add("callsign_match", n1, c1, callsign=tx.receiver, score=rt.get("callsign_score"))
+            trace.add("evaluate", stamps["t_eval0"], stamps["t_eval1"], statuses=[e.status for e in evals])
+            detail = {"kind": [r.kind for r in responses] if len(responses) != 1 else responses[0].kind,
+                      "error_policy": "evaluated"}
+            if self.reveal_errors:                         # never reveal a planned error otherwise
+                planned = [rec.kind for r in responses for rec in r.errors]
+                if planned:
+                    detail["planned_error_kind"] = planned[0] if len(planned) == 1 else planned
+            trace.add("pilot_decision", stamps["t_pd0"], stamps["t_pd1"], **detail)
+            return trace
+        except Exception:                                  # noqa: BLE001  (fail open)
+            logger.exception("controller trace failed")
+            return None
+
+    def _pilot_trace(self, resp: PilotResponse, tx_id: str, stamps: Stamps) -> "Optional[T.Trace]":
+        try:
+            entry = self._ctrl_traces.get(resp.in_reply_to or "")
+            if entry is None:                              # pilot-initiated: anchor = compose start
+                return T.Trace(tx_id, resp.callsign or "", stamps["t_plan"], resp.callsign)
+            base, claimed = entry
+            entry[1] += 1
+            ident = base.tx_id if claimed == 0 else f"{base.tx_id}:{resp.callsign}"
+            return base.copy_for(ident, resp.callsign)
+        except Exception:                                  # noqa: BLE001
+            logger.exception("pilot trace failed")
+            return None
 
     # ------------------------------------------------------------------- speak
     @staticmethod
@@ -364,10 +476,30 @@ class VoicePipeline:
     async def speak(self, resp: PilotResponse) -> None:
         if resp.kind == "silence" or not resp.callsign or resp.plan is None:
             return
-        cs = resp.callsign
         stamps = Stamps()
         stamps.mark("t_plan")
+        tx_id = self._new_id("p")
+        trace = self._pilot_trace(resp, tx_id, stamps)
+        try:
+            await self._speak(resp, tx_id, stamps, trace)
+        finally:                                           # exactly one final trace, whatever happened
+            if trace is not None and not trace.sent_final:
+                await T.send(self.hub, trace, True, self._trace_dir)
+
+    async def _speak(self, resp: PilotResponse, tx_id: str, stamps: Stamps, trace) -> None:
+        cs = resp.callsign
         readback = self.composer.compose(resp.plan)
+        stamps.mark("t_composed")
+        if trace is not None:
+            st = getattr(self.composer, "last_stats", None) or {}
+            built = stamps["t_plan"] + float(st.get("build_s", 0.0))
+            trace.add("compose", stamps["t_plan"], min(built, stamps["t_composed"]),
+                      variant_ids=list(readback.variant_ids), persona=resp.plan.persona)
+            trace.add("validate", min(built, stamps["t_composed"]), stamps["t_composed"],
+                      "fallback" if readback.fallback_used else ("ok" if readback.validated else "error"),
+                      attempts=int(st.get("attempts", 0)), fallback=bool(readback.fallback_used))
+            trace.total_ms = (stamps["t_composed"] - trace.anchor) * 1000
+            await T.send(self.hub, trace, False, self._trace_dir)          # provisional, after validate
         if not readback.tts_text:
             return
         parent = self._tx_stamps.get(resp.in_reply_to or "", Stamps())
@@ -403,7 +535,16 @@ class VoicePipeline:
         if isinstance(first, Exception):
             logger.warning("TTS unavailable for %s (%s); speaking by caption only", cs, first)
 
-        tx_id = self._new_id("p")
+        if trace is not None:
+            engine = meta.get("engine")
+            model = getattr(engine, "model", None) or (type(engine).__name__ if engine else None)
+            if "t_tts_first" in stamps:
+                trace.machine_ms = (stamps["t_tts_first"] - trace.anchor) * 1000
+                trace.add("tts_first_audio", stamps["t_tts_req"], stamps["t_tts_first"], model=model,
+                          voice=voice.name, machine_ms=round(trace.machine_ms, 1))
+            elif "t_tts_req" in stamps:
+                trace.add("tts_first_audio", stamps["t_tts_req"], time.perf_counter(), "error",
+                          model=model, voice=voice.name)
         on_air = False
         group = self._take_overlap(cs)
         try:
@@ -415,6 +556,12 @@ class VoicePipeline:
             on_air = True
             stamps.mark("t_release")
             started = stamps.mark("t_play")
+            if trace is not None:
+                hold_from = stamps.get("t_tts_first", stamps["t_composed"])
+                trace.add("reaction_hold", hold_from, stamps["t_release"],
+                          persona_delay_ms=round(resp.reaction_delay_s * 1000, 1))
+                trace.total_ms = (started - trace.anchor) * 1000             # = the "Response" chip
+                await T.send(self.hub, trace, False, self._trace_dir)      # updated at release
             self.world.set_transmitting(cs, True)
             if group is not None:
                 group.tx_ids.append(tx_id)
@@ -427,7 +574,7 @@ class VoicePipeline:
                     sample_rate=meta["engine"].sample_rate,
                     blocked=self.freq.is_blocked(tx_id), overlap_group=group.id if group else None,
                     emotion="stressed" if stressed else "normal"))
-            base = parent.get("t_final", stamps["t_plan"])      # stage stamps live in two dicts
+            base = parent.get("t_ptt_up", stamps["t_plan"])     # same anchor as the trace's machine_ms
             first_audio = (stamps["t_tts_first"] - base) if "t_tts_first" in stamps else 0.0
             perceived = started - parent.get("t_ptt_up", stamps["t_plan"])
             latency = {"parse_s": round(parent.span("t_final", "t_parsed") or 0.0, 4),
@@ -457,7 +604,7 @@ class VoicePipeline:
                                            words=self._word_times(readback, alignment, duration,
                                                                   meta.get("spoken_text"))))
             # The pilot stays on the air for the length of the speech (audio arrives faster than realtime).
-            await asyncio.sleep(max(0.0, started + duration - time.monotonic()))
+            await asyncio.sleep(max(0.0, started + duration - time.perf_counter()))
             stamps.mark("t_audio_end")
         finally:
             if on_air:
@@ -470,6 +617,18 @@ class VoicePipeline:
                 producer.cancel()
                 await asyncio.gather(producer, return_exceptions=True)
         self._finish_pilot(resp, tx_id, readback, stamps, parent, blocked, tts_ok)
+        if trace is not None and "t_audio_end" in stamps:
+            trace.add("playback", stamps["t_release"], stamps["t_audio_end"],
+                      "ok" if tts_ok else "fallback", **({} if tts_ok else {"audio": "caption only"}))
+            if resp.apply:
+                trace.add("apply_scheduled", stamps["t_audio_end"], stamps["t_apply"],
+                          apply_at_sim_s=round(stamps["apply_at_sim_s"], 2))
+            else:
+                trace.add("apply_scheduled", stamps["t_audio_end"], stamps["t_audio_end"], "skipped")
+            if blocked:
+                trace.add("blocked", stamps["t_release"], stamps["t_audio_end"], "error",
+                          reason="overlap" if group is not None else "stepped on")
+            await T.send(self.hub, trace, True, self._trace_dir)
         if group is not None:                                  # nobody heard either call: both re-call
             self._emit("pilot_blocked", "PILOT", cs, tx_id, overlap_group=group.id)
             try:
@@ -522,15 +681,19 @@ class VoicePipeline:
             self.pilot.on_readback_spoken(resp, t_end)
         if resp.apply:
             self.world.schedule_apply(cs, resp.apply, at=t_end + resp.apply_delay_s)
+            stamps.mark("t_apply")
+            stamps["apply_at_sim_s"] = t_end + resp.apply_delay_s
         timings = {**{k: v for k, v in parent.items() if k in ("t_ptt_down", "t_ptt_up", "t_final", "t_parsed")},
                    **stamps}
         self.metrics.record("machine_s", stamps.span("t_plan", "t_play"))
+        if "t_ptt_up" in parent and "t_tts_first" in stamps:
+            self.metrics.record("machine_ptt_s", stamps["t_tts_first"] - parent["t_ptt_up"])
         if "t_final" in parent and "t_play" in stamps:
             self.metrics.record("pipeline_s", stamps["t_play"] - parent["t_final"])
         if "t_ptt_up" in parent and "t_play" in stamps:
             self.metrics.record("perceived_s", stamps["t_play"] - parent["t_ptt_up"])
-        if "t_final" in parent and "t_tts_first" in stamps:
-            self.metrics.record("first_audio_s", stamps["t_tts_first"] - parent["t_final"])
+        if "t_tts_first" in stamps:          # same anchor as the caption chip and the trace's machine_ms
+            self.metrics.record("first_audio_s", stamps["t_tts_first"] - parent.get("t_ptt_up", stamps["t_plan"]))
         self._emit("pilot_transmission", "PILOT", cs, tx_id, text=readback.text, kind=resp.kind,
                    plan=resp.plan.model_dump(mode="json"), timings=timings, in_reply_to=resp.in_reply_to,
                    blocked=blocked, spoken_audio=spoke, fallback_used=readback.fallback_used,
@@ -541,3 +704,8 @@ class VoicePipeline:
             await self._ptt.stt.cancel()
         if self.tts is not None:
             await self.tts.aclose()
+
+
+def llm_fallback_model() -> str:
+    from server.agents import llm
+    return llm.FAST_MODEL

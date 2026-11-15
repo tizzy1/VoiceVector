@@ -1,6 +1,6 @@
 """Stage timestamps and rolling latency percentiles (VOICE_PIPELINE §4).
 
-Stamps are monotonic wall-clock seconds. ``t_play`` is the moment the pilot's audio is released
+Stamps are time.perf_counter() seconds (the pipeline-trace clock, VOICE_PIPELINE §20.1). ``t_play`` is the moment the pilot's audio is released
 to the browsers (``t_release`` is the same instant under its spec name).
 """
 from __future__ import annotations
@@ -24,10 +24,10 @@ def percentile(values: list[float], p: float) -> Optional[float]:
 
 
 class Stamps(dict):
-    """``stamps.mark("t_final")`` records ``time.monotonic()``; ``stamps.span(a, b)`` is b - a."""
+    """``stamps.mark("t_final")`` records ``time.perf_counter()``; ``stamps.span(a, b)`` is b - a."""
 
     def mark(self, stage: str, at: Optional[float] = None) -> float:
-        value = time.monotonic() if at is None else at
+        value = time.perf_counter() if at is None else at
         self[stage] = value
         return value
 

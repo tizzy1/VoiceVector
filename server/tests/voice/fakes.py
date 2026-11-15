@@ -218,6 +218,8 @@ class FakeTimedTTS(FakeTTS):
 
     async def stream_timed(self, text, voice_id, settings=None):
         self.requests.append((text, voice_id, settings or {}))
+        if self.delay:
+            await asyncio.sleep(self.delay)
         half = len(text) // 2
         pieces = [text[:half], text[half:]]
         offset = 0

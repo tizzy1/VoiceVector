@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import random
+import time
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -453,6 +454,16 @@ class Composer:
 
     # --------------------------------------------------------------- compose
     def _check(self, plan: ReadbackPlan, b: Built) -> list[str]:
+        started = time.perf_counter()
+        try:
+            return self._check_inner(plan, b)
+        finally:
+            stats = getattr(self, "last_stats", None)
+            if stats is not None:
+                stats["validate_s"] += time.perf_counter() - started
+                stats["attempts"] += 1
+
+    def _check_inner(self, plan: ReadbackPlan, b: Built) -> list[str]:
         problems = V.validate(plan.callsign, b.pieces, b.speech, self.tele_words, b.callsigns)
         if plan.kind in _ELEMENT_KINDS:
             if b.callsigns < 1:
@@ -463,6 +474,7 @@ class Composer:
         return problems
 
     def compose(self, plan: ReadbackPlan) -> Readback:
+        self.last_stats = {"build_s": 0.0, "validate_s": 0.0, "attempts": 0}   # for the pipeline trace
         if plan.kind == "silence":
             return Readback(text="", tts_text="", validated=True)
         if plan.kind == "repeat_last":
@@ -499,9 +511,15 @@ class Composer:
 
     def _candidate(self, plan: ReadbackPlan, rng: random.Random, canonical: bool,
                    skip_ids: Optional[set[str]] = None) -> Optional[Built]:
-        if plan.kind in _ELEMENT_KINDS:
-            return self._build_elements(plan, rng, canonical, skip_ids or set())
-        return self._build_reply(plan, rng, canonical)
+        started = time.perf_counter()
+        try:
+            if plan.kind in _ELEMENT_KINDS:
+                return self._build_elements(plan, rng, canonical, skip_ids or set())
+            return self._build_reply(plan, rng, canonical)
+        finally:
+            stats = getattr(self, "last_stats", None)
+            if stats is not None:
+                stats["build_s"] += time.perf_counter() - started
 
     def _finish(self, plan: ReadbackPlan, b: Built, fallback: bool, validated: bool) -> Readback:
         self.last_variant.update(b.chosen)

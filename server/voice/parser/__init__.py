@@ -38,6 +38,7 @@ def parse(text: str, callsigns: Optional[list[CallsignInfo]] = None,
     fixes = set(default_fixes()) if fixes is None else fixes
 
     tokens = normalise_tokens(text)
+    normalised = time.perf_counter()
     ambiguities: list[str] = []
     receiver, confidence, rest = None, 0.0, tokens
     if not ("all" in tokens and "stations" in tokens):
@@ -53,6 +54,7 @@ def parse(text: str, callsigns: Optional[list[CallsignInfo]] = None,
             if hit.ratio < RESOLVED:
                 ambiguities.append("callsign_low_conf")
 
+    matched = time.perf_counter()
     rest = join_spelled_points(rest, fixes)
     clauses = build_clauses(rest, fixes)
     instructions, corrections, unparsed = build_instructions(clauses, fixes)
@@ -71,5 +73,8 @@ def parse(text: str, callsigns: Optional[list[CallsignInfo]] = None,
         raw_text=text, norm_text=" ".join(tokens),
         source=source if source in ("voice", "typed") else "voice",
         ambiguities=ambiguities, parse_path="regex",
-        timings={"parse_s": time.perf_counter() - started},
+        # sub-steps for the pipeline trace (VOICE_PIPELINE §20.1): normalise, callsign match, grammar
+        timings={"parse_s": time.perf_counter() - started, "normalise_s": normalised - started,
+                 "callsign_s": matched - normalised, "tokens": float(len(tokens)),
+                 "clauses": float(len(clauses)), "callsign_score": round(confidence, 3)},
     )
