@@ -5,7 +5,7 @@
 // it drops. The heterodyne squeal (~1.1 kHz, AM ~7 Hz) is an oscillator summed into the same bus,
 // so a "stepped on" transmission is clipped together with it, exactly like a real over-modulated
 // radio.
-import { HETERODYNE, RADIO, hardClipCurve, heterodyneParams, noiseSamples, tanhCurve } from "./dsp.ts";
+import { HETERODYNE, RADIO, hardClipCurve, heterodyneParams, hissGain, noiseSamples, tanhCurve } from "./dsp.ts";
 
 export class RadioBus {
   /** Connect each stream's gain node here. */
@@ -62,11 +62,16 @@ export class RadioBus {
     const noise = ctx.createBufferSource();
     noise.buffer = this.noiseBuffer(1.0, 7);
     noise.loop = true;
-    const hissBand = ctx.createBiquadFilter();
-    hissBand.type = "bandpass";
-    hissBand.frequency.value = 1500;
-    noise.connect(hissBand);
-    hissBand.connect(this.hiss);
+    // broadband carrier noise in the VHF band (real recordings: noise spread over 0-4 kHz)
+    const hissHigh = ctx.createBiquadFilter();
+    hissHigh.type = "highpass";
+    hissHigh.frequency.value = RADIO.hissHighpassHz;
+    const hissLow = ctx.createBiquadFilter();
+    hissLow.type = "lowpass";
+    hissLow.frequency.value = RADIO.hissLowpassHz;
+    noise.connect(hissHigh);
+    hissHigh.connect(hissLow);
+    hissLow.connect(this.hiss);
     this.hiss.connect(this.master);
     noise.start();
 
@@ -109,7 +114,7 @@ export class RadioBus {
   /** A pilot carrier came up / dropped. The hiss follows the first/last one; the last adds a squelch tail. */
   acquire(): void {
     this.carriers += 1;
-    if (this.carriers === 1) this.ramp(this.hiss.gain, RADIO.hissLevel, 0.03);
+    if (this.carriers === 1) this.ramp(this.hiss.gain, hissGain(this.ctx.sampleRate), 0.03);
   }
 
   release(at: number = this.ctx.currentTime): void {

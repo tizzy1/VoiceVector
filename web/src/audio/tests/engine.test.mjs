@@ -1,6 +1,7 @@
 // Engine + mixer tests against a fake AudioContext (no browser needed).
 import assert from "node:assert/strict";
 import test from "node:test";
+import { hissGain } from "../dsp.ts";
 import { createAudioEngine } from "../index.ts";
 import { OverlapMixer } from "../mixer.ts";
 import { RadioBus } from "../radio.ts";
@@ -146,14 +147,18 @@ test("every stream goes through the shared radio chain; hiss follows the carrier
   engine.handleServerMsg(start("p1"));
   engine.handleServerMsg(chunk("p1", 0, pcmToBase64Chunks(synthSpeechLike(0.1, 22050, 1), 9000)[0]));
   engine.handleServerMsg(end("p1"));
-  const hiss = ctx.nodes.find((n) => n.kind === "gain" && n.gain.calls.some((c) => Math.abs(c[1] - 0.012) < 1e-9));
+  const target = hissGain(ctx.sampleRate);
+  const hiss = ctx.nodes.find((n) => n.kind === "gain" && n.gain.calls.some((c) => Math.abs(c[1] - target) < 1e-9));
   assert.ok(hiss, "hiss ramped up to the configured level");
+  const hissFilters = ctx.nodes.filter((n) => n.kind === "biquad" &&
+    ((n.type === "highpass" && n.frequency.value === 150) || (n.type === "lowpass" && n.frequency.value === 3500)));
+  assert.equal(hissFilters.length, 2, "broadband VHF hiss: 150 Hz - 3.5 kHz");
   await sleep(200);
   const bands = ctx.nodes.filter((n) => n.kind === "biquad" && n.type === "bandpass");
   assert.ok(bands.some((b) => b.frequency.value === 1800), "a ~150 ms band-passed squelch tail was played");
   assert.ok(ctx.sources.length > before);
-  const highpass = ctx.nodes.find((n) => n.kind === "biquad" && n.type === "highpass");
-  const lowpass = ctx.nodes.find((n) => n.kind === "biquad" && n.type === "lowpass");
+  const highpass = ctx.nodes.find((n) => n.kind === "biquad" && n.type === "highpass" && n.frequency.value !== 150);
+  const lowpass = ctx.nodes.find((n) => n.kind === "biquad" && n.type === "lowpass" && n.frequency.value !== 3500);
   assert.equal(highpass.frequency.value, 350);
   assert.equal(lowpass.frequency.value, 2600);
   const peaking = ctx.nodes.find((n) => n.kind === "biquad" && n.type === "peaking");

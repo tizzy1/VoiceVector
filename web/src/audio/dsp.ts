@@ -13,7 +13,12 @@ export const RADIO = {
   shelfHz: 2200, // high-shelf cut: real radios roll off early and gently
   shelfDb: -6,
   drive: 0.5, // waveshaper drive: light tanh saturation
-  hissLevel: 0.012, // faint noise floor under a transmission
+  // Carrier noise floor, broadband like real VHF (UWB-ATCC noise: 0-4 kHz, roughly flat). hissLevel
+  // is the RMS of the band-limited hiss: 0.017 puts it ~26 dB under speech, the noisier quarter of
+  // real pilot transmissions (median 31.6 dB, p25 26.6 dB). Was a narrow 1.5 kHz band at ~-48 dB.
+  hissLevel: 0.017,
+  hissHighpassHz: 150,
+  hissLowpassHz: 3500,
   squelchMs: 150, // band-passed noise burst when the carrier drops
   squelchLevel: 0.22,
   squelchBandHz: 1800,
@@ -28,6 +33,32 @@ export const HETERODYNE = {
   clipAt: 0.8,
   releaseMs: 350,
 };
+
+/** |H(f)|^2 of a Web Audio lowpass/highpass BiquadFilterNode (Audio EQ Cookbook, Q = 0 dB). */
+export function biquadPower(kind: "lowpass" | "highpass", f0: number, f: number, rate: number): number {
+  const w0 = (2 * Math.PI * f0) / rate, cos = Math.cos(w0), alpha = Math.sin(w0) / 2;
+  const b = kind === "lowpass" ? [(1 - cos) / 2, 1 - cos, (1 - cos) / 2] : [(1 + cos) / 2, -(1 + cos), (1 + cos) / 2];
+  const a = [1 + alpha, -2 * cos, 1 - alpha];
+  const w = (2 * Math.PI * f) / rate;
+  const mag2 = (c: number[]) => {
+    const re = c[0] + c[1] * Math.cos(w) + c[2] * Math.cos(2 * w);
+    const im = -(c[1] * Math.sin(w) + c[2] * Math.sin(2 * w));
+    return re * re + im * im;
+  };
+  return mag2(b) / mag2(a);
+}
+
+/** Gain for uniform white noise (+-1) through the hiss band so its RMS equals RADIO.hissLevel at any rate. */
+export function hissGain(rate: number, level: number = RADIO.hissLevel): number {
+  const n = 2048;
+  let power = 0;
+  for (let i = 0; i < n; i++) {
+    const f = ((i + 0.5) / n) * (rate / 2);
+    power += biquadPower("highpass", RADIO.hissHighpassHz, f, rate) * biquadPower("lowpass", RADIO.hissLowpassHz, f, rate);
+  }
+  const rms = Math.sqrt(1 / 3) * Math.sqrt(power / n);
+  return level / rms;
+}
 
 /** tanh waveshaper curve: output = tanh(drive * x) / tanh(drive), unity at +-1. */
 export function tanhCurve(samples: number = 1024, drive: number = RADIO.drive): Float32Array<ArrayBuffer> {

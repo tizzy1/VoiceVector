@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { CapturePipeline } from "../capture.ts";
-import { HETERODYNE, hardClipCurve, hashSeed, heterodyneParams, mulberry32, noiseSamples, tanhCurve } from "../dsp.ts";
+import { HETERODYNE, RADIO, hardClipCurve, hashSeed, heterodyneParams, hissGain, mulberry32, noiseSamples, tanhCurve } from "../dsp.ts";
 import { bytesToBase64, pcmToBase64Chunks, synthSpeechLike } from "../fixtures.ts";
 import { FRAME_SAMPLES, Framer, PcmAligner, Resampler, base64ToBytes, float32ToPcm16, int16ToBytes, pcm16ToFloat32, rms, smoothLevel } from "../pcm.ts";
 import { JITTER_BUFFER_S, StreamTimeline } from "../timeline.ts";
@@ -154,4 +154,26 @@ test("fixtures: synthetic voice is audible, bounded and deterministic; chunks re
   const chunks = pcmToBase64Chunks(pcm, 4096);
   const rebuilt = chunks.flatMap((c) => [...base64ToBytes(c)]);
   assert.deepEqual(rebuilt, [...new Uint8Array(int16ToBytes(pcm))]);
+});
+
+
+test("hiss through the VHF band comes out at RADIO.hissLevel RMS at any sample rate", () => {
+  // Simulate the browser's highpass -> lowpass biquads (Q = 0 dB) on the same white noise.
+  const biquad = (x, kind, f0, rate) => {
+    const w0 = (2 * Math.PI * f0) / rate, cos = Math.cos(w0), alpha = Math.sin(w0) / 2;
+    const b = kind === "lowpass" ? [(1 - cos) / 2, 1 - cos, (1 - cos) / 2] : [(1 + cos) / 2, -(1 + cos), (1 + cos) / 2];
+    const a = [1 + alpha, -2 * cos, 1 - alpha];
+    const y = new Float64Array(x.length);
+    for (let n = 0; n < x.length; n++) {
+      y[n] = (b[0] * x[n] + b[1] * (x[n - 1] ?? 0) + b[2] * (x[n - 2] ?? 0) - a[1] * (y[n - 1] ?? 0) - a[2] * (y[n - 2] ?? 0)) / a[0];
+    }
+    return y;
+  };
+  for (const rate of [22050, 44100, 48000]) {
+    const white = noiseSamples(rate * 4, 7);
+    const band = biquad(biquad(white, "highpass", RADIO.hissHighpassHz, rate), "lowpass", RADIO.hissLowpassHz, rate);
+    const level = Math.sqrt(band.reduce((s, v) => s + v * v, 0) / band.length) * hissGain(rate);
+    assert.ok(Math.abs(level / RADIO.hissLevel - 1) < 0.05, `${rate} Hz: ${level}`);
+  }
+  assert.ok(RADIO.hissLevel >= 0.015 && RADIO.hissLevel <= 0.02, "about 26 dB under speech");
 });

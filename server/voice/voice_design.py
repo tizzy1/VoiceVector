@@ -248,8 +248,8 @@ async def design_all(client: Any, specs: tuple[Spec, ...] = SPECS, path: Path = 
 # Mirror of web/src/audio/dsp.ts RADIO (a test keeps them in sync). Fitted to real VHF audio: UWB-ATCC
 # test split, 1220 pilot transmissions -> energy 300 Hz-1 kHz 67 %, 1-2 kHz 23 %, 2-3 kHz 5.5 %.
 RADIO_PROFILE = {"highpassHz": 350, "lowpassHz": 2600, "presenceHz": 1400, "presenceDb": 2,
-                 "shelfHz": 2200, "shelfDb": -6, "drive": 0.5, "hissLevel": 0.012, "squelchMs": 150,
-                 "squelchLevel": 0.22}
+                 "shelfHz": 2200, "shelfDb": -6, "drive": 0.5, "hissLevel": 0.017, "hissHighpassHz": 150,
+                 "hissLowpassHz": 3500, "squelchMs": 150, "squelchLevel": 0.22}
 
 
 def _biquad_mag(kind: str, f0: float, freqs: np.ndarray, rate: int, gain_db: float = 0.0) -> np.ndarray:
@@ -287,7 +287,12 @@ def radio(samples: np.ndarray, rate: int, seed: int = 1) -> np.ndarray:
     x = np.fft.irfft(np.fft.rfft(x) * h, len(x))
     x = np.tanh(r["drive"] * np.clip(x, -1, 1)) / np.tanh(r["drive"])
     rng = np.random.default_rng(seed)
-    hiss = rng.uniform(-1, 1, len(x)) * r["hissLevel"]
+    # broadband carrier noise in the VHF band, RMS = hissLevel (same as dsp.ts hissGain)
+    white = rng.uniform(-1, 1, len(x))
+    band = (_biquad_mag("highpass", r["hissHighpassHz"], freqs, rate)
+            * _biquad_mag("lowpass", r["hissLowpassHz"], freqs, rate))
+    hiss = np.fft.irfft(np.fft.rfft(white) * band, len(x))
+    hiss *= r["hissLevel"] / (np.sqrt(np.mean(hiss ** 2)) + 1e-12)
     tail_n = int(r["squelchMs"] / 1000 * rate)
     tail = rng.uniform(-1, 1, tail_n) * np.linspace(r["squelchLevel"], 0, tail_n)
     return np.clip(np.concatenate([x + hiss, tail]), -1, 1)
