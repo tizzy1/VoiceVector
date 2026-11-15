@@ -144,6 +144,17 @@ all imported tracks subsequently move as simulated aircraft. No raw provider JSO
 
 These are roadmap additions, not part of the current wire contract until merged. Before any owner implements them, Bhavin adds the optional/defaulted models and fields to `server/contracts.py` and mirrors the client-visible shapes in `web/src/protocol.ts` in the same commit. Forecast output is informational and never drives aircraft or replaces deterministic evaluation/STCA. Live source data is read-only input to the simulation; the app must not connect to or transmit commands on VATSIM or any real-world network.
 
+### 3.2 Flight plans, editable lists and pronunciation (requested 15 Nov, not yet in the wire contract)
+Additive and optional, added by Bhavin to `server/contracts.py` and `web/src/protocol.ts` in one commit before anyone implements them:
+| Change | Where | Producer → consumer |
+|---|---|---|
+| `AircraftPublic`: `flight_rules`, `adep`, `ades`, `rfl` (FL number), `assigned_squawk`, `selected_level` (Mode S SFL = the aircraft's real cleared level), `strip: dict` (controller-edited list fields: `cfl`, `ahdg`, `aspd`, `dct`, `sts`, `clr`, `rwy`, `sid`/`star`) | `StateMsg` | World (Tudor) → lists and tags (Bhavin) |
+| `ControlAction` `"edit_strip"`, params `{callsign, field, value}` → `World.edit_strip(callsign, field, value) -> bool` | client → server | Bhavin's lists → Tudor's World |
+| `EventType` `"strip_edit"` (data `{field, value, by}`) | bus | World → feed, replay |
+| `ReasonCode` `"QUERY_FIX_PASSED"` (direct to a fix already passed on the aircraft's own procedure) | `Evaluation` | World → PilotEngine → composer (Sanju adds the reply) |
+| Inject params: `spawn_arrival` / `spawn_departure` accept `stage` (SIM_SPEC §1.9) | `ControlMsg` | session → World |
+Auto-fill of CFL/AHDG/ASPD/DCT uses the controller's parsed `Transmission` (intended values), done inside World on `ctrl_transmission`; the readback never changes the strip. See SIM_SPEC §1.8, §1.9, §2.1.1, §5.5.
+
 Planned optional shapes: trace stages carry an exact name/category, relative start/end milliseconds, status and detail; forecasts carry a callsign pair, estimated conflict probability, median CPA and sampled paths; imported-traffic status carries source, success, fetch time, imported/skipped counts and attribution. `AircraftPublic` and `StateMsg` may add source/risk/forecast fields, and session settings may select a traffic source. `import_live` is a control action routed to `World.import_live(targets, source, mode)`. The detailed target shape and acceptance thresholds live in the owner briefs and `SIM_SPEC.md`.
 
 ---

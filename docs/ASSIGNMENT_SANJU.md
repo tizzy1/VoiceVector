@@ -129,3 +129,10 @@ Start only after the complete voice-to-simulation MVP works. Own per-transmissio
 - Build `server/tests/voice/bench/` scripts and fixed input manifests for parser accuracy, STT word error rate, and end-to-end latency. Report corpus/sample count, provider/model/version, hardware, conditions, and p50/p95/p99; keep baselines versioned and comparable.
 - Acceptance targets for the first benchmark pass: parser ≥95% on 100+ labelled utterances; STT WER ≤10% on 50+ clips; p95 voice-to-caption ≤1,500 ms on 50+ runs. Publish actual measurements and conditions; a target is not a claim of achieved performance.
 - Add deterministic parser fuzz/variant coverage and validate generated pilot phrase varieties against canonical fallback phrases. Avoid unstable network-provider tests in the default unit test suite.
+
+## 12. Change requests (Tudor, 15 Nov) — speech
+Spec: `VOICE_PIPELINE.md` §6 items 5–5a and §11.1.
+1. **Lima is "LEE-mah"**: respell phonetic letters for TTS where ElevenLabs gets them wrong (Lima "Leema", Quebec "keh-BECK", Hotel "hoh-TELL", Papa "pah-PAH", Sierra "see-AIR-rah" …); display text unchanged; the validator maps respellings back.
+2. **Spelled RNAV points:** parse "kilo kilo sierra two five" → KKS25 and speak such points that way in readbacks.
+3. **`QUERY_FIX_PASSED` reply** once Bhavin adds the reason code: "Confirm direct TUFOZ, we've passed it, Speedbird 117".
+4. **Pronunciation check script/page** so Tudor can approve letters, navaids and fixes by ear.

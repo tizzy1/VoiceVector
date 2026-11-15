@@ -108,7 +108,8 @@ Tu+~1.2 playback        at max(first_audio, persona reaction delay) → radio fi
    - "two four zero" → `240`; "four thousand" → `4000`; "flight level eight zero" → `FL80`; "one one niner decimal six" → `119.6`; "one zero one three" → `1013`.
 3. Numeric-context homophones: `to/too→two`, `for→four`, `won→one`, `ate→eight` **only between number words**.
 4. Joined/split tokens: `speed bird→speedbird`, `wizz air→wizzair`, `easy jet→easy`.
-5. Phonetic letters for callsign suffixes/GA regs: `alpha bravo→AB`.
+5. Phonetic letters for callsign suffixes/GA regs: `alpha bravo→AB`. Also accept the respellings used for TTS (§11.1: `leema→L`, `keh-beck→Q` …) and spelled RNAV points (`kilo kilo sierra two five→KKS25`, SIM_SPEC §2.1.1).
+5a. Navaid station names → idents (`seaford→SFD`, `midhurst→MID`), from `data/spoken_names.json` (done 15 Nov).
 6. Runways: "two six left" → `26L`.
 
 ---
@@ -298,6 +299,14 @@ class ReadbackPlan(BaseModel):
 3. Join with connectors (`", "`, `" and "`, `", then "`).
 4. Callsign placement: end 80%, start 15%, both 5%. Partial corrections always include the callsign.
 5. Format numbers for speech with the shared `numbers.py` (`240`→"two four zero", `4000`→"four thousand", `FL80`→"flight level eight zero", `9`→"niner", `26L`→"two six left", `119.6`→"one one niner decimal six"). **TTS never sees digits.**
+
+### 11.1 Pronunciation (what the TTS is given)
+The display text keeps standard spellings; only the speech text (`tts_text`) uses respellings, so ElevenLabs says words the ICAO way. The validator must map respellings back before re-parsing.
+- **ICAO phonetic alphabet** (callsign suffixes, ATIS letter, spelled fixes, registrations): use the ICAO pronunciation. Required fix: **Lima is "LEE-mah", not "LIE-mah"** (TTS respelling "Leema"). Check the rest against the ICAO table and respell where the voice gets it wrong: Alfa "AL-fah", Hotel "hoh-TELL", Juliett "JEW-lee-ett", Papa "pah-PAH", Quebec "keh-BECK", Sierra "see-AIR-rah", Uniform "YOU-nee-form", X-ray "ECKS-ray", Whiskey "WISS-key". (UK RTF keeps "three", "four", "five", "niner"; only "niner" differs from plain English.)
+- **Navaids by station name**: SFD "Seaford", MID "Midhurst", GWC "Goodwood", LAM "Lambourne" … also inside procedure names ("Seaford one X-ray"). Source `data/spoken_names.json` (Tudor). Done 15 Nov.
+- **Five-letter fixes** are said as written ("Willo", "Timba"); add a respelling to `spoken_names.json` only where the voice mispronounces one.
+- **RNAV points with digits** (KKS25): spelled phonetically ("kilo kilo sierra two five").
+- **Pronunciation test:** a fixture page or script plays each phonetic letter, navaid and a sample of fixes through the real voice so Tudor can approve by ear.
 
 ### Validator (`server/pilot/validator.py`)
 Parse the generated readback with the **pilot-phrasing grammar** (readbacks omit verbs like "turn", allow "-ing" forms). Compare element set + values to the plan's `readback_value`s (so planned errors must be present, unplanned ones must not). On mismatch: try next variant → fall back to canonical template. Log validator rejections.

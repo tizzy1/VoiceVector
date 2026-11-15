@@ -140,3 +140,11 @@ Do this only after the end-to-end MVP works. Keep `/` as the controller's 2D Eur
 - Render `ConflictForecast` as a clearly labelled advisory probability and threshold, with seeded trajectory fan/spaghetti paths when available. Keep it distinct from deterministic STCA alerts and controller clearances.
 - Add optional live-import controls and source/time/credit labels. Imported traffic is converted to simulated aircraft for the controller to work; it is never connected to or controlled through VATSIM or another live network.
 - Use the ordinary UI test/build and contract validation gates for new UI and messages; agree exact performance limits with the owners before treating them as release gates.
+
+## 12. Change requests (Tudor, 15 Nov) — controller scope
+Spec: `SIM_SPEC.md` §5.0, §5.3, §5.5; contract: `CONTRACTS.md` §3.2 (add these fields first, in one commit with `protocol.ts`).
+1. **EuroScope-style lists:** replace the current flight-strip panels with wide horizontal lists docked across the top of the scope, each with a thin `0 F S` title bar, header row and one compact line per aircraft. Departure List `FR RWY ACID TYPE W ADEP ADES SID CFL ASSR RFL CLR`; Arrival List `FR RWY ACID TYPE W ADEP ADES STAR CFL AHDG ASPD DCT ASSR RFL DIST STS`.
+2. **Editable cells:** inline editors (dropdowns for RWY/SID/STAR/STS, level picker for CFL/RFL, numeric for AHDG/ASPD/ASSR, toggle for CLR) → `control` `edit_strip {callsign, field, value}`; show the server's `strip` values from `state` on every client.
+3. **No pop-ups:** clicking an aircraft highlights its row (and details) but never opens, slides or moves a list or panel.
+4. **Tag:** cleared-level field shows strip CFL; show Mode S `selected_level` separately, amber when it differs.
+5. Session setting: auto-fill lists from transmissions on/off. Realism over polish; keep the modern restrained styling.

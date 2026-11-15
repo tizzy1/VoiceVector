@@ -45,6 +45,12 @@ class AircraftState(BaseModel):
     conditionals: list[dict]         # pending triggered instructions
     squawk: str; qnh: int; freq_unit: str   # "director" | "tower" | "london"
     on_frequency: bool
+    # flight plan (§1.8)
+    flight_rules: Literal["I","V"]   # airline traffic "I"
+    adep: str; ades: str             # ICAO, e.g. "LEMD" -> "EGKK"
+    rfl: int                         # requested cruise level as FL number, semicircular rule (§1.8)
+    assigned_squawk: str             # ASSR; the aircraft squawks it once set
+    strip: dict                      # controller-edited list fields (§5.5): memory aid only
 ```
 
 ### 1.2 Performance data (`data/perf.json`, from OpenAP)
@@ -96,12 +102,12 @@ Derived values the sim uses:
 
 ### 1.6 Lifecycle
 ```
-ARR: (spawn at STAR entry) STAR ──vectors──► VECTORS ──cleared ILS──► APPROACH ──LOC+GS──► FINAL ──► LANDED
+ARR: (spawn at any stage, §1.9) STAR ──vectors──► VECTORS ──cleared ILS──► APPROACH ──LOC+GS──► FINAL ──► LANDED
                              └─ STAR end ──► HOLD ──vectors──► VECTORS            └─ go-around ─► GO_AROUND ─► VECTORS
 DEP: QUEUED ──release──► TAKEOFF ──Vr, 35 ft──► SID ──"contact London"──► HANDED_OFF
 ```
 - **Takeoff:** accelerate on runway 3 kt/s to Vr (Vapp + 10), rotate, climb at `climb_fpm_low`, V2+10 to 1,500 ft, then accelerate.
-- **Check-in calls:** arrivals on spawn ("Gatwick Director, Speedbird 117, flight level 90, WILLO 1G, information Kilo"); departures passing 2,000 ft ("…passing 2,000 climbing 6,000, BOGNA 1X").
+- **Check-in calls:** arrivals on spawn ("Gatwick Director, Speedbird 117, flight level 70, Willo one Golf, information Kilo"; content follows the spawn stage, §1.9); departures passing 2,000 ft ("…passing 2,000 climbing 6,000, Bogna one X-ray").
 - **Reports:** "established" when the LOC is captured, if asked to report.
 
 ### 1.7 Pilot-initiated behaviour
@@ -115,6 +121,35 @@ DEP: QUEUED ──release──► TAKEOFF ──Vr, 35 ft──► SID ──"c
 | Low fuel, request priority | Optional inject |
 
 All pilot speech goes through the voice pipeline's reply scheduler (frequency discipline, stepped-on logic).
+
+### 1.8 Flight plans and requested flight level (RFL)
+Every aircraft carries a flight plan: flight rules, ADEP, ADES, aircraft type, wake, SID or STAR and an RFL. Today aircraft have no ADEP/ADES and no RFL; this section is the requirement.
+- **Origins and destinations** come from `data/traffic.json` (⚠ VERIFY, Tudor): each arrival entry lists plausible origin airports (e.g. ABSAV/GWC → Iberia and the Canaries, BARMI/TEBRA/KONAN → Benelux, Germany and Scandinavia, SIRIC/OTMET/KIDLI → UK and Ireland), and each SID lists plausible destinations (e.g. BOGNA/HARDY → Iberia, SFD → France, Italy and Greece, DAGGA/TIGER/FRANE → northern and central Europe, NOVMA/WIZAD → UK domestic and the Atlantic). Picks are seeded. Airport coordinates live in a small `data/airports.json` (ICAO, name, lat/lon, magnetic variation).
+- **RFL by the semicircular rule** (ICAO Annex 2 Appendix 3 table of cruising levels, used for IFR in the UK since 2015): take the magnetic track of the great circle from ADEP to ADES (departures: EGKK → ADES; arrivals: ADEP → EGKK).
+  - Magnetic track 000°–179° → **odd** levels: FL70, FL90 … FL270, then RVSM FL290, FL310 … FL410.
+  - Magnetic track 180°–359° → **even** levels: FL80, FL100 … FL280, then RVSM FL300, FL320 … FL400.
+  - Pick the band by great-circle distance (⚠ VERIFY): under 100 NM FL70–FL150; 100–250 NM FL160–FL280; 250–600 NM FL290–FL360; over 600 NM FL340–FL410. Never above the type's ceiling (`perf.json`). Seeded choice within the band.
+- **Uses of RFL:** shown in both lists; a departure's "request higher" asks for its RFL (or the next level towards it); the pilot reads back a different climb without complaint. Arrivals keep their RFL for display only.
+- **Assigned squawk (ASSR):** departures get a unique code at spawn from a configurable bank (⚠ VERIFY: real Gatwick/ORCAM allocation); arrivals keep the code they arrive with. A controller "squawk XXXX" updates both the aircraft squawk and ASSR.
+- **Flight rules:** airline traffic is IFR ("I"). VFR ("V") is reserved for future GA traffic.
+
+### 1.9 Spawning: realistic stage, position and level
+Today arrivals spawn 40 track miles before the STAR end at FL90–FL140 from `entry_fl_range`, regardless of position, so they appear too high for where they are, and close to one another. Requirement:
+- **Spawn stages.** Arrivals can start at any stage; the scenario or preset sets the mix and the `spawn_arrival` / `spawn_departure` injects take an optional `stage`:
+  | Stage | Where | Level / speed (⚠ VERIFY against the published STAR and TC standing agreements) |
+  |---|---|---|
+  | `star` (default) | On the STAR, 15–25 track NM before WILLO/TIMBA | Descending to or level at the STAR's published level for that point; placeholder FL80–FL100, cleared FL70; 250 kt |
+  | `hold` | In the WILLO or TIMBA stack | Lowest free stack level from FL70 upwards in 1,000 ft steps; 220 kt |
+  | `downwind` | Vectors downwind, 7–9 NM abeam the extended centreline | 5,000–6,000 ft, 210–220 kt, heading opposite the runway |
+  | `base` | Base leg 10–14 NM from touchdown | 3,000–4,000 ft, 180–200 kt |
+  | `final` | Established on the localiser 8–12 NM out | On the glidepath, cleared ILS, 160–180 kt |
+  | Departure `queued` (default) | Holding point | Ground |
+  | Departure `initial_climb` | On the SID passing 2,000–4,000 ft | Climbing to 6,000 ft |
+  | Departure `sid_level` | On the SID, level | 6,000 ft, 250 kt |
+- **Level must match the position:** a spawned aircraft is never higher than the level the published procedure allows at that point, never below the area minimum (§3.2 A4), and its cleared level is the level it would hold there (STAR level, stack level, or the vectoring level).
+- **Spacing at spawn:** at least 10 NM from any other arrival on the same STAR and 5 NM from any other aircraft (final: the wake minimum + 1 NM behind the aircraft ahead), 1,000 ft from neighbours in a stack, and no predicted loss of separation within 3 minutes (existing probe). If none of this is possible, the spawn waits in the backlog.
+- **Check-in matches the stage:** `star` / `hold`: level, STAR, ATIS; `downwind` / `base`: altitude and heading; `final`: "established ILS 26L".
+- **Demo and tests:** `scenario_demo.json` aircraft are re-checked against these limits (BAW117 at WILLO at 8,000 ft is plausible; DLH4KA at HOLLY at 11,000 ft and WZZ4471 at LARCK at 13,000 ft are too high for a Director scenario: ⚠ VERIFY, Tudor).
 
 ---
 
@@ -133,7 +168,7 @@ All pilot speech goes through the voice pipeline's reply scheduler (frequency di
 | **Speed** | reduce 210 / speed 180 or greater | tgt_ias + constraint | < min_clean (not configured) → unable; > 250 below FL100 without restriction cancelled → unable; < Vapp+5 → unable | speed (+ constraint) |
 | **Minimum clean / keep speed** | reduce minimum clean speed / maintain 220 | tgt_ias | — | as given |
 | **Speed cancel** | no ATC speed restriction / resume normal speed | clears tgt; `no_speed_restriction` | — | phrase |
-| **Direct** | proceed direct WILLO | `LNAV` [fix] (+ rest of procedure if the fix is on it) | fix unknown → "say again fix / spell" | fix |
+| **Direct** | proceed direct WILLO / direct Seaford | `LNAV` [fix] (+ rest of procedure if the fix is on it, §2.1.1) | fix unknown → "say again fix / spell"; fix already passed on own procedure → query | fix |
 | **Resume / rejoin** | resume own navigation / rejoin the BOGNA 1X | `LNAV` on remaining procedure (closest downstream fix) | no procedure → query | phrase |
 | **Hold** | hold at TIMBA as published | `HOLD` at fix | fix not a hold → simplified hold anyway + note | fix (+ "as published") |
 | **Approach clearance** | cleared ILS approach runway 26L | arms LOC + GS | runway inactive/unknown → query; no LOC intercept possible (§3.2) → unable "too high / angle" | type + runway |
@@ -151,6 +186,14 @@ All pilot speech goes through the voice pipeline's reply scheduler (frequency di
 | **Cancel approach** | cancel approach clearance, fly heading 360 | disarm LOC/GS | — | phrase + new instruction |
 | **Say again / read back** | say again / read back | repeat / full readback | — | (repeat) |
 | **Negative / I say again** | negative, descend altitude 4000 | correction flow (VOICE §14) | — | corrected elements only |
+
+### 2.1.1 Direct to a fix on the aircraft's own SID/STAR
+Checked 15 Nov: direct to a fix ahead on the aircraft's own STAR or SID already continues the procedure after that fix (e.g. DISIT1G "direct HOLLY" → HOLLY, WILLO; BOGNA1X "direct BOGNA"). Remaining gaps, required:
+1. **Fix already passed** (e.g. DISIT1G past TUFOZ, "direct TUFOZ"): today the aircraft turns back to TUFOZ. Required: the pilot queries ("Confirm direct TUFOZ? We've passed it") and nothing is applied; a new reason code `QUERY_FIX_PASSED` (contract change, §CONTRACTS 3.1).
+2. **RNAV points with digits** (KKS25, KKW08, DET31 …) must be sayable: the parser accepts the spelled form ("kilo kilo sierra two five" → KKS25) and readbacks speak it the same way. Navaids use their station names ("Seaford" = SFD, done 15 Nov).
+3. **Departures:** direct to a later SID fix keeps the SID name and its level-off (6,000 ft); direct to the SID's last fix then continues on the last track (current behaviour).
+4. **Arrivals:** direct to the STAR's hold fix enters the hold on arrival unless vectored first (current behaviour); direct to a fix on another procedure flies to it and then holds present heading.
+5. **Lists:** a direct updates the list's DCT field (§5.5) and the next-fix display.
 
 ### 2.2 Recognised but not executed (pilot response + finding)
 | Instruction | Why | Pilot says | Finding |
@@ -289,7 +332,7 @@ The operator scope and the live audience visualisation are separate interfaces. 
 
 ### 5.0 Workstation layout
 - Keep the radar dominant in the centre, with a compact top status/toolbar and persistent, collapsible operational panes for arrivals, departures, selected-aircraft details, METAR/weather, transcript/communications and alerts/events.
-- Arrival and departure lists should read like flight strips. Include callsign, aircraft type, wake, route/procedure, current and cleared level, speed, heading/assigned speed when available, phase/status, and sequencing/release information when available.
+- Arrival and departure lists are EuroScope-style wide horizontal lists docked across the top of the scope (one row per aircraft, column headers, 0/F/S filter buttons in the title bar), not cards or slide-out drawers. Columns and editing: §5.5.
 - Selecting a list row selects the same aircraft on the radar; selecting a radar track focuses its list row and details. Show assigned clearance alongside observed aircraft state so deviations are easy to spot.
 - Provide an EGKK METAR panel with observation time, wind, visibility, cloud, temperature/dew point, QNH and raw report. Clearly show stale/unavailable data; do not represent placeholder values as a live METAR.
 - Keep common controller actions and status visible. Visual polish may take priority over secondary functionality, but core track selection, pan/zoom, range, layer toggles, list selection/filtering, typed transmission and PTT must remain usable when implemented.
@@ -315,11 +358,54 @@ Modern take on the EuroScope philosophy: realistic content and information densi
 
 ### 5.3 Interaction
 - **Pan:** drag. **Zoom:** wheel/pinch, anchored at the cursor; range presets (10/20/40/80 NM). Keyboard: `+`/`-`, arrows, `C` centre on airport, `F` follow selected.
-- Click track = select (highlights in transcript and lists). Double-click = centre.
+- Click track = select (highlights its list row, transcript lines and details). **Selecting never opens, slides or pops up a list or panel**; the lists are always docked and simply scroll to and highlight the row. Double-click = centre.
 - **Range & bearing tool:** right-drag.
 - Decorative EuroScope-style toolbar (MAP / RANGE / FILTER / STCA / VECT / ALT…): **RANGE, layer toggles and VECT work**; others present for realism.
 - Bottom caption strip (live controller/pilot captions — reserved per earlier note).
 - Operational panels: arrival list, departure list (with release info), selected-aircraft details, METAR, transcript with plain-English lines, alerts and latency readout. Row/track selection is synchronized as described in §5.0.
+
+### 5.5 Departure and arrival lists (EuroScope style)
+Wide, compact, monospace lists with a thin title bar (`0 F S` buttons: show all / filter / sort, title, collapse ▲, close ✕), one header row, one line per aircraft. Rows are sorted by sequence (departures: queue order; arrivals: distance to touchdown). The selected aircraft's row is highlighted in cyan; transmitting aircraft pulse.
+
+**Departure List** — columns exactly as EuroScope:
+| Col | Meaning | Source | Editable |
+|---|---|---|---|
+| FR | Flight rules (I/V) | flight plan | yes (I/V) |
+| RWY | Departure runway | runway manager | yes (active runways) |
+| ACID | Callsign | aircraft | no |
+| TYPE | ICAO type | flight plan | no |
+| W | Wake category (L/M/H/J) | perf | no |
+| ADEP | Departure aerodrome | flight plan | no |
+| ADES | Destination | flight plan | yes (ICAO) |
+| SID | SID | flight plan | yes (SIDs for the runway) |
+| CFL | Cleared flight level/altitude (controller's record) | strip, auto-filled (below) | yes (A030 … FL150 picker) |
+| ASSR | Assigned squawk | flight plan | yes (4 octal digits) |
+| RFL | Requested flight level | flight plan (§1.8) | yes |
+| CLR | Departure clearance received | strip (airborne → ✓) | yes (toggle) |
+
+**Arrival List** — same style, columns adapted for arrivals:
+| Col | Meaning | Source | Editable |
+|---|---|---|---|
+| FR | Flight rules | flight plan | yes |
+| RWY | Landing runway | runway config | yes |
+| ACID | Callsign | aircraft | no |
+| TYPE · W | Type, wake | flight plan / perf | no |
+| ADEP · ADES | Origin, destination (EGKK) | flight plan | ADEP no, ADES no |
+| STAR | STAR | flight plan | yes (STARs for the runway) |
+| CFL | Cleared level (controller's record) | strip, auto-filled | yes |
+| AHDG | Assigned heading | strip, auto-filled | yes |
+| ASPD | Assigned speed | strip, auto-filled | yes |
+| DCT | Direct-to fix | strip, auto-filled | yes (fix picker) |
+| ASSR | Assigned squawk | flight plan | yes |
+| RFL | Requested (cruise) level | flight plan | yes |
+| DIST | Track distance to touchdown (NM) | sim | no |
+| STS | Status: STAR / HOLD / VECT / APP / EST / TWR | strip, auto from phase | yes |
+
+**Editing (both lists):** click a cell → inline editor (dropdown for RWY/SID/STAR/STS, level picker for CFL/RFL with typed entry "A40"/"F80", numeric for AHDG/ASPD/ASSR). Enter commits, Esc cancels. An edit is sent as `control` `edit_strip {callsign, field, value}`, stored on the server in the aircraft's `strip`, broadcast to every client in `state`, and logged as a `strip_edit` event.
+- **Edits are the controller's record, not a clearance.** They never move an aircraft (as in EuroScope); only a radio instruction does. ADES/SID/STAR/RWY/RFL/ASSR edits amend the flight plan record.
+- **Auto-fill:** when a controller transmission is parsed, CFL / AHDG / ASPD / DCT are filled from what the **controller said** (intended values, never the pilot's readback, so planned errors are not revealed). A session setting turns auto-fill off for full realism; a manual edit always wins until the next instruction of that kind.
+- **Data tag:** the tag's cleared-level field shows the strip CFL (the controller's record). The aircraft's own selected level (Mode S SFL, i.e. its real autopilot target) is shown separately and highlighted amber when it differs from CFL, so a misheard level shows up as on a real scope.
+- Lists are resizable and collapsible but never auto-open or auto-close.
 
 ### 5.4 Rendering
 - Canvas 2D (or PixiJS if slow). Static layers (airspace, fixes, procedures) cached to an offscreen canvas and redrawn only on pan/zoom/toggle. Traffic drawn per frame.
@@ -413,6 +499,13 @@ Sim time = wall time (pause supported). Transmission processing is async; applic
 11. "Descend altitude 2000" 20 NM out, not cleared approach → B1 finding + pilot query.
 12. "Reduce 150" at FL90 → unable; B5 finding.
 13. Pause → pending applications don't fire until resume.
+14. Every spawned aircraft has ADEP, ADES and an RFL that satisfies the semicircular rule for its ADEP→ADES magnetic track and is within its ceiling.
+15. Spawns at each stage (`star`, `hold`, `downwind`, `base`, `final`, `initial_climb`, `sid_level`) start at a level within the §1.9 table, never above the procedure level for their position, and respect the spawn spacing; 500 seeded spawns, zero violations.
+16. "Direct TUFOZ" after the aircraft has passed TUFOZ on DISIT1G → pilot query `QUERY_FIX_PASSED`, no change of route.
+17. "Direct kilo kilo sierra two five" to a BOGNA1X departure → LNAV KKS25, BOGNA, SID name kept.
+18. `edit_strip` CFL on an aircraft → shown in both clients' lists and tag; the aircraft's cleared level is unchanged.
+19. A controller instruction auto-fills CFL/AHDG/ASPD/DCT with the controller's values even when the pilot reads back a planned wrong value.
+20. Clicking a track highlights its list row and never opens or moves a panel.
 
 ---
 
@@ -430,3 +523,7 @@ Sim time = wall time (pause supported). Transmission processing is async; applic
 | CTR/CTA vertical limits | CTR SFC–2,500, CTA 1,500–2,500 |
 | Readback-correction phraseology | "negative … I say again …" |
 | Director vertical limits / SPT use | KKAPP 0–5,500, SPT 5,500–6,500 |
+| Arrival origins per entry / departure destinations per SID | `traffic.json` lists (§1.8) |
+| RFL distance bands | <100 NM FL70–150; 100–250 FL160–280; 250–600 FL290–360; >600 FL340–410 |
+| Spawn levels per stage and STAR point | §1.9 table (placeholder FL80–FL100 cleared FL70 on the STAR) |
+| Departure squawk bank (ASSR) | sim bank, not real ORCAM |

@@ -143,3 +143,11 @@ Start only once the end-to-end MVP works. Own the simulation-side forecast and l
 - Live targets become simulated AI-pilot aircraft after import. They may be tracked and cleared inside this simulation, but the system must not transmit, connect-control, or issue commands to VATSIM or real aircraft. Keep live import optional and keep recorded/demo snapshots as a fallback.
 - Verify each provider's official API access, terms, attribution, rate limits, and permitted use before enabling it. Use official interfaces only; no website scraping. Mark unverified thresholds as assumptions in `data/VERIFY.md`.
 - Add seeded forecast tests for reproducibility, calibration/false-positive measurement, and load bounds, plus import normalization/staleness tests. Publish observed results separately from target thresholds.
+
+## 12. Change requests (Tudor, 15 Nov) — sim side
+Spec: `SIM_SPEC.md` §1.8, §1.9, §2.1.1, §5.5; contract: `CONTRACTS.md` §3.2 (Bhavin adds the fields first).
+1. **Flight plans and RFL:** ADEP/ADES for every aircraft (origins per arrival entry, destinations per SID in `traffic.json`; `data/airports.json`), RFL by the semicircular rule from the ADEP→ADES magnetic track and distance band, assigned squawk (ASSR) for departures; "request higher" asks for the RFL.
+2. **Realistic spawns:** stages `star` / `hold` / `downwind` / `base` / `final` and departure `queued` / `initial_climb` / `sid_level`; level and speed fit the position and the published procedure; spawn spacing; stage-specific check-ins; re-check `scenario_demo.json` levels.
+3. **Direct to own procedure:** pilot queries a fix already passed (`QUERY_FIX_PASSED`); keep SID name and level-off on departure directs.
+4. **Strip storage:** `World.edit_strip(callsign, field, value)`, `strip` in `public_state`, `strip_edit` events, auto-fill CFL/AHDG/ASPD/DCT/STS from the controller's parsed transmission (intended values); `selected_level` (Mode S SFL) in `AircraftPublic`.
+5. Tests SIM_SPEC §8 #14–#19; VERIFY rows for origins/destinations, RFL bands, spawn levels, squawk bank.

@@ -44,6 +44,10 @@ Every placeholder the sim, pilot and rules use. Confirm or correct each one befo
 | 38 | B3 Director top | climbs above 6,500 ft (KKAPP 5,500 + SPT) without "contact London" in the same transmission | `server/rules/rules_instruction.py` `DIRECTOR_TOP_FT` |
 | 39 | B9 threshold | forecast p_conflict ≥ 0.5 after the instruction (applied 3 s later) and < 0.5 before it | `server/rules/rules_instruction.py` |
 | 40 | C6 wording | readback correction without "I say again" (LOW) | `server/rules/rules_phraseology.py` |
+| 41 | Arrival origins / departure destinations (planned, 15 Nov) | per arrival entry and per SID in `traffic.json` (SIM_SPEC §1.8) | `data/traffic.json` |
+| 42 | RFL distance bands (planned) | <100 NM FL70–150; 100–250 NM FL160–280; 250–600 NM FL290–360; >600 NM FL340–410; semicircular odd/even by magnetic track | `server/sim` (planned) |
+| 43 | Spawn levels per stage (planned) | STAR 15–25 NM before the hold at FL80–FL100 cleared FL70 (placeholder: replace with published STAR levels); hold from FL70 up; downwind 5,000–6,000 ft; base 3,000–4,000 ft; final on the glidepath | SIM_SPEC §1.9 |
+| 44 | Departure squawk bank (planned) | sim range, not real ORCAM | SIM_SPEC §1.8 |
 
 ## Post-MVP data checks
 
