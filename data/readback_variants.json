@@ -6,7 +6,7 @@
    "model": "claude-haiku-5-5",
    "accepted": 95
   },
-  "review": "Tudor: gen.* templates passed the validator (200 random values each) and a CAP 413 judge, but are approved:false and NOT used until you set approved:true. Rejected candidates are listed for reference."
+  "review": "Tudor reviewed the 80 generated (gen.*) templates on 15 Nov: 56 approved (approved:true, in use); 15 rejected on phraseology; 9 held back because they fail the composition checks (direction lost on re-parse, or a trailing 'wilco' mid-readback). The reason is in each template's 'review'. New generated templates still start approved:false."
  },
  "elements": {
   "heading": [
@@ -69,7 +69,8 @@
     "needs": [
      "DIR"
     ],
-    "approved": false
+    "approved": false,
+    "review": "held back 15 Nov (fails Sanju's composition checks): trailing \"wilco\" mid-readback (\"wilco, will expedite\")"
    },
    {
     "id": "gen.heading.2",
@@ -78,7 +79,8 @@
     "needs": [
      "DIR"
     ],
-    "approved": false
+    "approved": false,
+    "review": "held back 15 Nov (fails Sanju's composition checks): direction lost when re-parsed (\"left to heading\")"
    },
    {
     "id": "gen.heading.3",
@@ -87,7 +89,8 @@
     "needs": [
      "DIR"
     ],
-    "approved": false
+    "approved": false,
+    "review": "held back 15 Nov (fails Sanju's composition checks): direction lost when re-parsed (\"left onto heading\")"
    },
    {
     "id": "gen.heading.6",
@@ -96,7 +99,8 @@
     "needs": [
      "DIR"
     ],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.heading.7",
@@ -105,7 +109,8 @@
     "needs": [
      "DIR"
     ],
-    "approved": false
+    "approved": false,
+    "review": "held back 15 Nov (fails Sanju's composition checks): direction lost when re-parsed (\"left for heading\")"
    }
   ],
   "turn_by": [
@@ -148,7 +153,8 @@
     "needs": [
      "DIR"
     ],
-    "approved": false
+    "approved": false,
+    "review": "held back 15 Nov (fails Sanju's composition checks): direction lost when re-parsed (\"left by\")"
    },
    {
     "id": "gen.turn_by.4",
@@ -157,7 +163,8 @@
     "needs": [
      "DIR"
     ],
-    "approved": false
+    "approved": false,
+    "review": "held back 15 Nov (fails Sanju's composition checks): trailing \"wilco\" mid-readback; direction not re-parsed"
    }
   ],
   "present_heading": [
@@ -264,7 +271,8 @@
     "needs": [
      "ING"
     ],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.flight_level.5",
@@ -274,7 +282,8 @@
      "ING",
      "VERB"
     ],
-    "approved": false
+    "approved": false,
+    "review": "rejected by Tudor 15 Nov: \"to\" before a level (CAP 413 avoids it: confusion with \"two\")"
    },
    {
     "id": "gen.flight_level.6",
@@ -283,7 +292,8 @@
     "needs": [
      "ING"
     ],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    }
   ],
   "vertical_rate": [
@@ -316,14 +326,16 @@
     "needs": [
      "VERB"
     ],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.vertical_rate.2",
     "t": "Rate {RATE} feet per minute {CON}",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.vertical_rate.3",
@@ -332,7 +344,8 @@
     "needs": [
      "ING"
     ],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.vertical_rate.4",
@@ -341,14 +354,16 @@
     "needs": [
      "VERB"
     ],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.vertical_rate.5",
     "t": "Vertical speed {RATE} feet per minute {CON}",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.vertical_rate.6",
@@ -357,14 +372,16 @@
     "needs": [
      "ING"
     ],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.vertical_rate.7",
     "t": "Rate of {RATE} feet per minute {CON}",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.vertical_rate.8",
@@ -373,7 +390,8 @@
     "needs": [
      "VERB"
     ],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    }
   ],
   "speed": [
@@ -412,7 +430,8 @@
     "t": "speed {SPD} knots {CON} wilco",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": false,
+    "review": "held back 15 Nov (fails Sanju's composition checks): trailing \"wilco\" mid-readback"
    }
   ],
   "speed_cancel": [
@@ -439,7 +458,8 @@
     "t": "cancelling speed control, resuming normal speed",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    }
   ],
   "speed_min_clean": [
@@ -460,14 +480,16 @@
     "t": "Minimum clean speed, wilco",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": false,
+    "review": "held back 15 Nov (fails Sanju's composition checks): trailing \"wilco\" mid-readback"
    },
    {
     "id": "gen.speed_min_clean.6",
     "t": "Holding minimum clean speed, wilco",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": false,
+    "review": "held back 15 Nov (fails Sanju's composition checks): trailing \"wilco\" mid-readback"
    }
   ],
   "expedite": [
@@ -544,35 +566,40 @@
     "t": "cleared direct {FIX}",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.direct.2",
     "t": "cleared direct to {FIX}",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.direct.3",
     "t": "direct {FIX} cleared",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.direct.8",
     "t": "direct to {FIX} now",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.direct.9",
     "t": "cleared to track direct {FIX}",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    }
   ],
   "hold": [
@@ -605,35 +632,40 @@
     "t": "hold at {FIX} as cleared",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": false,
+    "review": "rejected by Tudor 15 Nov: vague \"as cleared\"; should be \"as published\""
    },
    {
     "id": "gen.hold.2",
     "t": "holding at {FIX}, as cleared",
     "style": "ing",
     "needs": [],
-    "approved": false
+    "approved": false,
+    "review": "rejected by Tudor 15 Nov: vague \"as cleared\"; should be \"as published\""
    },
    {
     "id": "gen.hold.4",
     "t": "hold {FIX}, as published",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.hold.8",
     "t": "cleared to hold at {FIX}",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.hold.10",
     "t": "holding {FIX}, standing by",
     "style": "ing",
     "needs": [],
-    "approved": false
+    "approved": false,
+    "review": "rejected by Tudor 15 Nov: \"standing by\" is wrong here"
    }
   ],
   "resume_nav": [
@@ -660,42 +692,48 @@
     "t": "resume own navigation, thank you",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.resume_nav.2",
     "t": "resuming own nav",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.resume_nav.3",
     "t": "own navigation resumed",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.resume_nav.4",
     "t": "returning to own navigation",
     "style": "ing",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.resume_nav.7",
     "t": "resuming own navigation now",
     "style": "ing",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.resume_nav.9",
     "t": "own navigation, resuming",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    }
   ],
   "approach_clearance": [
@@ -740,28 +778,32 @@
     "t": "cleared for {APP} approach runway {RWY}",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.approach_clearance.2",
     "t": "cleared {APP} runway {RWY} approach",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.approach_clearance.3",
     "t": "cleared the {APP} approach to runway {RWY}",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.approach_clearance.7",
     "t": "cleared for {APP} runway {RWY} approach",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    }
   ],
   "intercept_localiser": [
@@ -788,14 +830,16 @@
     "t": "intercepting localiser runway {RWY}",
     "style": "ing",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.intercept_localiser.10",
     "t": "capturing the localiser runway {RWY}",
     "style": "ing",
     "needs": [],
-    "approved": false
+    "approved": false,
+    "review": "rejected by Tudor 15 Nov: \"capturing\" claims a capture that has not happened"
    }
   ],
   "descend_glidepath": [
@@ -816,14 +860,16 @@
     "t": "going down on the glidepath",
     "style": "ing",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.descend_glidepath.4",
     "t": "we will descend on the glidepath",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    }
   ],
   "cancel_approach": [
@@ -844,21 +890,24 @@
     "t": "approach clearance cancelled",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.cancel_approach.2",
     "t": "cancelling approach",
     "style": "ing",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.cancel_approach.5",
     "t": "roger, approach clearance cancelled",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    }
   ],
   "go_around": [
@@ -879,21 +928,24 @@
     "t": "going around, climbing away",
     "style": "ing",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.go_around.5",
     "t": "roger, going around",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.go_around.7",
     "t": "going around, we'll make another approach",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    }
   ],
   "contact": [
@@ -953,7 +1005,8 @@
      "FREQ",
      "UNIT"
     ],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.contact.3",
@@ -963,7 +1016,8 @@
      "FREQ",
      "UNIT"
     ],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.contact.4",
@@ -973,7 +1027,8 @@
      "FREQ",
      "UNIT"
     ],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.contact.5",
@@ -983,7 +1038,8 @@
      "FREQ",
      "UNIT"
     ],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.contact.6",
@@ -993,7 +1049,8 @@
      "FREQ",
      "UNIT"
     ],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.contact.7",
@@ -1003,7 +1060,8 @@
      "FREQ",
      "UNIT"
     ],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.contact.9",
@@ -1013,7 +1071,8 @@
      "FREQ",
      "UNIT"
     ],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    }
   ],
   "squawk": [
@@ -1040,14 +1099,16 @@
     "t": "transponder {SQ}",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.squawk.2",
     "t": "setting transponder {SQ}",
     "style": "ing",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    }
   ],
   "qnh": [
@@ -1076,35 +1137,40 @@
     "t": "Set {QNHW} {QNH}",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.qnh.3",
     "t": "Setting {QNHW} {QNH}",
     "style": "ing",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.qnh.4",
     "t": "{QNH} set",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.qnh.8",
     "t": "Altimeter {QNH} set",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": false,
+    "review": "rejected by Tudor 15 Nov: \"altimeter\" is US phraseology; UK says QNH"
    },
    {
     "id": "gen.qnh.9",
     "t": "{QNHW} {QNH} set, thank you",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    }
   ],
   "expect": [
@@ -1125,28 +1191,32 @@
     "t": "we expect {WHAT}",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.expect.3",
     "t": "we will be expecting {WHAT}",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.expect.6",
     "t": "anticipating {WHAT}",
     "style": "ing",
     "needs": [],
-    "approved": false
+    "approved": false,
+    "review": "rejected by Tudor 15 Nov: \"anticipating\" is unnatural RTF"
    },
    {
     "id": "gen.expect.7",
     "t": "we are expecting {WHAT}",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    }
   ],
   "cleared_to_land": [
@@ -1161,28 +1231,32 @@
     "t": "cleared land runway {RWY}",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": false,
+    "review": "rejected by Tudor 15 Nov: landing clearance is Tower's; a Director pilot queries it"
    },
    {
     "id": "gen.cleared_to_land.3",
     "t": "runway {RWY} cleared to land",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": false,
+    "review": "rejected by Tudor 15 Nov: landing clearance is Tower's; a Director pilot queries it"
    },
    {
     "id": "gen.cleared_to_land.4",
     "t": "cleared to land on runway {RWY}",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": false,
+    "review": "rejected by Tudor 15 Nov: landing clearance is Tower's; a Director pilot queries it"
    },
    {
     "id": "gen.cleared_to_land.7",
     "t": "roger, cleared to land runway {RWY}",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": false,
+    "review": "rejected by Tudor 15 Nov: landing clearance is Tower's; a Director pilot queries it"
    }
   ],
   "cleared_takeoff": [
@@ -1197,21 +1271,24 @@
     "t": "cleared takeoff runway {RWY}, rolling",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": false,
+    "review": "rejected by Tudor 15 Nov: take-off clearance is Tower's; a Director pilot queries it"
    },
    {
     "id": "gen.cleared_takeoff.3",
     "t": "runway {RWY} cleared for takeoff",
     "style": "full",
     "needs": [],
-    "approved": false
+    "approved": false,
+    "review": "rejected by Tudor 15 Nov: take-off clearance is Tower's; a Director pilot queries it"
    },
    {
     "id": "gen.cleared_takeoff.9",
     "t": "cleared takeoff, runway {RWY}",
     "style": "short",
     "needs": [],
-    "approved": false
+    "approved": false,
+    "review": "rejected by Tudor 15 Nov: take-off clearance is Tower's; a Director pilot queries it"
    }
   ],
   "traffic_info": [
@@ -1260,7 +1337,8 @@
     "needs": [
      "RW"
     ],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    },
    {
     "id": "gen.report.3",
@@ -1269,7 +1347,8 @@
     "needs": [
      "RW"
     ],
-    "approved": false
+    "approved": false,
+    "review": "rejected by Tudor 15 Nov: \"advise ...\" sounds like an order to the controller"
    },
    {
     "id": "gen.report.4",
@@ -1278,7 +1357,8 @@
     "needs": [
      "RW"
     ],
-    "approved": false
+    "approved": true,
+    "review": "approved by Tudor 15 Nov"
    }
   ]
  },
