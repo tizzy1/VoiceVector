@@ -545,7 +545,7 @@ class SessionMsg(BaseModel):
 ControlAction = Literal["new_session", "pause", "resume", "set_speed", "set_traffic", "set_error_rate",
                         "set_runway", "load_scenario", "inject", "force_error", "beat", "end_session",
                         "reveal_errors", "import_live", "edit_strip", "set_strip_autofill",
-                        "challenge_name"]   # challenge_name: added 15 Nov (Sanju)
+                        "challenge_name", "play_atis"]   # added 15 Nov (Sanju)
 
 
 class ControlMsg(BaseModel):                   # client -> server

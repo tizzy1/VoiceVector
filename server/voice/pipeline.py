@@ -30,7 +30,7 @@ from server.voice.stt_fallback import WizperSTT
 from server.voice.stt_scribe import STATIC_KEYTERMS, ScribeStream, STTError, build_keyterms
 from server.voice.tts import ElevenLabsTTS, TTSError
 from server.voice.pronounce import respell
-from server.voice import coach
+from server.voice import atis, coach
 from server.voice.replay import ReplayStore
 from server.voice import trace as T
 from server.voice.prosody import compensated_speed, restore_word_times, shape
@@ -108,7 +108,8 @@ class VoicePipeline:
         self.metrics = Metrics()
         self.reveal_errors = False
         self.coach_enabled = True                         # phraseology coach (server/voice/coach.py)
-        self.replays = ReplayStore()                      # "hear what you missed" (server/voice/replay.py)
+        self.replays = ReplayStore()
+        self._atis_playing = False                      # "hear what you missed" (server/voice/replay.py)
         self.on_coach: Optional[Callable[[int], None]] = None   # judge challenge hook (session sets it)
         self._ptt: Optional[_Ptt] = None
         self._tx_stamps: dict[str, Stamps] = {}
@@ -387,6 +388,35 @@ class VoicePipeline:
         if self.coach_enabled:                           # after the reply is scheduled: never delays it
             self.hub.spawn(self._coach(tx, text, stamps))
         return tx
+
+    async def play_atis(self, letter: str) -> str:
+        """Spoken ATIS (server/voice/atis.py) on its own frequency: streamed through the radio sound with
+        a caption, never through the Director frequency manager. Returns the display text."""
+        if self._atis_playing:
+            return ""
+        display, speech = atis.build(self.world.metar(), self.world.runway, letter)
+        tx_id = self._new_id("atis")
+        self._atis_playing = True
+        try:
+            await self.hub.send(CaptionMsg(tx_id=tx_id, speaker="ATIS", stage="pilot_text", text=display))
+            if self.tts is None:
+                return display
+            started = False
+            async for chunk in self.tts.stream(speech, atis.ATIS_VOICE_ID, atis.ATIS_SETTINGS):
+                if not started:
+                    await self.hub.send(AudioStartMsg(tx_id=tx_id, callsign="ATIS", format=self.tts.audio_format,
+                                                      sample_rate=self.tts.sample_rate))
+                    started, seq = True, 0
+                await self.hub.send(AudioChunkMsg(tx_id=tx_id, seq=seq, data_b64=base64.b64encode(chunk).decode("ascii")))
+                seq += 1
+            if started:
+                await self.hub.send(AudioEndMsg(tx_id=tx_id))
+            return display
+        except Exception:                                # noqa: BLE001  (caption already shown)
+            logger.exception("ATIS audio failed")
+            return display
+        finally:
+            self._atis_playing = False
 
     async def _coach(self, tx: Transmission, raw: str, stamps: Stamps) -> None:
         """Phraseology coach (server/voice/coach.py): rules now, Claude's one-line tip when it lands."""

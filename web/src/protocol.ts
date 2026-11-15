@@ -131,7 +131,7 @@ export type ServerMsg = StateMsg | CaptionMsg | AudioStartMsg | AudioChunkMsg | 
 // ---- client -> server ----
 export type ControlAction = "new_session" | "pause" | "resume" | "set_speed" | "set_traffic"
   | "set_error_rate" | "set_runway" | "load_scenario" | "inject" | "force_error" | "beat"
-  | "end_session" | "reveal_errors" | "import_live" | "edit_strip" | "set_strip_autofill" | "challenge_name";
+  | "end_session" | "reveal_errors" | "import_live" | "edit_strip" | "set_strip_autofill" | "challenge_name" | "play_atis";
 export interface ControlMsg { type: "control"; action: ControlAction; params: Record<string, unknown> }
 export interface PttMsg { type: "ptt"; state: "down" | "up" }
 export interface TypedMsg { type: "typed"; text: string }

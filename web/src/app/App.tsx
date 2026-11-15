@@ -376,6 +376,8 @@ export function App() {
         </select></label>
         <button disabled={!connected || !health?.simulation_ready}
           onClick={() => control("load_scenario")}>{scenarioChoice === "demo" ? "Reset demo" : "Load scenario"}</button>
+        <button disabled={!connected || !health?.ready} title="Play the current ATIS (built from the simulator weather)"
+          onClick={() => sendControl({ type: "control", action: "play_atis", params: {} })}>ATIS ▶</button>
         <span className="frequencies" title="Frequencies for contact instructions">
           {FREQUENCIES.map(([unit, freq]) => <span key={unit}>{unit} <b>{freq}</b></span>)}
         </span>

@@ -223,7 +223,12 @@ class Session:
             if not self.simulation_ready:
                 raise ValueError("Waiting for simulator module")
             action, params = message.action, message.params
-            if action == "challenge_name":
+            if action == "play_atis":
+                if self.voice is None:
+                    raise ValueError("Radio unavailable")
+                from server.sim.world import ATIS_LETTER
+                self.start_operation(self.voice.play_atis(ATIS_LETTER))
+            elif action == "challenge_name":
                 if not self.challenge.set_name(str(params.get("name", ""))):
                     raise ValueError("Land the aircraft first, then enter a name")
                 await self.hub.send(self.challenge.message())

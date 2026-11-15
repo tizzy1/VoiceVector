@@ -68,3 +68,24 @@ made with `--no-verify` on Sanju's decision, and the branch is pushed, not merge
   5 NM from the centreline). Both coached 100 with Claude tips; landed after 675 sim s with no go-around;
   score 89 with the first time scale; name "Rehearsal" saved; the projector leaderboard showed it.
   The time scale was then recalibrated (9 / 25 min) and the rehearsal entry deleted.
+
+## 3. Spoken ATIS
+
+An **ATIS ▶** button in the session bar plays Gatwick's current ATIS. The text is built from the
+simulator's own (simulated) METAR and runway, with the same letter the arrivals quote on check-in
+("information Kilo"). It is spoken by a fixed, premade ElevenLabs voice ("George", present in every
+account) through the radio sound, with a caption. It is its own frequency, so it never blocks the
+Director frequency, and only one plays at a time. Numbers are spoken the radio way, and Lima is
+"Leema".
+
+| File | Owner | Change |
+|---|---|---|
+| `server/voice/atis.py` | new | text builder (display + speech) |
+| `server/voice/pipeline.py` | Sanju | `play_atis(letter)` |
+| `server/session.py` | Bhavin | control `play_atis` |
+| `server/contracts.py`, `web/src/protocol.ts` | Bhavin | control action `play_atis` (additive) |
+| `web/src/app/App.tsx` | Bhavin | "ATIS ▶" button |
+
+Tests: `server/tests/voice/test_atis.py` (3). Live: first audio 0.27 s, 25 s of speech; Scribe
+transcribed it word for word ("Gatwick information Kilo time one seven five zero, runway two six left
+in use…").
