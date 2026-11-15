@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 SPAWN_TRACK_NM = 40.0           # spawn this many track miles before the STAR end
 RETRY_S = 10.0
+SIMILAR_CALLSIGN_P = 0.10         # chance a spawn copies a callsign with digits swapped
 PROBE_S = 180                   # feasibility probe horizon
 LEVEL_CHECK_NM = 20.0
 PERSONAS = (("crisp_airline", 50), ("calm_longhaul", 20), ("rushed", 20), ("student", 10))
@@ -24,6 +25,7 @@ class ArrivalGenerator:
     def __init__(self, world: "World", seed: int, first_spawn_s: float) -> None:
         self.w = world
         self.rng = random.Random(seed + 1)
+        self.similar_rng = random.Random(seed + 7)     # similar-callsign pairs (own stream)
         self.cfg = world.traffic
         self.backlog = 0
         self.next_t = first_spawn_s
@@ -136,7 +138,26 @@ class ArrivalGenerator:
         hdg = bearing(*pts[0], *pts[1]) if len(pts) > 1 else 0.0
         return pts[0][0], pts[0][1], hdg, route[1:]
 
+    def _similar_callsign(self, airline: str) -> Optional[str]:
+        """Sometimes give a new arrival a callsign easily confused with one on frequency
+        (same airline, last two digits swapped: BAW117 / BAW171) — a real-world hazard."""
+        if self.w.scenario == "demo":                  # the scripted demo stays predictable
+            return None
+        if self.similar_rng.random() >= SIMILAR_CALLSIGN_P:
+            return None
+        for cs in sorted(self.w.aircraft):
+            body = cs[3:]
+            if cs[:3] != airline or len(body) < 3 or not body.isdigit():
+                continue
+            twin = airline + body[:-2] + body[-1] + body[-2]
+            if twin != cs and twin not in self.w.aircraft and twin not in self.w.used_callsigns:
+                return twin
+        return None
+
     def _callsign(self, airline: str) -> str:
+        twin = self._similar_callsign(airline)
+        if twin is not None:
+            return twin
         rng = self.rng
         while True:
             if rng.random() < 0.3:

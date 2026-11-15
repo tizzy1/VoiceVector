@@ -111,6 +111,7 @@ class PilotEngine:
                             evaluations: list[Evaluation]) -> list[PilotResponse]:
         tx = undirected_turns_as_headings(tx)
         on_freq = self._on_freq()
+        self._catch_takeovers(tx)
         cs = tx.receiver
         if cs is None or cs not in on_freq:
             if cs is None and tx.instructions and on_freq and self._rng.random() < 0.5:
@@ -143,7 +144,62 @@ class PilotEngine:
                                reason_values=refused.reason_values)]
         if all(i.type == "traffic_info" for i in tx.instructions):
             return [self._resp(cs, "looking", tx)]
+        taken = self._takeover(cs, tx, on_freq)
+        if taken is not None:
+            return [taken]
         return [self._full(cs, tx)]
+
+    # ------------------------------------------- similar-callsign takeover
+    def _takeover(self, cs: str, tx: Transmission, on_freq: set[str]) -> Optional[PilotResponse]:
+        """A pilot with a similar callsign (BAW171 for BAW117) takes the clearance: it reads
+        it back with ITS callsign and flies it; the intended aircraft stays silent. Caught
+        when the controller next addresses the wrong aircraft; missed after 30 s (rule D4)."""
+        forced = self._forced
+        want = forced is not None and forced[1] == "similar_callsign_takeover" \
+            and forced[2] in (None, cs)
+        others = sorted(o for o in on_freq if policy.similar_callsigns(cs, o)
+                        and not self._state(o).get("emergency"))
+        if not others or self._state(cs).get("emergency"):
+            return None
+        if not want:
+            if forced is not None or self._open_errors(cs) or \
+                    len(self._open_errors()) >= policy.MAX_GLOBAL:
+                return None
+            rate = policy.RATE.get(self.error_rate, 0.0) * policy.TAKEOVER_SHARE
+            if self._err_rng.random() >= rate:
+                return None
+        wrong = self._err_rng.choice(others)
+        if self._open_errors(wrong):
+            return None
+        elements = [ClearanceElement(type=i.type, intended=i.model_copy(),
+                                     readback=i.model_copy(), flown=i.model_copy())
+                    for i in tx.instructions if i.type not in ("confirm", "report",
+                                                               "traffic_info")]
+        if not elements or policy.causes_los(self.world, wrong, [], elements):
+            return None
+        if want:
+            self._forced = None
+        self._err_n += 1
+        rec = ErrorRecord(
+            id=f"E{self._err_n}", callsign=wrong, kind="similar_callsign_takeover",
+            mode="consistent", element_type=elements[0].type, intended={"for": cs},
+            readback_value={"taken_by": wrong}, flown_value={"taken_by": wrong},
+            t_planned=self._t())
+        for e in elements:
+            e.error_id = rec.id
+        self.errors[rec.id] = rec
+        self._emit("error_planned", wrong, rec.model_dump())
+        self.book.record(wrong, elements)
+        return self._resp(wrong, "full", tx, apply=elements, errors=[rec],
+                          elements=[e.readback for e in elements])
+
+    def _catch_takeovers(self, tx: Transmission) -> None:
+        """Any transmission to the aircraft that took someone else's clearance = caught."""
+        if not tx.receiver:
+            return
+        for rec in self._open_errors(tx.receiver):
+            if rec.kind == "similar_callsign_takeover" and rec.t_spoken is not None:
+                self._catch(rec, tx)
 
     # --------------------------------------------------- full clearance
     def _full(self, cs: str, tx: Transmission) -> PilotResponse:

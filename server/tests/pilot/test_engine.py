@@ -262,3 +262,76 @@ def test_relative_turn_with_direction_is_unchanged(world, bus, data_dir):
     tx = _heading_tx([Instruction(type="turn_by", value=20, turn_dir="R")])
     [r] = p.handle_transmission(tx, world.evaluate(tx))
     assert [(e.type, e.value, e.turn_dir) for e in r.plan.elements] == [("turn_by", 20, "R")]
+
+
+# ---- similar-callsign takeover (VOICE §10, rule D4) ----------------------------------------
+def _twin_world(world):
+    """Demo world plus BAW171, a callsign easily confused with BAW117."""
+    import copy
+    twin = copy.deepcopy(world.aircraft["UAE15"])
+    twin.callsign, twin.spoken, twin.spoken_plain = "BAW171", "speedbird one seven one", "BA 171"
+    twin.x, twin.y, twin.alt, twin.cleared_alt = -30.0, 30.0, 7000.0, 7000.0
+    twin.lat_mode, twin.phase, twin.route, twin.hold = "HDG", "VECTORS", [], None
+    world.aircraft["BAW171"] = twin
+    return twin
+
+
+def _takeover(world, bus, data_dir):
+    from server.contracts import Instruction, Transmission
+    from server.pilot.engine import PilotEngine
+    p = PilotEngine(world, bus, data_dir)
+    p.set_error_rate("off")
+    p.force_error("consistent", "similar_callsign_takeover", "BAW117")
+    tx = Transmission(tx_id="k1", t=world.t, receiver="BAW117",
+                      instructions=[Instruction(type="heading", value=240, turn_dir="L")])
+    [r] = p.handle_transmission(tx, world.evaluate(tx))
+    return p, r
+
+
+def test_similar_callsigns():
+    from server.pilot.errors import similar_callsigns as sim
+    assert sim("BAW117", "BAW171") and sim("BAW117", "BAW127") and sim("EZY45AB", "EZY45AC")
+    assert not sim("BAW117", "BAW117") and not sim("BAW117", "EZY117")
+    assert not sim("BAW117", "BAW1170") and not sim("BAW117", "BAW452")
+
+
+def test_takeover_wrong_aircraft_reads_back_and_flies_it(world, bus, data_dir):
+    twin = _twin_world(world)
+    p, r = _takeover(world, bus, data_dir)
+    assert r.callsign == "BAW171" and r.plan.callsign == "BAW171" and r.kind == "full"
+    assert [e.kind for e in r.errors] == ["similar_callsign_takeover"]
+    world.schedule_apply(r.callsign, r.apply, at=world.t)
+    for _ in range(5):
+        world.tick(1.0)
+    assert twin.tgt_hdg == 240 and world.aircraft["BAW117"].tgt_hdg == 75   # wrong one turned
+
+
+def test_takeover_caught_when_the_wrong_aircraft_is_challenged(world, bus, data_dir):
+    from server.contracts import Instruction, Transmission
+    _twin_world(world)
+    p, r = _takeover(world, bus, data_dir)
+    p.on_readback_spoken(r, world.t + 3)
+    tx = Transmission(tx_id="k2", t=world.t, receiver="BAW171", intent="readback_correction",
+                      instructions=[Instruction(type="present_heading")])
+    p.handle_transmission(tx, world.evaluate(tx))
+    assert [e.data["kind"] for e in bus.of("error_caught")] == ["similar_callsign_takeover"]
+    assert not bus.of("error_missed")
+
+
+def test_takeover_missed_after_30_s_is_rule_d4(world, bus, data_dir):
+    from server.rules.engine import RulesEngine
+    _twin_world(world)
+    rules = RulesEngine(world, bus, data_dir)
+    bus.subscribe(rules.on_event)
+    p, r = _takeover(world, bus, data_dir)
+    p.on_readback_spoken(r, world.t + 3)
+    for _ in range(40):
+        world.tick(1.0)
+        p.tick(world.t)
+    d4 = [f for f in rules.findings if f.rule_id == "D4"]
+    assert len(d4) == 1 and d4[0].severity == "HIGH" and d4[0].callsigns == ["BAW171", "BAW117"]
+
+
+def test_no_takeover_without_a_similar_callsign(world, bus, data_dir):
+    p, r = _takeover(world, bus, data_dir)
+    assert r.callsign == "BAW117" and r.errors == []

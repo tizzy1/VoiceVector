@@ -60,6 +60,17 @@ class MonitoringRules:
         what = "Execution error" if execution else "Readback error"
         if rec.kind == "level_bust_overshoot":
             rid, what = "E3", "Level bust"
+        if rec.kind == "similar_callsign_takeover":
+            meant = (rec.intended or {}).get("for", "another aircraft")
+            self.eng.add(
+                "D1", "POSITIVE", "CONTROLLER", [rec.callsign, meant], t=e.t, tx_id=e.tx_id,
+                title=f"Callsign confusion caught: {rec.callsign} took {meant}'s clearance",
+                detail=f"{rec.callsign} read back and flew a clearance meant for {meant}; "
+                       f"the controller challenged it at {mmss(e.t)}.",
+                correct_practice="Good catch. Listen for the callsign at the end of every "
+                                 "readback, especially with similar callsigns on frequency.",
+                evidence={"error_id": rec.id, "kind": rec.kind, "mode": rec.mode})
+            return
         self.eng.add(
             rid, "POSITIVE", "CONTROLLER", [rec.callsign], t=e.t, tx_id=e.tx_id,
             title=f"{what} caught: {rec.callsign}",
@@ -71,6 +82,19 @@ class MonitoringRules:
             evidence={"error_id": rec.id, "kind": rec.kind, "mode": rec.mode})
 
     def _missed(self, rec: ErrorRecord, e: Event) -> None:
+        if rec.kind == "similar_callsign_takeover":
+            meant = (rec.intended or {}).get("for", "another aircraft")
+            self.eng.add(
+                "D4", "HIGH", "CONTROLLER", [rec.callsign, meant], t=e.t, tx_id=e.tx_id,
+                title=f"Similar-callsign takeover not detected: {rec.callsign} / {meant}",
+                detail=f"{rec.callsign} read back and is flying a clearance meant for {meant}; "
+                       f"it was not challenged, and {meant} never received it.",
+                correct_practice="Check the callsign in every readback. With similar "
+                                 "callsigns on frequency, say them in full and warn both "
+                                 "aircraft: 'caution, similar callsign'.",
+                evidence={"error_id": rec.id, "kind": rec.kind, "mode": rec.mode,
+                          "reason": e.data.get("reason")})
+            return
         if rec.kind == "omitted_element":
             self.eng.add(
                 "D3", "MEDIUM", "CONTROLLER", [rec.callsign], t=e.t, tx_id=e.tx_id,

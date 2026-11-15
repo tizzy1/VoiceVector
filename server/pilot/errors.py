@@ -74,6 +74,17 @@ def mutate(kind: ErrorKind, ins: Instruction, rng: random.Random) -> Optional[In
     return None
 
 
+TAKEOVER_SHARE = 0.25          # of the session error rate, when a similar callsign is on frequency
+
+
+def similar_callsigns(a: str, b: str) -> bool:
+    """BAW117 / BAW171 (same airline, digits swapped) or BAW117 / BAW127 (one character off)."""
+    if a == b or a[:3] != b[:3] or len(a) != len(b) or len(a) < 5:
+        return False
+    x, y = a[3:], b[3:]
+    return sorted(x) == sorted(y) or sum(c != d for c, d in zip(x, y)) == 1
+
+
 OMISSION_KINDS: tuple[ErrorKind, ...] = ("omitted_element",)   # slip only -> D3 if not challenged
 
 
