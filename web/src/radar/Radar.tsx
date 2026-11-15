@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AircraftPublic, StateMsg } from "../protocol";
-import { headingLabel, levelLabel, project, scaleFor, zoomAt } from "./geometry";
+import { bugHeading, bugTurn, headingLabel, levelLabel, project, scaleFor, zoomAt } from "./geometry";
 import type { Point, View } from "./geometry";
 import { stripLevel } from "../ui/stripValues";
 import { MotionBuffer, vectorEnd } from "./motion";
@@ -23,11 +23,24 @@ const LAYERS = ["CTR", "CTA", "TMA", "Sectors", "RMA", "Fixes", "STAR", "SID",
 type Layer = typeof LAYERS[number];
 const INITIAL: View = { x: 5, y: -10, range: 40 };
 
-export function Radar({ state, data, selected, onSelect, activeSpeakers = [] }: {
+// Heading bug (15 Nov, Sanju for Bhavin): double-click an aircraft and drag to read off a vector.
+// Rounded to 5 degrees, shortest-turn direction from the current heading; on release it stays on
+// the scope until the aircraft is given that heading (or Escape clears all bugs).
+export interface HeadingBug { callsign: string; heading: number; turn: "L" | "R" }
+const DOUBLE_CLICK_MS = 350;
+const BUG_COLOUR = "#f2c200";
+
+export function Radar({ state, data, selected, onSelect, activeSpeakers = [], onHeadingBug }: {
   state: StateMsg | null; data: Airspace | null;
   activeSpeakers?: readonly string[];
   selected: string; onSelect: (callsign: string) => void;
+  onHeadingBug?: (bug: HeadingBug) => void;
 }) {
+  const lastDown = useRef<{ callsign: string; t: number }>({ callsign: "", t: 0 });
+  const bugDrag = useRef<{ callsign: string; pointer: Point; moved: boolean } | null>(null);
+  const bugs = useRef<Map<string, HeadingBug>>(new Map());
+  const [bugNote, setBugNote] = useState("");
+  const justBugged = useRef(false);
   const motion = useRef(new MotionBuffer());
   const latestState = useRef(state);
   const [vectorMinutes, setVectorMinutes] = useState(1);
@@ -197,6 +210,26 @@ export function Radar({ state, data, selected, onSelect, activeSpeakers = [] }: 
         }
         ctx.fillRect(x - 3, y - 3, 6, 6);
         if (ac.callsign === selected) ctx.strokeRect(x - 7, y - 7, 14, 14);
+        const live = bugDrag.current?.callsign === ac.callsign ? bugDrag.current : null;
+        const kept = bugs.current.get(ac.callsign);
+        if (kept && ac.tgt_hdg != null && Math.abs(((ac.tgt_hdg - kept.heading + 540) % 360) - 180) < 3) {
+          bugs.current.delete(ac.callsign);              // the vector was given: bug done
+        }
+        if (live || bugs.current.has(ac.callsign)) {
+          const heading = live ? bugHeading(live.pointer[0] - x, live.pointer[1] - y)
+            : bugs.current.get(ac.callsign)!.heading;
+          const length = live ? Math.max(30, Math.hypot(live.pointer[0] - x, live.pointer[1] - y)) : 70;
+          const rad = heading * Math.PI / 180;
+          const ex = x + Math.sin(rad) * length, ey = y - Math.cos(rad) * length;
+          ctx.save();
+          ctx.strokeStyle = BUG_COLOUR; ctx.fillStyle = BUG_COLOUR; ctx.lineWidth = 1.5;
+          ctx.setLineDash([5, 4]);
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(ex, ey); ctx.stroke();
+          ctx.setLineDash([]);
+          const turn = bugTurn(ac.hdg, heading);
+          ctx.fillText(`${turn} ${headingLabel(heading)}`, ex + 4, ey - 4);
+          ctx.restore();
+        }
         const trend = ac.vs > 100 ? "↑" : ac.vs < -100 ? "↓" : "→";
         const assigned = [
           ac.actype,
@@ -271,6 +304,7 @@ export function Radar({ state, data, selected, onSelect, activeSpeakers = [] }: 
       aria-label="Gatwick radar. Drag to pan, scroll to zoom, arrows to move, C to centre."
       onKeyDown={e => {
         const step = view.range / 8;
+        if (e.key === "Escape" && bugs.current.size) { bugs.current.clear(); setBugNote(""); return; }
         if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "+", "=", "-", "c", "C"].includes(e.key)) {
           e.preventDefault();
           if (e.key.toLowerCase() === "c") centre();
@@ -285,9 +319,23 @@ export function Radar({ state, data, selected, onSelect, activeSpeakers = [] }: 
       onPointerDown={e => {
         if (e.button !== 0) return;
         e.currentTarget.focus(); e.currentTarget.setPointerCapture(e.pointerId);
+        const cs = hit(e.clientX, e.clientY), now = performance.now();
+        if (cs && lastDown.current.callsign === cs && now - lastDown.current.t < DOUBLE_CLICK_MS) {
+          const rect = viewport.current!.getBoundingClientRect();
+          bugDrag.current = { callsign: cs, pointer: [e.clientX - rect.left, e.clientY - rect.top], moved: false };
+          drag.current = null;
+          return;
+        }
+        lastDown.current = { callsign: cs, t: now };
         drag.current = { x: e.clientX, y: e.clientY, view, moved: false };
       }}
       onPointerMove={e => {
+        if (bugDrag.current) {
+          const rect = viewport.current!.getBoundingClientRect();
+          bugDrag.current.pointer = [e.clientX - rect.left, e.clientY - rect.top];
+          bugDrag.current.moved = true;
+          return;
+        }
         const start = drag.current;
         if (!start) return;
         const dx = e.clientX - start.x, dy = e.clientY - start.y;
@@ -298,22 +346,41 @@ export function Radar({ state, data, selected, onSelect, activeSpeakers = [] }: 
         }
       }}
       onPointerUp={e => {
+        const bug = bugDrag.current;
+        if (bug) {
+          bugDrag.current = null;
+          const ac = state?.aircraft.find(a => a.callsign === bug.callsign);
+          const rect = viewport.current!.getBoundingClientRect();
+          if (ac && bug.moved) {
+            const [ax, ay] = project([ac.x, ac.y], view, size.width, size.height);
+            const heading = bugHeading(e.clientX - rect.left - ax, e.clientY - rect.top - ay);
+            const made: HeadingBug = { callsign: ac.callsign, heading, turn: bugTurn(ac.hdg, heading) };
+            bugs.current.set(ac.callsign, made);
+            justBugged.current = true;
+            setBugNote(`${ac.callsign}: turn ${made.turn === "L" ? "left" : "right"} heading ${headingLabel(heading)}`);
+            onSelect(ac.callsign);
+            onHeadingBug?.(made);
+          }
+          return;
+        }
         if (drag.current && !drag.current.moved) onSelect(hit(e.clientX, e.clientY));
         drag.current = null;
       }}
-      onPointerCancel={() => { drag.current = null; }}
+      onPointerCancel={() => { drag.current = null; bugDrag.current = null; }}
       onLostPointerCapture={() => { drag.current = null; }}
       onDoubleClick={e => {
+        if (justBugged.current) { justBugged.current = false; return; }   // a bug was just drawn
         const cs = hit(e.clientX, e.clientY);
         const ac = state?.aircraft.find(a => a.callsign === cs);
         if (ac) centreAircraft(ac);
       }}>
       <canvas ref={canvas} aria-label="Aircraft tracks and airspace map" />
-      <span className="radar-help">Drag to pan · Scroll to zoom · Range {view.range.toFixed(1)} NM</span>
+      <span className="radar-help">Drag to pan · Scroll to zoom · Double-click + drag an aircraft for a heading bug · Range {view.range.toFixed(1)} NM</span>
     </div>
     <div className="radar-selection" aria-live="polite">
       {aircraft ? `${aircraft.spoken_plain} · ${aircraft.plain_status} · Heading ${headingLabel(aircraft.hdg)}`
         : "Select a track or choose an aircraft above to inspect it."}
+      {bugNote && <span className="radar-bug-note"> · Heading bug · {bugNote}</span>}
     </div>
   </div>;
 }

@@ -24,6 +24,18 @@ const AudienceView = lazy(() => import("../viz/AudienceView"));
 
 interface Health { ready: boolean; simulation_ready: boolean; missing_modules: string[] }
 
+// ---- 15 Nov additions (Sanju for Bhavin); see docs/HANDOVER_15NOV.md section 4
+type ScenarioChoice = "demo" | "judge" | "medium" | "busy";
+const SCENARIOS: [ScenarioChoice, string][] = [
+  ["demo", "Demo (scripted)"], ["judge", "Judge: land one aircraft"],
+  ["medium", "Random traffic"], ["busy", "Random traffic (busy)"],
+];
+// Contact frequencies (display; the simulator accepts any frequency on "contact")
+const FREQUENCIES: [string, string][] = [["DIR", "126.825"], ["TWR", "124.225"], ["LON", "134.125"]];
+function vizHref(code?: string) { return `/viz${code ? `?session=${encodeURIComponent(code)}` : ""}`; }
+function readFlag(key: string): boolean { try { return localStorage.getItem(key) === "1"; } catch { return false; } }
+function writeFlag(key: string, on: boolean) { try { localStorage.setItem(key, on ? "1" : "0"); } catch { /* private mode */ } }
+
 export function App() {
   const reportPage = location.pathname === "/report";
   const role = location.pathname === "/viz" || reportPage ? "viz" : "radar";
@@ -40,7 +52,12 @@ export function App() {
   const [text, setText] = useState("");
   const [selected, setSelected] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [contextOpen, setContextOpen] = useState(() => matchMedia("(min-width: 1101px)").matches);
+  // 15 Nov (Sanju for Bhavin): radar first. Side panel and communications bar start closed (one
+  // click away); the controller works by voice, so the bottom history is rarely needed.
+  const [contextOpen, setContextOpen] = useState(false);
+  const [commsOpen, setCommsOpen] = useState(() => readFlag("sweatbox.commsOpen"));
+  const [scenarioChoice, setScenarioChoice] = useState<ScenarioChoice>("demo");
+  const clearanceInput = useRef<HTMLInputElement>(null);
   const [traces,setTraces] = useState<PipelineTrace[]>([]);
   const [pipelineOpen,setPipelineOpen] = useState(false);
   const pipelineToggle = useRef<HTMLButtonElement>(null);
@@ -285,7 +302,7 @@ export function App() {
   }
 
   function control(action: "pause" | "resume" | "load_scenario") {
-    const params = action === "load_scenario" ? { scenario: "demo", paused: false } : {};
+    const params = action === "load_scenario" ? { scenario: scenarioChoice, paused: false } : {};
     if (!connection.current?.send({ type: "control", action, params })) {
       setError("Connection unavailable. Reconnect before changing the simulation.");
     }
@@ -325,7 +342,11 @@ export function App() {
       >
       <header>
         <div><strong>SWEATBOX<span>AI</span></strong><small>GATWICK DIRECTOR</small></div>
-        <nav aria-label="Views"><a href="/">Radar</a><a href="/viz">Second screen</a><a href={reportHref}>Report</a></nav>
+        <nav aria-label="Views"><a href="/">Radar</a>
+          <a href={vizHref(session?.code)} onClick={event => {
+            // 15 Nov (Sanju for Bhavin): the second screen opens in its own window (drag it to the projector)
+            if (window.open(vizHref(session?.code), "sweatbox-second-screen", "popup,width=1280,height=800")) event.preventDefault();
+          }}>Second screen ↗</a><a href={reportHref}>Report</a></nav>
         <div className="connection"><i className={connected ? "online" : ""} />{status}</div>
       </header>
       <div className="session-bar">
@@ -339,8 +360,15 @@ export function App() {
           onClick={() => control(state?.paused ? "resume" : "pause")}>
           {state?.paused ? "Resume" : "Pause"}
         </button>
+        <label className="scenario-pick">Scenario <select aria-label="Scenario" value={scenarioChoice}
+          onChange={event => setScenarioChoice(event.target.value as ScenarioChoice)}>
+          {SCENARIOS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select></label>
         <button disabled={!connected || !health?.simulation_ready}
-          onClick={() => control("load_scenario")}>Reset demo</button>
+          onClick={() => control("load_scenario")}>{scenarioChoice === "demo" ? "Reset demo" : "Load scenario"}</button>
+        <span className="frequencies" title="Frequencies for contact instructions">
+          {FREQUENCIES.map(([unit, freq]) => <span key={unit}>{unit} <b>{freq}</b></span>)}
+        </span>
       </div>
       <div className="panel-toolbar">
         <PresenterConsole enabled={connected && Boolean(health?.simulation_ready) && !reportOpen}
@@ -371,7 +399,11 @@ export function App() {
           <div className="context-content">{contextPanels}</div>
         </aside>}
         <section className="scope">
-          <Radar state={state} data={data} activeSpeakers={speakers} selected={selected} onSelect={selectAircraft} />
+          <Radar state={state} data={data} activeSpeakers={speakers} selected={selected} onSelect={selectAircraft}
+            onHeadingBug={bug => {
+              setText(`${bug.callsign} turn ${bug.turn === "L" ? "left" : "right"} heading ${String(bug.heading).padStart(3, "0")}`);
+              clearanceInput.current?.focus();
+            }} />
           {health && !health.simulation_ready && (
             <div className="waiting">
               <h1>Platform connected</h1>
@@ -381,7 +413,12 @@ export function App() {
           )}
         </section>
       </main>
-      {role === "radar" && <section className="controller-bottom" aria-label="Operational communications and alerts">
+      {role === "radar" && <div className="comms-toggle-row">
+        <button aria-expanded={commsOpen} aria-controls="controller-bottom" onClick={() => setCommsOpen(open => {
+          writeFlag("sweatbox.commsOpen", !open); return !open; })}>
+          {commsOpen ? "▾ Hide communications / alerts" : `▸ Communications / alerts${state?.alerts.length ? ` · ${state.alerts.length} active` : ""}`}
+        </button></div>}
+      {role === "radar" && commsOpen && <section id="controller-bottom" className="controller-bottom" aria-label="Operational communications and alerts">
         <CommunicationsPanel messages={captions} samples={responseSamples} selected={selected} />
         <AlertsEventsPanel state={state} events={events} onSelect={selectAircraft} />
       </section>}
@@ -439,7 +476,7 @@ export function App() {
           } else setError("Connection unavailable. Your clearance has been kept.");
         }}>
           <label htmlFor="clearance">Typed clearance</label>
-          <input id="clearance" value={text} maxLength={2000}
+          <input id="clearance" ref={clearanceInput} value={text} maxLength={2000}
             placeholder="BAW117 turn left heading 240"
             onChange={event => setText(event.target.value)} />
           <button disabled={!connected || !health?.ready || !text.trim()}>Transmit</button>

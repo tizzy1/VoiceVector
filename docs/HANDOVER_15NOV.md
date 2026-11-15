@@ -73,10 +73,33 @@ Done in the same session; listed so the playtest notes can be ticked off in one 
 
 ## 4. UI (Bhavin's area)
 
-See section 5 once the UI items are in (filled in as they land).
+| # | Playtest note | What changed | Files |
+|---|---|---|---|
+| U1 | Make the bottom bar (communications) collapsible | The communications / alerts bar is now behind a one-line toggle ("▸ Communications / alerts · N active"), **collapsed by default**. The choice is remembered per browser (`localStorage` `sweatbox.commsOpen`). | `web/src/app/App.tsx`, `web/src/app/controller.css` |
+| U2 | Make the radar bigger | The communications bar (170 px) and the aircraft/weather side panel (230 px) both start closed, so the scope gets that space. Both are still one click away ("Communications / alerts", "Aircraft / weather"). | `web/src/app/App.tsx` |
+| U3 | Double-click and drag for a heading bug | Double-click an aircraft and keep the button down, then drag: a dashed yellow line follows the pointer with the turn and heading ("L 315"), rounded to 5°, shortest turn from the current heading. On release the bug stays, the selection line says "Heading bug · BAW117: turn left heading 315", and the typed-clearance box is pre-filled with "BAW117 turn left heading 315" (not sent). The bug disappears once the aircraft is given that heading; Escape on the radar clears all bugs. Single-click select, drag-to-pan and double-click-to-centre are unchanged. | `web/src/radar/Radar.tsx`, `web/src/radar/geometry.ts` (`bugHeading`, `bugTurn`), `web/src/radar/tests/heading-bug.test.mjs` |
+| U4 | Gatwick Tower and London Control frequencies | Session bar shows DIR 126.825 · TWR 124.225 · LON 134.125. Display only: the simulator accepts any frequency on "contact", and the parser already understands "contact Gatwick Tower 124.225" / "contact London 134.125". | `web/src/app/App.tsx` (`FREQUENCIES`) |
+| U5 | Preset scenarios, one for judges | Session bar has a Scenario picker: Demo (scripted), **Judge: land one aircraft**, Random traffic, Random traffic (busy). The button says "Reset demo" or "Load scenario". Uses the existing `load_scenario` control. | `web/src/app/App.tsx` (`SCENARIOS`) |
+| U6 | Demo screen pops out a new window | "Second screen ↗" opens `/viz?session=<code>` in its own window (`window.open`, named so it reuses one window). If pop-ups are blocked it falls back to a normal link. Passing the session code makes the window join the same session. | `web/src/app/App.tsx` (`vizHref`) |
+| U7 | Several devices, same live data | No code change needed: the server already listens on all interfaces (`--host 0.0.0.0`) and publishes a network join link (Connection / second device panel, and `session.join_url`). Checked live: a radar client on localhost and a second-screen client over the network address got identical state (same sim time, same aircraft). | n/a |
+
+Live check (real server, 15 Nov ~03:40): lists filled for all demo arrivals; CFL edit "A50" on
+BAW117 saved and shown as A050; judge scenario loaded with one aircraft holding at TIMBA, 5,000 ft,
+checking in by voice; heading bug drawn ("L 315") and the clearance box pre-filled; second screen
+joined the same session; two clients (localhost + network address) in sync. Type-check, web build
+and all web tests (32) pass.
+
+**Using another device:** open the join link from "Connection / second device" (it looks like
+`http://<this-machine's-IP>:8000/viz?session=XXXX`) on a phone/laptop on the same network. If it
+does not load, macOS may be blocking incoming connections for Python: allow it when prompted, or
+in System Settings → Network → Firewall.
 
 ---
 
 ## 5. Not done / needs the owner
 
-Filled in at the end of the session.
+| Item | Why not | Suggestion |
+|---|---|---|
+| Import traffic from Flightradar24 | Flightradar24 has no free public API and its terms forbid scraping, so this would mean a paid business API key and its licence terms. | The app already has a read-only VATSIM import (`control/import_live`, Bhavin's Snapshot panel). OpenSky Network has a free API for non-commercial research use and could be added in the same way, but needs an account and an owner's decision on terms. |
+| Real minimum altitudes | The 2,000 / 3,000 ft areas are still placeholders (Tudor's ⚠ VERIFY); S2 only widened the 2,000 ft area. | Replace with the real Gatwick radar vectoring areas when available. |
+| Review and merge | Everything above is on branch `sanju/team-sim`, not merged. | Tudor: section 1 (sim/pilot). Bhavin: sections 2 and 4 (contract addition, UI). Then `git merge --ff-only origin/sanju/team-sim`. |

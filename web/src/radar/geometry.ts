@@ -32,3 +32,16 @@ export function levelLabel(altitude: number) {
 export function headingLabel(heading: number) {
   return (Math.round(heading) % 360 || 360).toString().padStart(3, "0");
 }
+
+// Heading bug maths (15 Nov, Sanju for Bhavin): screen drag -> heading, shortest turn.
+export function bugHeading(dx: number, dy: number): number {
+  const deg = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;   // screen: x right, y down, north up
+  const rounded = Math.round(deg / 5) * 5 % 360;
+  return rounded === 0 ? 360 : rounded;
+}
+
+export function bugTurn(current: number, heading: number): "L" | "R" {
+  const diff = ((heading - current + 540) % 360) - 180;
+  return diff < 0 ? "L" : "R";
+}
+

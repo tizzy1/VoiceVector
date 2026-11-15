@@ -147,3 +147,13 @@
 .controller-shell main,.controller-shell main.sidebar-open,.controller-shell main.sidebar-closed {grid-template-columns:var(--context-width) minmax(0,1fr);}
 #docked-flight-lists {flex:none;min-width:0;max-height:40vh;overflow:auto;}
 @media(max-width:760px){.controller-shell main,.controller-shell main.sidebar-open,.controller-shell main.sidebar-closed {grid-template-columns:minmax(0,1fr);}}
+
+/* 15 Nov (Sanju for Bhavin): collapsible communications, scenario picker, frequencies, heading bug */
+.comms-toggle-row { flex: none; display: flex; justify-content: flex-start; padding: 2px 12px; border-top: 1px solid var(--pane-line); }
+.comms-toggle-row button { background: transparent; color: #a7bbc3; border: 0; padding: 3px 0; font-size: 10px; cursor: pointer; }
+.comms-toggle-row button:hover { color: #e8eef0; }
+.controller-shell .session-bar .scenario-pick { display: inline-flex; gap: 6px; align-items: center; }
+.controller-shell .session-bar .scenario-pick select { background: #11181c; color: #e8eef0; border: 1px solid #3c515a; font: 10px var(--data-font); padding: 2px 4px; }
+.controller-shell .session-bar .frequencies { display: inline-flex; gap: 12px; margin-left: auto; color: #7c8b90; }
+.controller-shell .session-bar .frequencies b { color: #e8eef0; font-weight: 500; }
+.radar-bug-note { color: #f2c200; }
