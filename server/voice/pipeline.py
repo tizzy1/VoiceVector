@@ -121,6 +121,7 @@ class VoicePipeline:
             if self.tts is not None:
                 self.hub.spawn(self.tts.warm())
             self.hub.spawn(llm_fallback.warm())
+            self._warm_backup_stt()
         except RuntimeError:
             pass
 
@@ -153,6 +154,13 @@ class VoicePipeline:
             return None
         return group
 
+    def _warm_backup_stt(self) -> None:
+        """Keep the batch STT backup (fal Wizper) warm: it is slow from cold (4-10.6 s vs ~2 s warm)."""
+        backup = self.stt_fallback
+        needs = getattr(backup, "needs_warm", None)
+        if backup is not None and needs is not None and needs():
+            self.hub.spawn(backup.warm())
+
     def is_frequency_busy(self) -> bool:
         return self.freq.is_busy()
 
@@ -177,6 +185,7 @@ class VoicePipeline:
             stepped_on = {tx: self.freq.active[tx] for tx in self.freq.ctrl_down()}
             ptt = _Ptt(self._new_id("c"), stamps, stepped_on)
             self._ptt = ptt
+            self._warm_backup_stt()               # ready by PTT up, in case Scribe fails
             self._emit("ctrl_ptt_down", "CONTROLLER", tx_id=ptt.tx_id)
             if stepped_on:
                 self._emit("overlap", "SYSTEM", tx_id=ptt.tx_id, with_ctrl=True,

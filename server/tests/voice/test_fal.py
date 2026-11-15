@@ -197,7 +197,7 @@ async def test_scribe_failure_is_rescued_by_wizper():
     assert any("backup" in c.text for c in hub.captions("final") if c.speaker == "SYSTEM")
     assert pilot.received and pilot.received[0].receiver == "BAW117"
     assert pilot.received[0].instructions[0].value == 240
-    uploaded = fal.uploads[0][0]
+    uploaded = [u for u in fal.uploads if u[2] != "warmup.wav"][0][0]
     with wave.open(io.BytesIO(uploaded)) as w:
         assert w.getnframes() == 16000                               # the whole 1 s transmission was kept
 
@@ -221,9 +221,51 @@ async def test_wizper_alone_works_without_scribe_and_blips_are_ignored():
     await pipe.on_ptt("down")
     await pipe.on_audio_in(b"\x01\x00" * 1000)                    # 62 ms blip
     await pipe.on_ptt("up")
-    assert not fal.uploads and not pilot.received
+    assert not [u for u in fal.uploads if u[2] != "warmup.wav"] and not pilot.received
     await pipe.on_ptt("down")
     await pipe.on_audio_in(b"\x01\x00" * 16000)
     await pipe.on_ptt("up")
     await hub.settle()
-    assert fal.uploads and pilot.received
+    assert [u for u in fal.uploads if u[2] != "warmup.wav"] and pilot.received
+
+
+
+# ------------------------------------------------------------------ warm-up
+@pytest.mark.asyncio
+async def test_wizper_warm_up_uploads_silence_and_never_raises(monkeypatch):
+    import server.voice.stt_fallback as sf
+    fal = FakeFal()
+    stt = WizperSTT("key", client=fal)
+    assert stt.needs_warm()
+    assert await stt.warm() is True
+    data, ctype, name = fal.uploads[0]
+    assert name == "warmup.wav" and fal.runs[0][0] == "fal-ai/wizper"
+    with wave.open(io.BytesIO(data)) as w:
+        assert w.getnframes() == 4800                                # 0.3 s of silence
+    assert not stt.needs_warm()                                      # used just now
+    monkeypatch.setattr(sf, "WARM_EVERY_S", -1.0)
+    assert stt.needs_warm()
+    broken = WizperSTT("key", client=FakeFal(error=RuntimeError("queue full")))
+    assert await broken.warm() is False and broken.needs_warm()       # failed: still cold, no exception
+
+
+@pytest.mark.asyncio
+async def test_concurrent_warm_ups_collapse_to_one():
+    fal = FakeFal(delay=0.05)
+    stt = WizperSTT("key", client=fal)
+    results = await asyncio.gather(stt.warm(), stt.warm(), stt.warm())
+    assert results.count(True) == 1 and len(fal.runs) == 1
+
+
+@pytest.mark.asyncio
+async def test_pipeline_warms_the_backup_at_start_and_again_on_ptt_after_idle(monkeypatch):
+    import server.voice.stt_fallback as sf
+    fal = FakeFal()
+    pipe, hub, bus, pilot = make(stt_fallback=WizperSTT("key", client=fal))
+    await hub.settle()
+    assert pipe.stt_fallback.warmups == 1                            # at server start
+    await pipe.on_ptt("down"); await pipe.on_ptt("up"); await hub.settle()
+    assert pipe.stt_fallback.warmups == 1                            # still warm: no extra call
+    monkeypatch.setattr(sf, "WARM_EVERY_S", -1.0)                     # pretend it has been idle for long
+    await pipe.on_ptt("down"); await pipe.on_ptt("up"); await hub.settle()
+    assert pipe.stt_fallback.warmups == 2 and all(u[2] == "warmup.wav" for u in fal.uploads)
