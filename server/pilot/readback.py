@@ -253,7 +253,8 @@ class Composer:
             rng.shuffle(elements)
         b = Built()
         cs_display, cs_speech = self.callsign_speech(plan.callsign)
-        placement = "end" if canonical else rng.choices(["end", "start", "both"], [0.8, 0.15, 0.05])[0]
+        # Readbacks: callsign at the end for the large majority (ICAO style); a few crews lead with it.
+        placement = "end" if canonical else rng.choices(["end", "start", "both"], [0.90, 0.08, 0.02])[0]
         prefix = "" if canonical else rng.choice(self.bank["persona_prefix"].get(persona, [""]))
         lead = ""
         if plan.kind == "partial_correction" and not canonical:

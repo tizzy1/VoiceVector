@@ -268,9 +268,9 @@ def test_callsign_placement_and_element_order_distribution(composer):
         starts += starts_with and not ends_with
         ends += ends_with and not starts_with
         shuffled += text.index("four thousand") < text.index("two four zero")   # order flipped
-    assert 0.70 < ends / n < 0.90
-    assert 0.07 < starts / n < 0.25
-    assert both / n < 0.12
+    assert 0.84 < ends / n < 0.96
+    assert 0.03 < starts / n < 0.14
+    assert both / n < 0.06
     # 30% of readbacks are shuffled; with two elements half of those keep the original order
     assert 0.08 < shuffled / n < 0.22
 
@@ -527,3 +527,18 @@ def test_numeric_squawk_is_read_as_four_digits_not_a_decimal(composer):
                                            elements=[Instruction(type="squawk", value=value)], seed=1))
         assert "decimal" not in rb.tts_text and rb.validated, rb.tts_text
         assert ("zero seven one two" if value == 712 else "four five two one") in rb.tts_text
+
+
+def test_most_readbacks_put_the_callsign_at_the_end(composer):
+    rng = random.Random(21)
+    end = start = n = 0
+    for _ in range(3000):
+        plan = plan_for(rng, [random_element(rng, rng.choice(ELEMENT_TYPES)) for _ in range(rng.randint(1, 3))])
+        text = composer.compose(plan).tts_text.lower()
+        cs = composer.callsign_speech(plan.callsign)[1]
+        if cs not in text:
+            continue
+        n += 1
+        end += text.rfind(cs) > len(text) - len(cs) - 20          # last thing said (bar "thanks")
+        start += text.startswith(cs) or text.find(cs) < 12
+    assert end / n > 0.85 and start / n < 0.15, (end / n, start / n)
