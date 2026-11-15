@@ -262,6 +262,23 @@ class LiveImportStatus(BaseModel):
     counts: LiveImportCounts = Field(default_factory=LiveImportCounts)
 
 
+class ForecastPath(BaseModel):
+    callsign: str
+    points: list[tuple[float, float, float]]  # lat, lon, altitude ft; every 15 s
+
+
+class ConflictForecast(BaseModel):
+    pair: tuple[str, str]
+    p_conflict: float = Field(ge=0, le=1, allow_inf_nan=False)
+    t_conflict_s: Optional[float] = Field(default=None, ge=0, allow_inf_nan=False)
+    min_sep_nm: float = Field(ge=0, allow_inf_nan=False)
+    min_sep_ft: float = Field(ge=0, allow_inf_nan=False)
+    rollouts: int = 64
+    horizon_s: int = 120
+    computed_t: float = Field(allow_inf_nan=False)
+    samples: list[ForecastPath] = Field(default_factory=list)
+
+
 class StateMsg(BaseModel):
     type: Literal["state"] = "state"
     t: float
@@ -274,6 +291,9 @@ class StateMsg(BaseModel):
     metar: Optional[Metar] = None              # optional, additive (CONTRACTS §7.1)
     live_import_available: bool = False
     live_import: Optional[LiveImportStatus] = None
+    forecasts: list[ConflictForecast] = Field(default_factory=list)
+    forecasts_available: bool = False
+    forecasts_computed_t: Optional[float] = None
 
 
 class WorldSnapshot(BaseModel):

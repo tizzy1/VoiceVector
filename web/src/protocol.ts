@@ -53,11 +53,20 @@ export interface LiveImportStatus {
   imported: LiveImportedTarget[]; skipped: LiveImportSkip[]; counts: LiveImportCounts;
 }
 
+export interface ForecastPath { callsign: string; points: [number, number, number][] }
+export interface ConflictForecast {
+  pair: [string, string]; p_conflict: number; t_conflict_s?: number | null;
+  min_sep_nm: number; min_sep_ft: number; rollouts: number; horizon_s: number;
+  computed_t: number; samples: ForecastPath[];
+}
+
 export interface StateMsg {
   type: "state"; t: number; paused: boolean; sim_speed: number; runway: string;
   aircraft: AircraftPublic[]; alerts: Alert[]; backlog: Record<string, number>;
   metar?: Metar | null;
   live_import_available?: boolean; live_import?: LiveImportStatus | null;
+  forecasts?: ConflictForecast[];
+  forecasts_available?: boolean; forecasts_computed_t?: number | null;
 }
 
 export interface ParsedChip { label: string; span?: [number, number] | null }
