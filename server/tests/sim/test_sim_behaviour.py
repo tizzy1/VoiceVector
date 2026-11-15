@@ -51,27 +51,27 @@ def empty(world):
 # ------------------------------------------------------------- STAR / hold
 def test_star_flown_to_willo_then_holds_and_calls(world, bus):
     world.script = []                                   # hold only: no scripted MAYDAY
-    dlh = world.aircraft["DLH4KA"]                      # at HOLLY, next fix WILLO
-    assert dlh.lat_mode == "LNAV" and world.public_state().aircraft[2].next_fix == "WILLO"
-    assert run(world, 300, lambda: dlh.lat_mode == "HOLD")
+    dlh = world.aircraft["DLH4KA"]                      # at TUFOZ, next fix HOLLY, then WILLO
+    assert dlh.lat_mode == "LNAV" and world.public_state().aircraft[2].next_fix == "HOLLY"
+    assert run(world, 400, lambda: dlh.lat_mode == "HOLD")
     calls = [e for e in bus.of("pilot_call") if e.callsign == "DLH4KA"]
     assert [c.data for c in calls] == [{"kind": "no_further_clearance", "fix": "WILLO"}]
     assert [e.data["fix"] for e in bus.of("hold_entered") if e.callsign == "DLH4KA"] == ["WILLO"]
-    assert dlh.alt == 11000                             # holds its level, never descends alone
+    assert dlh.alt == 9000                              # holds its level, never descends alone
     wx, wy = world.fix_xy("WILLO")
     far = 0.0
     for _ in range(600):                                # several racetracks: stays near the fix
         world.tick(1.0)
         far = max(far, math.hypot(dlh.x - wx, dlh.y - wy))
-    assert dlh.lat_mode == "HOLD" and far < 9
+    assert dlh.lat_mode == "HOLD" and far < 10
     assert dlh.ias <= 221
     status = next(a for a in world.public_state().aircraft if a.callsign == "DLH4KA")
-    assert status.plain_status == "holding at WILLO · FL110" and status.phase == "HOLD"
+    assert status.plain_status == "holding at WILLO · FL090" and status.phase == "HOLD"
 
 
 def test_heading_takes_aircraft_out_of_the_hold(world):
     dlh = world.aircraft["DLH4KA"]
-    run(world, 300, lambda: dlh.lat_mode == "HOLD")
+    run(world, 400, lambda: dlh.lat_mode == "HOLD")
     give(world, "DLH4KA", el(type="heading", value=70, turn_dir="R"))
     run(world, 150)
     assert dlh.lat_mode == "HDG" and dlh.phase == "VECTORS" and dlh.hdg == 70 and dlh.hold is None
@@ -97,8 +97,8 @@ def test_conditional_after_fix(world):
     give(world, "DLH4KA", el(type="flight_level", value=80, verb="descend",
                              condition={"after_fix": "WILLO"}))
     run(world, 20)
-    assert dlh.cleared_alt == 11000 and len(dlh.conditionals) == 1
-    run(world, 300, lambda: dlh.lat_mode == "HOLD")
+    assert dlh.cleared_alt == 9000 and len(dlh.conditionals) == 1
+    run(world, 400, lambda: dlh.lat_mode == "HOLD")
     assert dlh.cleared_alt == 8000 and dlh.conditionals == []
 
 
@@ -320,3 +320,13 @@ def test_undirected_turn_by_reaching_the_sim_flies_the_shortest_way(world):
     give(world, "BAW117", el(type="turn_by", value=40))
     run(world, 30)
     assert a.hdg == 40 and a.phase == "VECTORS"
+
+
+def test_fast_aircraft_after_a_sharp_turn_does_not_orbit_the_fix(bus, data_dir):
+    w = empty(World(bus, data_dir))
+    hx, hy = w.fix_xy("HOLLY")
+    ac = place(w, "FAST1", x=hx - 1.0, y=hy + 0.3, alt=10000, hdg=117, ias=250)
+    ac.lat_mode, ac.phase, ac.route, ac.route_idx = "LNAV", "STAR", ["HOLLY", "WILLO"], 0
+    ac.route_name = "SIRIC1G"
+    assert run(w, 300, lambda: ac.lat_mode == "HOLD")         # reaches the stack, no orbit
+    assert bus.of("hold_entered")[-1].data["fix"] == "WILLO"

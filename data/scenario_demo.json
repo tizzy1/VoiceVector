@@ -18,7 +18,8 @@
    "dewpoint_c": 6,
    "obs_hhmm": "1750"
   },
-  "weather_note": "Visibility/cloud/temperature for the SIMULATED METAR (World.metar()). Wind and QNH come from wind/qnh above so the METAR matches how aircraft fly."
+  "weather_note": "Visibility/cloud/temperature for the SIMULATED METAR (World.metar()). Wind and QNH come from wind/qnh above so the METAR matches how aircraft fly.",
+  "levels_note": "Director-scenario levels (15 Nov): WILLO stack BAW117 8,000 / DLH4KA 9,000 / UAE15 10,000; TIMBA stack EZY45AB 9,000 / WZZ4471 10,000. \u26a0 VERIFY against published STAR levels (data/VERIFY.md row 43)."
  },
  "aircraft": [
   {
@@ -54,13 +55,13 @@
    "type": "A321",
    "persona": "calm_longhaul",
    "star": "SIRIC1G",
-   "at_fix": "HOLLY",
+   "at_fix": "TUFOZ",
    "xy_nm": [
-    2.8935,
-    -15.8373
+    -12.601,
+    -8.023
    ],
-   "alt_ft": 11000,
-   "hdg": 350,
+   "alt_ft": 9000,
+   "hdg": 117,
    "ias_kt": 250
   },
   {
@@ -68,13 +69,13 @@
    "type": "B77W",
    "persona": "calm_longhaul",
    "star": "ARNUN1G",
-   "at_fix": "SFD",
+   "at_fix": "HASTY",
    "xy_nm": [
-    11.0598,
-    -23.399
+    26.548,
+    -25.333
    ],
-   "alt_ft": 12000,
-   "hdg": 330,
+   "alt_ft": 10000,
+   "hdg": 277,
    "ias_kt": 250
   },
   {
@@ -82,13 +83,13 @@
    "type": "A321",
    "persona": "rushed",
    "star": "BARMI1G",
-   "at_fix": "LARCK",
+   "at_fix": "KKE63",
    "xy_nm": [
-    23.2816,
-    -14.3432
+    32.104,
+    -10.095
    ],
-   "alt_ft": 13000,
-   "hdg": 285,
+   "alt_ft": 10000,
+   "hdg": 244,
    "ias_kt": 250
   }
  ],

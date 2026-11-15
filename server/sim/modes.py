@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 LNAV_MIN_LEAD_NM = 1.0
 LNAV_MAX_LEAD_NM = 5.0
+LNAV_CAPTURE_RADII = 1.15       # capture a fix within 1.15 turn radii
 NFC_CALL_NM = 3.0               # "approaching WILLO, no further clearance"
 HOLD_LEG_S = 60.0
 HOLD_MAX_IAS = 220.0
@@ -66,8 +67,12 @@ def _lnav(w: "World", ac: AircraftState) -> None:
             radius = turn_radius_nm(ac.tas, w.max_bank)
             lead = max(LNAV_MIN_LEAD_NM,
                        min(LNAV_MAX_LEAD_NM, radius * math.tan(math.radians(min(delta, 150)) / 2)))
-        if (last and ac.flow == "ARR" and ac.phase == "STAR" and d < NFC_CALL_NM
-                and not ac.nfc_called and not ac.approach_cleared and ac.on_frequency):
+        # Inside its own turn circle an aircraft cannot fly over the fix; without this a fast
+        # aircraft after a sharp turn orbits the fix forever.
+        lead = max(lead, LNAV_CAPTURE_RADII * turn_radius_nm(ac.tas, w.max_bank))
+        if (last and ac.flow == "ARR" and ac.phase == "STAR" and d < max(NFC_CALL_NM, lead + 1.0)
+                and not ac.nfc_called and not ac.approach_cleared and ac.on_frequency
+                and not ac.emergency):
             ac.nfc_called = True
             w.pilot_call(ac, "no_further_clearance", fix=fix)
         if d >= lead:
