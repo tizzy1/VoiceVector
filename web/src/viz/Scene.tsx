@@ -5,13 +5,14 @@ import { SimpleMeshLayer } from "@deck.gl/mesh-layers";
 import { Map as MapLibreMap, setWorkerUrl } from "maplibre-gl";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import type { AircraftPublic, StateMsg } from "../protocol";
+import { forecastGeometry } from "./forecasts";
 import { MotionBuffer } from "../radar/motion";
 import { CameraDirector, aircraftPose, initialPose, overviewPose, type CameraMode, type CameraPose } from "./camera";
 import { activeAircraft, aircraftMesh, FlightHistory, modelMatrix, position, wrapSpeech, type SceneAirspace, type Vec3 } from "./sceneData";
 
 interface Props {
   state: StateMsg | null; data: SceneAirspace; selected: string; mode: CameraMode; revision: number;
-  speakers: readonly string[]; labels: boolean; trails: boolean; context: boolean;
+  forecasts: boolean; speakers: readonly string[]; labels: boolean; trails: boolean; context: boolean;
   onSelect: (callsign: string) => void; onManual: () => void; onFailure: () => void;
   onTarget: (callsign: string) => void;
   speech?: { callsign: string; text: string };
@@ -70,6 +71,7 @@ export default function Scene(props: Props) {
     let live = true, frame = 0, map: MapLibreMap | undefined, deck: Deck<MapView> | undefined;
     let lastState: StateMsg | null = null, groundRunway = "", grounds: Layer[] = [], trailLayers: Layer[] = [];
     let overview = { ...initialPose }, overviewRevision = -1, firstState = true, lastTarget = "";
+    let forecastData = forecastGeometry(null);
     const motion = new MotionBuffer(), history = new FlightHistory(), camera = new CameraDirector();
     const reduce = matchMedia("(prefers-reduced-motion: reduce)");
     const fail = () => { if (live) input.current.onFailure(); };
@@ -115,7 +117,7 @@ export default function Scene(props: Props) {
       const p = input.current, state = p.state;
       if (state !== lastState) {
         const rewound = state && lastState && state.t < lastState.t;
-        motion.update(state, now); history.update(state);
+        motion.update(state, now); history.update(state); forecastData = forecastGeometry(state);
         if (rewound || !state) { firstState = true; overviewRevision = -1; }
         lastState = state;
         trailLayers = state ? [new LineLayer({ id: "flight-trails", data: history.segments(state, p.data),
@@ -145,9 +147,20 @@ export default function Scene(props: Props) {
       const matrix = (ac: AircraftPublic) => modelMatrix(ac.hdg,
         Math.max(1, pixelsToMetres * (ac.callsign === p.selected && p.mode !== "overview" ? 92 : 31) / 41));
       const labels = [...aircraft].sort((a, b) => Number(b.callsign === p.selected) - Number(a.callsign === p.selected)
+        || (p.forecasts ? Number(forecastData.highRisk.has(b.callsign)) - Number(forecastData.highRisk.has(a.callsign)) : 0)
         || Math.hypot(a.x - (target?.x ?? 0), a.y - (target?.y ?? 0)) - Math.hypot(b.x - (target?.x ?? 0), b.y - (target?.y ?? 0))).slice(0, 10);
       const layers: Layer[] = [
         ...(p.context ? grounds : grounds.filter(layer => layer.id === "runway" || layer.id === "airport-label")),
+        ...(p.forecasts ? [
+          new PathLayer({ id: "forecast-fans", data: forecastData.paths, getPath: d => d.path,
+            getColor: d => d.loss ? [255, 90, 82, 38] : [242, 181, 68, 38], getWidth: 1,
+            widthUnits: "pixels" }),
+          new ScatterplotLayer({ id: "forecast-meeting-points", data: forecastData.markers,
+            getPosition: d => d.point, getRadius: reduce.matches ? 6 : 5 + (Math.sin(now * Math.PI / 600) + 1) * 2,
+            radiusUnits: "pixels", getFillColor: d => d.loss ? [255, 90, 82, 100] : [242, 181, 68, 100],
+            stroked: true, getLineColor: d => d.loss ? [255, 90, 82, 230] : [242, 181, 68, 230],
+            lineWidthMinPixels: 1, billboard: true }),
+        ] : []),
         ...(p.trails ? trailLayers : []),
         new LineLayer<AircraftPublic>({ id: "altitude-stems", data: aircraft, getSourcePosition: ac => position(ac.x, ac.y, 0, p.data), getTargetPosition: point, getColor: ac => [...color(ac).slice(0, 3), ac.callsign === p.selected ? 140 : 45] as [number, number, number, number], getWidth: 1 }),
         new ScatterplotLayer<AircraftPublic>({ id: "ground-fixes", data: aircraft, getPosition: ac => position(ac.x, ac.y, 0, p.data), getRadius: 3, radiusUnits: "pixels", stroked: true, filled: false, getLineColor: ac => [...color(ac).slice(0, 3), 100] as [number, number, number, number], lineWidthMinPixels: 1 }),
@@ -157,7 +170,7 @@ export default function Scene(props: Props) {
         ...(p.labels ? [new TextLayer<AircraftPublic>({ id: "aircraft-labels", data: labels, getPosition: point,
           getText: ac => aircraft.length > 12 && ac.callsign !== p.selected && !speakers.includes(ac.callsign) ? ac.callsign
             : `${ac.callsign}${speakers.includes(ac.callsign) ? "  / ON AIR" : ""}\n${Math.round(ac.alt).toLocaleString("en-GB")} ft · ${Math.round(ac.gs)} kt`,
-          getColor: color, getSize: 11, getPixelOffset: ac => [0, ac.callsign === p.selected && p.mode !== "overview" ? 66 : 28],
+          getColor: ac => p.forecasts && forecastData.highRisk.has(ac.callsign) ? [242, 181, 68, 255] : color(ac), getSize: 11, getPixelOffset: ac => [0, ac.callsign === p.selected && p.mode !== "overview" ? 66 : 28],
           fontFamily: "JetBrains Mono", characterSet: "auto", background: true, getBackgroundColor: [17, 21, 24, 210], backgroundPadding: [5, 4], pickable: true })] : []),
         ...(p.speech?.text ? [new TextLayer<AircraftPublic>({ id: "pilot-speech", data: aircraft.filter(ac => ac.callsign === p.speech?.callsign),
           getPosition: point, getText: () => wrapSpeech(p.speech?.text ?? ""),

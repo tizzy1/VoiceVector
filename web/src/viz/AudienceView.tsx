@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { CaptionMsg, EventMsg, SessionMsg, StateMsg } from "../protocol";
 import { CaptionStrip } from "../ui/CaptionStrip";
 import { Radar } from "../radar/Radar";
@@ -6,6 +6,8 @@ import { headingLabel, levelLabel } from "../radar/geometry";
 import Scene from "./Scene";
 import { activeAircraft, type SceneAirspace } from "./sceneData";
 import type { CameraMode } from "./camera";
+import { ForecastPanel } from "./ForecastPanel";
+import { ForecastCrossings, type ForecastNotice } from "./forecasts";
 import "./viz.css";
 
 interface AudioControls {
@@ -26,6 +28,27 @@ export default function AudienceView(props: Props) {
   const [fallback, setFallback] = useState(false), [renderer, setRenderer] = useState(0);
   const [flightsOpen, setFlightsOpen] = useState(() => matchMedia("(min-width: 1050px)").matches);
   const [detailsOpen, setDetailsOpen] = useState(() => matchMedia("(min-width: 701px)").matches);
+  const [forecastOn, setForecastOn] = useState(true);
+  const [forecastNotices, setForecastNotices] = useState<ForecastNotice[]>([]);
+  const crossings = useRef(new ForecastCrossings());
+  const lastForecastTime = useRef(-1);
+  useEffect(() => {
+    const added = crossings.current.update(state);
+    if (!state || state.t < lastForecastTime.current) setForecastNotices([]);
+    lastForecastTime.current = state?.t ?? -1;
+    if (added.length) setForecastNotices(previous => [...previous, ...added].slice(-5));
+  }, [state]);
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (event.defaultPrevented || event.repeat || event.isComposing || event.ctrlKey || event.metaKey || event.altKey
+        || document.querySelector('[role="dialog"]')
+        || (target instanceof HTMLElement && (target.isContentEditable || target.closest('input,textarea,select')))) return;
+      if (event.key.toLowerCase() === 'p') { event.preventDefault(); setForecastOn(value => !value); }
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, []);
   const [cameraTarget, setCameraTarget] = useState("");
   const aircraft = activeAircraft(state?.aircraft ?? []);
   const target = aircraft.find(ac => ac.callsign === cameraTarget);
@@ -71,6 +94,7 @@ export default function AudienceView(props: Props) {
       {props.presenter}{props.pipeline}<button disabled={fallback} aria-expanded={flightsOpen && !fallback} aria-controls="viz-flight-rail" onClick={() => setFlightsOpen(value => !value)}>Flights · {aircraft.length}</button>
       <button disabled={fallback || !focused} aria-expanded={detailsOpen && Boolean(focused)} aria-controls="viz-inspector"
         onClick={() => setDetailsOpen(value => !value)}>Flight details</button>
+      <button aria-pressed={forecastOn} aria-controls="conflict-forecast" onClick={() => setForecastOn(value => !value)}>Forecast · P</button>
       <div className="viz-audio">
         {!audio.started ? <button className="viz-audio-enable" onClick={audio.enable} disabled={props.status !== "Connected"}>Enable room audio</button>
           : <><button onClick={audio.disable}>Disable audio</button><label><input type="checkbox" checked={audio.playback}
@@ -84,7 +108,7 @@ export default function AudienceView(props: Props) {
     {audio.error && <p className="viz-audio-error" role="status">{audio.error}</p>}
     <main className="viz-stage">
       {data && !fallback && <Scene key={renderer} state={state} data={data} selected={inspectionCallsign}
-        mode={mode} revision={revision} speakers={props.speakers} labels={labels} trails={trails} context={context}
+        mode={mode} revision={revision} speakers={props.speakers} labels={labels} trails={trails} context={context} forecasts={forecastOn}
         speech={lastCaption && spoken ? { callsign: lastCaption.speaker, text: spoken } : undefined}
         onSelect={lock} onManual={() => setMode("free")} onFailure={() => setFallback(true)} onTarget={setCameraTarget} />}
       {fallback && <div className="viz-fallback"><Radar state={state} data={data} selected={selected} onSelect={onSelect} activeSpeakers={props.speakers} /></div>}
@@ -105,7 +129,9 @@ export default function AudienceView(props: Props) {
           {(props.speakers.includes(ac.callsign) || ac.transmitting) && <em>● ON AIR</em>}
         </button>)}
       </aside>
-      <aside id="viz-inspector" className="viz-inspector">
+      <aside id="viz-inspector" className={`viz-inspector${forecastOn ? " has-forecast" : ""}`}>
+        {forecastOn && <ForecastPanel state={state} />}
+        {detailsOpen && <>
         {focused ? <section className="viz-target" aria-label="Locked aircraft details">
           <div className="viz-target-heading"><span>{mode === "radio" || mode === "departure" ? "CAMERA TARGET" : "SELECTED AIRCRAFT"}</span><button aria-label="Clear aircraft selection" onClick={() => { onSelect(""); camera("overview"); }}>×</button></div>
           <h2>{focused.callsign}</h2><p>{focused.spoken_plain}</p>
@@ -123,9 +149,11 @@ export default function AudienceView(props: Props) {
           <div className="viz-target-actions"><button onClick={() => camera("lock")}>Lock / orbit</button><button onClick={() => camera("chase")}>Chase aircraft</button></div>
         </section> : <section className="viz-select-hint"><span>FLIGHT INSPECTION</span><h2>Pick an aircraft.</h2><p>Click a 3D model or a flight strip to lock the camera and inspect its instructions.</p></section>}
         <section className="viz-event-feed" aria-label="Audience event feed"><h2>Session activity</h2>
-          {props.events.length === 0 ? <p>Session events appear here.</p> : [...props.events].reverse().slice(0, 5).map((event, index) =>
+          {forecastNotices.slice().reverse().map((notice, index) => <p key={`forecast:${index}`}><time>{Math.floor(notice.t / 60).toString().padStart(2, '0')}:{Math.floor(notice.t % 60).toString().padStart(2, '0')}</time>{notice.text}</p>)}
+          {props.events.length === 0 && forecastNotices.length === 0 ? <p>Session events appear here.</p> : [...props.events].reverse().slice(0, 5).map((event, index) =>
             <p key={index}><time>{Math.floor(event.event.t / 60).toString().padStart(2, "0")}:{Math.floor(event.event.t % 60).toString().padStart(2, "0")}</time>{event.feed_text}</p>)}
         </section>
+        </>}
       </aside>
       {lastCaption && <div className="viz-radio-bubble" role="status"><span>● {lastCaption.speaker} / RADIO</span><p>{spoken}</p></div>}
       <div className="viz-camera-bar" aria-label="Audience camera controls">

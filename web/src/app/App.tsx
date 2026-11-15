@@ -293,7 +293,7 @@ export function App() {
     return true;
   }
 
-  function presenterBeat(key: 1 | 4 | 8) {
+  function presenterBeat(key: 1 | 2 | 4 | 8) {
     radio.current?.up();
     if (sendControl({ type: "control", action: "beat", params: { key } }) && key === 8) {
       setReportPending(true);

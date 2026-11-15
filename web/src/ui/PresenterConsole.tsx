@@ -4,7 +4,7 @@ import "./presenter.css";
 
 interface Props {
   enabled: boolean; radioReady: boolean; reportPending: boolean; reportReady: boolean;
-  judge: boolean; onJudge: () => void; onBeat: (key: 1 | 4 | 8) => void;
+  judge: boolean; onJudge: () => void; onBeat: (key: 1 | 2 | 4 | 8) => void;
 }
 
 export function PresenterConsole({ enabled, radioReady, reportPending, reportReady,
@@ -27,7 +27,7 @@ export function PresenterConsole({ enabled, radioReady, reportPending, reportRea
       else if (key === "j") { event.preventDefault(); onJudge(); }
       else if (enabled && (key !== "4" || radioReady)
         && (key !== "8" || (!reportPending && !reportReady))) {
-        event.preventDefault(); onBeat(Number(key) as 1 | 4 | 8);
+        event.preventDefault(); onBeat(Number(key) as 1 | 2 | 4 | 8);
       }
     }
     window.addEventListener("keydown", keydown);
@@ -42,6 +42,8 @@ export function PresenterConsole({ enabled, radioReady, reportPending, reportRea
       <p>Use outside text fields. Hold Space for radio.</p>
       <button type="button" disabled={!enabled} onClick={() => onBeat(1)}>
         <kbd>1</kbd><span>Reset seeded demo</span></button>
+      <button type="button" disabled={!enabled} onClick={() => onBeat(2)}>
+        <kbd>2</kbd><span>Spawn conflict pair</span></button>
       <button type="button" disabled={!enabled || !radioReady} onClick={() => onBeat(4)}>
         <kbd>4</kbd><span>Arm next readback error</span></button>
       <button type="button" disabled={!enabled || reportPending || reportReady} onClick={() => onBeat(8)}>

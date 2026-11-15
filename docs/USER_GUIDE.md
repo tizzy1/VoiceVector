@@ -163,3 +163,19 @@ session; a reset clears it.
 `/api/health` reports `simulation_ready` separately from `ready` (radio readiness) and lists any
 missing modules. The simulator runs even without the radio modules; typed input waits until the
 radio pipeline is loaded. Restart the server after pulling new modules.
+
+### Audience conflict forecast (`P`, `/viz` only)
+The right-hand **CONFLICT FORECAST** panel ranks up to five pairs with at least a 15%
+forecast risk. It shows the simulator's 64 seeded futures over 120 seconds, refreshed
+every two simulation seconds: probability, time to conflict, and closest separation.
+Eight sample paths per aircraft appear in 3D at their simulated altitudes, with a
+closest-point marker. Risk at 50% highlights aircraft labels and adds a feed entry once
+per threshold crossing. Red means the same pair has an actual STCA loss-of-separation alert.
+
+Press **P** or click **Forecast · P** to toggle the panel and paths together. They start
+on and never appear on the controller scope. Missing, stale and disconnected data are
+labelled explicitly. Forecasts are advisory and cannot change aircraft or issue clearances.
+
+For the demo, open the controller's **Demo shortcuts · D** and choose **2 Spawn conflict
+pair**. Watch the pair on `/viz`, then give a valid separating heading or level clearance
+and watch the risk fall. Use the aircraft's displayed callsign; spawned callsigns vary.

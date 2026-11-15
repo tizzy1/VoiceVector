@@ -84,7 +84,7 @@ def test_report_page_reconnection_receives_current_report_and_reset_clears_it(tm
             assert client.app.state.session.report is None
 
 
-@pytest.mark.parametrize("key", [2, "1", True, None])
+@pytest.mark.parametrize("key", [3, "1", True, None])
 def test_unknown_or_mistyped_beats_do_not_change_session(tmp_path, key):
     with TestClient(create_app(FACTORIES, tmp_path)) as client:
         with client.websocket_connect("/ws?role=radar") as radar:

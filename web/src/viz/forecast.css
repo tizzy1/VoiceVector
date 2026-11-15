@@ -1,0 +1,25 @@
+.viz-inspector .forecast-panel {padding:13px;margin-bottom:10px;border:1px solid #3c453a;background:#111518f5;}
+.forecast-panel header {display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0;border:0;background:none;}
+.forecast-panel h2 {margin:0;font:9px var(--data-font);color:#e8eef0;letter-spacing:.04em;}
+.forecast-panel header span {font:7px var(--data-font);padding:3px 4px;border:1px solid #67552f;color:#f2b544;}
+.forecast-panel .forecast-subtitle {font-size:9px;color:#7c8b90;line-height:1.8;margin:9px 0;}
+.forecast-panel ul {list-style:none;margin:0;padding:0;}
+.forecast-panel li {border-top:1px solid #2a3238;padding:11px 0;animation:forecast-in 180ms ease;}
+.forecast-panel .forecast-leaving {animation:forecast-out 180ms ease forwards;pointer-events:none;}
+.forecast-row-heading {display:flex;justify-content:space-between;gap:8px;font:10px var(--data-font);align-items:center;}
+.forecast-row-heading strong {font-size:18px;font-weight:400;}
+.forecast-panel li p {font:9px var(--data-font);margin:7px 0 0;line-height:1.7;}
+.forecast-panel li .forecast-names {font:9px Inter,sans-serif;color:#7c8b90;}
+.forecast-panel meter {display:block;width:100%;height:6px;margin:8px 0;background:#252a28;border:0;accent-color:currentColor;}
+.forecast-panel meter::-webkit-meter-bar {background:#252a28;border:0;border-radius:0;}
+.forecast-panel meter::-webkit-meter-optimum-value {background:currentColor;}
+.forecast-low {color:#b39150;}.forecast-high {color:#f2b544;}.forecast-loss {color:#ff5a52;}
+.forecast-panel li small {display:block;color:#7c8b90;font:8px Inter,sans-serif;line-height:1.5;margin-top:6px;}
+.forecast-panel .forecast-empty {font-size:11px;line-height:1.8;color:#a7bbc3;margin:12px 0;}
+.forecast-panel footer {padding:8px 0 0;border-top:1px solid #2a3238;font-size:8px;line-height:1.6;color:#7c8b90;}
+.viz-page.details-closed .viz-inspector.has-forecast,.viz-page.is-fallback .viz-inspector.has-forecast {display:block;}
+.viz-page .viz-inspector.has-forecast {width:310px;}
+@keyframes forecast-in {from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes forecast-out {to{opacity:0;transform:translateY(-4px)}}
+@media(max-width:700px){.viz-page .viz-inspector.has-forecast{width:auto;max-height:240px;}}
+@media(prefers-reduced-motion:reduce){.forecast-panel li,.forecast-panel .forecast-leaving{animation:none;}}

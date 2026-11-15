@@ -8,7 +8,8 @@ from pathlib import Path
 
 from server.challenge import Challenge
 from server.contracts import (
-    CaptionMsg, ControlMsg, Event, ReportMsg, SessionMsg, SessionSettings, StateMsg, LiveImportStatus,
+    CaptionMsg, ConflictForecast, ControlMsg, Event, ReportMsg, SessionMsg, SessionSettings,
+    StateMsg, LiveImportStatus,
 )
 from server.hub import Hub
 from tools.traffic_snapshot import SnapshotFetcher, SnapshotError, demo_snapshot
@@ -116,8 +117,44 @@ class Session:
             "paused": self.settings.paused, "sim_speed": self.settings.sim_speed,
             "live_import_available": callable(getattr(self.world, "import_live", None)),
             "live_import": self.live_import,
+            **self.forecast_state(state),
             "aircraft": [ac.model_copy(update=self.import_provenance.get(ac.callsign, {})) for ac in state.aircraft],
         })
+
+    def forecast_state(self, state: StateMsg) -> dict:
+        """Bridge Tudor's existing scalar output until World publishes the typed contract.
+
+        Legacy paths contain XY only. They are deliberately omitted: future altitude
+        must come from the simulator, never from the current aircraft's level.
+        Geographic samples with actual forecast altitude pass through unchanged.
+        """
+        forecaster = getattr(self.world, "forecaster", None)
+        available = state.forecasts_available or bool(
+            forecaster is not None and getattr(forecaster, "enabled", False))
+        computed = state.forecasts_computed_t
+        if computed is None:
+            computed = getattr(forecaster, "last_t", None)
+        forecasts = list(state.forecasts)
+        if not forecasts and available:
+            for raw in getattr(self.world, "forecasts", []):
+                try:
+                    forecasts.append(ConflictForecast.model_validate({
+                        "pair": raw.get("pair", raw.get("callsigns")),
+                        "p_conflict": raw["p_conflict"],
+                        "t_conflict_s": raw.get("t_conflict_s", raw.get("t_median_s")),
+                        "min_sep_nm": raw["min_sep_nm"], "min_sep_ft": raw["min_sep_ft"],
+                        "rollouts": raw["rollouts"], "horizon_s": raw["horizon_s"],
+                        "computed_t": raw["computed_t"], "samples": raw.get("samples", []),
+                    }))
+                except (ValueError, KeyError, TypeError):
+                    logger.warning("Skipping an invalid advisory forecast")
+        if forecasts:
+            available = True
+            if computed is None:
+                computed = max(f.computed_t for f in forecasts)
+        forecasts.sort(key=lambda f: (-f.p_conflict, f.pair))
+        return {"forecasts": forecasts, "forecasts_available": available,
+                "forecasts_computed_t": computed}
 
     def emit(self, kind: str) -> None:
         if self.bus:
@@ -212,11 +249,12 @@ class Session:
             key = message.params.get("key")
             beats = {
                 1: ("load_scenario", {"scenario": "demo", "paused": False}),
+                2: ("inject", {"kind": "spawn_conflict"}),
                 4: ("force_error", {"mode": "consistent", "kind": "wrong_value_adjacent"}),
                 8: ("end_session", {}),
             }
             if type(key) is not int or key not in beats:
-                raise ValueError("Available presenter beats: 1, 4, 8")
+                raise ValueError("Available presenter beats: 1, 2, 4, 8")
             action, params = beats[key]
             message = ControlMsg(action=action, params=params)
         async with self.lock:

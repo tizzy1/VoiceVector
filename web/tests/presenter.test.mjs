@@ -25,15 +25,15 @@ const key = (value, extra = {}) => ({ key: value, repeat: false, ctrlKey: false,
   altKey: false, metaKey: false, isComposing: false, defaultPrevented: false, ...extra });
 
 test("only implemented presenter shortcuts are recognized, including capital D/J", () => {
-  for (const value of ["1", "4", "8", "d", "D", "j", "J"]) {
+  for (const value of ["1", "2", "4", "8", "d", "D", "j", "J"]) {
     assert.equal(presenterKey(key(value), false), value.toLowerCase());
   }
-  for (const value of ["2", "3", "5", "6", "7", "r", " ", "Escape"]) {
+  for (const value of ["3", "5", "6", "7", "r", " ", "Escape"]) {
     assert.equal(presenterKey(key(value), false), null);
   }
 });
 test("typing, composition, held keys and browser shortcuts never fire presenter actions", () => {
-  for (const value of ["1", "4", "8", "d", "j"]) {
+  for (const value of ["1", "2", "4", "8", "d", "j"]) {
     assert.equal(presenterKey(key(value), true), null);
     for (const flag of ["repeat", "ctrlKey", "altKey", "metaKey", "isComposing", "defaultPrevented"]) {
       assert.equal(presenterKey(key(value, { [flag]: true }), false), null);
