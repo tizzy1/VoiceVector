@@ -471,4 +471,13 @@ def _pair_result(w: "World", tr: dict[str, np.ndarray], acs: list[AircraftState]
                 [[round(float(X[s, idx, r]), 2), round(float(Y[s, idx, r]), 2)]
                  for s in range(0, X.shape[0], every)]
                 for r in pick]
+    # Client samples include the simulator's actual forecast altitude (FORECAST_PANEL.md).
+    result["samples"] = []
+    if p >= PATHS_MIN_P:
+        for idx, cs in ((i, a.callsign), (j, b.callsign)):
+            for r in pick:
+                result["samples"].append({"callsign": cs, "points": [
+                    (*w.proj.to_latlon(float(X[s, idx, r]), float(Y[s, idx, r])),
+                     round(float(A[s, idx, r]), 1))
+                    for s in range(0, X.shape[0], every)]})
     return result
