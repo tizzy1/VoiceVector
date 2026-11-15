@@ -1,0 +1,134 @@
+.viz-page { height: 100dvh; min-height: 740px; display: flex; flex-direction: column; background: #111518; color: #e8eef0; font-family: Inter, sans-serif; }
+.viz-page button { padding: 7px 11px; border: 1px solid #35434a; border-radius: 3px; background: #171c20; color: #a7bbc3; font-size: 11px; }
+.viz-page button:hover:not(:disabled) { border-color: #7c8b90; color: #e8eef0; }
+.viz-page button:disabled { opacity: .4; cursor: default; }
+.viz-page button[aria-pressed='true'] { color: #f2b544; border-color: #8b6b35; background: #24221c; }
+.viz-page .viz-header { flex: none; padding: 13px 22px; display: flex; align-items: center; gap: 24px; justify-content: space-between; border-bottom: 1px solid #2a3238; background: #111518; }
+.viz-brand { color: #e8eef0; font-size: 17px; font-weight: 650; letter-spacing: .045em; }
+.viz-brand:hover { text-decoration: none; }
+.viz-brand > span { color: #f2b544; }
+.viz-brand small { font: 8px var(--data-font); letter-spacing: .18em; color: #7c8b90; margin-top: 6px; }
+.viz-airport { display: flex; align-items: center; gap: 14px; }
+.viz-airport b { font-size: 12px; letter-spacing: .16em; font-weight: 500; }
+.viz-airport > span { color: #7c8b90; border-left: 1px solid #35434a; padding-left: 14px; font: 10px var(--data-font); }
+.viz-session { display: flex; gap: 20px; font: 10px var(--data-font); color: #7c8b90; }
+.viz-session .viz-connected { color: #7cf0b4; }
+.viz-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 7px 20px; border-bottom: 1px solid #2a3238; background: #171c20; font-size: 10px; z-index: 6; }
+.viz-tools > a { color: #7c8b90; font-size: 10px; margin-left: 4px; }
+.viz-tools .presenter-console > button { color: #7c8b90; font-size: 10px; }
+.viz-audio { display: flex; gap: 10px; align-items: center; margin-left: auto; }
+.viz-audio label { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #7c8b90; }
+.viz-audio input[type='range'] { width: 70px; padding: 0; accent-color: #f2b544; }
+.viz-audio input[type='checkbox'] { width: 13px; height: 13px; flex: none; margin: 0; accent-color: #f2b544; }
+.viz-audio .viz-audio-enable { border-color: #665332; color: #f2b544; }
+.viz-page .viz-audio-error { padding: 5px 20px; margin: 0; color: #f2b544; font-size: 11px; }
+.viz-page .viz-stage { display: block; position: relative; flex: 1 1 0; min-height: 480px; overflow: hidden; isolation: isolate; }
+.viz-scene, .viz-basemap, .viz-fallback { position: absolute; inset: 0; }
+.viz-basemap { pointer-events: none; background: #111518; }
+.viz-canvas { position: absolute; inset: 0; z-index: 1; outline-offset: -3px; }
+.viz-loading { position: absolute; inset: 0; display: grid; place-content: center; color: #7c8b90; font: 12px var(--data-font); }
+.viz-camera-heading { position: absolute; top: 24px; left: 26px; z-index: 2; pointer-events: none; }
+.viz-page.flights-open .viz-camera-heading { left: 262px; }
+.viz-camera-heading > span { font: 8px var(--data-font); letter-spacing: .2em; color: #f2b544; }
+.viz-camera-heading h1 { margin: 9px 0 6px; font-size: 20px; font-weight: 450; letter-spacing: -.025em; }
+.viz-camera-heading p { margin: 0; font-size: 10px; color: #7c8b90; }
+.viz-camera-heading button { pointer-events: auto; margin-top: 8px; }
+.viz-page .viz-flight-rail { position: absolute; z-index: 3; left: 16px; top: 24px; bottom: 115px; width: 220px; padding: 12px; border: 1px solid #2a3238; background: #111518ed; overflow-y: auto; scrollbar-width: thin; transform: translateX(-250px); visibility: hidden; transition: transform 240ms cubic-bezier(.2,.8,.2,1), visibility 0s 240ms; }
+.viz-page .viz-flight-rail.is-open { transform: translateX(0); visibility: visible; transition: transform 240ms cubic-bezier(.2,.8,.2,1); }
+.viz-flight-rail h2 { display: flex; justify-content: space-between; margin: 0 0 12px; font-size: 9px; font-weight: 500; }
+.viz-flight-rail h2 span { color: #7c8b90; font-family: var(--data-font); }
+.viz-page .viz-flight { display: block; padding: 11px 9px; text-align: left; width: 100%; margin-bottom: 7px; border-color: #2a3238; border-left: 2px solid #638c99; background: #171c20; }
+.viz-page .viz-flight.is-departure { border-left-color: #a9803c; }
+.viz-page .viz-flight[aria-pressed='true'] { border-color: #4fd1e8; border-left-color: #4fd1e8; color: #e8eef0; background: #1a292f; }
+.viz-flight > span { display: flex; justify-content: space-between; gap: 8px; }
+.viz-flight b { color: #e8eef0; font: 11px var(--data-font); }
+.viz-flight small { display: inline; color: #7c8b90; font: 9px var(--data-font); margin: 0; letter-spacing: 0; }
+.viz-flight .viz-flight-values { font: 10px var(--data-font); margin-top: 9px; color: #a7bbc3; }
+.viz-flight-values i { font-style: normal; color: #4a5d63; }
+.viz-flight .viz-flight-status { display: block; font-size: 10px; color: #7c8b90; line-height: 1.6; margin-top: 7px; }
+.viz-flight em { display: block; margin-top: 7px; font: 8px var(--data-font); color: #7cf0b4; }
+.viz-page .viz-inspector { position: absolute; right: 16px; top: 24px; bottom: 120px; width: 250px; z-index: 3; padding: 0; border: 0; background: transparent; overflow-y: auto; scrollbar-width: thin; }
+.viz-page.details-closed .viz-inspector { display: none; }
+.viz-target, .viz-select-hint, .viz-event-feed { padding: 15px; margin-bottom: 10px; border: 1px solid #2a3238; background: #111518ed; }
+.viz-target { border-top: 2px solid #4fd1e8; }
+.viz-target-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.viz-target-heading > span, .viz-select-hint > span { color: #7c8b90; font: 8px var(--data-font); letter-spacing: .1em; }
+.viz-target-heading button { padding: 1px 5px; border: 0; font-size: 18px; }
+.viz-target h2 { font: 23px var(--data-font); color: #4fd1e8; margin: 10px 0 3px; text-transform: none; letter-spacing: 0; }
+.viz-target p { font-size: 10px; color: #7c8b90; margin: 5px 0; }
+.viz-target .viz-target-status { color: #e8eef0; font-size: 12px; line-height: 1.6; margin: 12px 0; }
+.viz-target table { width: 100%; border-collapse: collapse; text-align: left; }
+.viz-target caption { text-align: left; color: #7c8b90; font-size: 9px; padding-bottom: 6px; }
+.viz-target th, .viz-target td { padding: 7px 0; border-bottom: 1px solid #2a3238; font: 9px var(--data-font); }
+.viz-target th { color: #7c8b90; }
+.viz-target td:last-child { color: #4fd1e8; }
+.viz-target dl { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 8px; margin: 14px 0; }
+.viz-target dt { color: #7c8b90; font-size: 9px; }
+.viz-target dd { margin: 5px 0 0; font: 10px var(--data-font); overflow-wrap: anywhere; }
+.viz-target-actions { display: flex; gap: 6px; }
+.viz-target-actions button { flex: 1; font-size: 9px; padding: 6px; }
+.viz-target .viz-import-source { color: #f2b544; font-size: 9px; }
+.viz-select-hint h2 { margin: 10px 0; font-size: 17px; font-weight: 400; text-transform: none; letter-spacing: -.01em; color: #a7bbc3; }
+.viz-select-hint p { font-size: 11px; color: #7c8b90; line-height: 1.8; }
+.viz-event-feed h2 { font-size: 9px; margin: 0 0 12px; font-weight: 500; }
+.viz-event-feed p { font-size: 10px; line-height: 1.7; color: #a7bbc3; margin: 6px 0; padding-top: 7px; border-top: 1px solid #2a3238; }
+.viz-event-feed time { display: block; font: 8px var(--data-font); color: #7c8b90; margin-bottom: 4px; }
+.viz-radio-bubble { position: absolute; z-index: 3; bottom: 116px; left: 50%; transform: translateX(-50%); width: min(450px, 40%); padding: 12px 15px; border: 1px solid #405e50; background: #111b17f5; }
+.viz-radio-bubble span { font: 8px var(--data-font); color: #7cf0b4; }
+.viz-radio-bubble p { margin: 7px 0 0; font-size: 13px; line-height: 1.7; }
+.viz-camera-bar { position: absolute; bottom: 56px; left: 50%; transform: translateX(-50%); z-index: 4; display: flex; gap: 4px; padding: 5px; border: 1px solid #35434a; background: #111518f5; border-radius: 4px; white-space: nowrap; }
+.viz-camera-bar button { border-color: transparent; padding: 8px 12px; font-size: 10px; }
+.viz-layer-controls { position: absolute; left: 22px; bottom: 18px; z-index: 4; display: flex; gap: 15px; }
+.viz-layer-controls label { display: flex; align-items: center; gap: 6px; color: #7c8b90; font-size: 10px; }
+.viz-layer-controls input { width: 12px; height: 12px; padding: 0; margin: 0; flex: none; accent-color: #708a96; }
+.viz-scene-note { position: absolute; right: 22px; bottom: 19px; z-index: 3; font: 8px var(--data-font); color: #7c8b90; }
+.viz-page .caption-strip { flex: none; min-height: 65px; max-height: 150px; padding: 8px 22px; overflow-y: auto; border-color: #2a3238; background: #111518; }
+.viz-page .caption-strip .caption-row { padding: 5px 0; }
+.viz-page .caption-strip .caption-speaker { font-family: var(--data-font); color: #f2b544; }
+.viz-page .caption-strip p { font-size: 13px; }
+.viz-page .caption-strip .caption-plain { font-size: 11px; }
+.viz-page .viz-footer { flex: none; padding: 8px 22px; font: 8px var(--data-font); border-top: 1px solid #2a3238; }
+.viz-page.judge-mode .caption-strip { max-height: 230px; }
+.viz-page.judge-mode .caption-strip p { font-size: 19.5px; }
+.viz-page.judge-mode .caption-strip .caption-speaker { font-size: 16.5px; }
+.viz-fallback .radar { height: 100%; min-height: 0; }
+.viz-fallback .radar-viewport { min-height: 0; }
+.viz-page:has(.viz-fallback) .viz-camera-heading { top: 65px; }
+.viz-page.is-fallback .viz-layer-controls, .viz-page.is-fallback .viz-camera-bar,
+.viz-page.is-fallback .viz-flight-rail, .viz-page.is-fallback .viz-inspector, .viz-page.is-fallback .viz-radio-bubble { display: none; }
+.viz-page.is-fallback .viz-camera-heading { left: 24px; }
+@media (max-width: 1050px) {
+  .viz-airport { display: none; }
+  .viz-page .viz-inspector { width: 225px; }
+  .viz-page.flights-open .viz-camera-heading { left: 26px; }
+  .viz-page .viz-flight-rail { top: 105px; }
+  .viz-radio-bubble { left: 30%; width: 45%; }
+}
+@media (max-width: 700px) {
+  .viz-page { min-height: 820px; }
+  .viz-page .viz-header { padding: 12px; gap: 12px; }
+  .viz-brand { font-size: 14px; }
+  .viz-session { font-size: 8px; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+  .viz-tools { padding: 6px 12px; gap: 6px; }
+  .viz-tools button { font-size: 9px; padding: 5px 7px; }
+  .viz-audio label { font-size: 9px; }
+  .viz-audio input[type='range'] { width: 45px; }
+  .viz-tools > a { display: none; }
+  .viz-camera-heading { left: 16px; top: 18px; }
+  .viz-camera-heading h1 { font-size: 17px; }
+  .viz-camera-heading p { max-width: 240px; font-size: 9px; }
+  .viz-page .viz-inspector { width: auto; left: 12px; right: 12px; top: auto; bottom: 145px; max-height: 220px; }
+  .viz-select-hint, .viz-event-feed { display: none; }
+  .viz-target { padding: 10px; }
+  .viz-target h2 { font-size: 18px; }
+  .viz-target dl { gap: 8px; }
+  .viz-page .viz-flight-rail { left: 10px; width: 195px; top: 100px; bottom: 150px; }
+  .viz-camera-bar { bottom: 45px; width: calc(100% - 24px); display: grid; grid-template-columns: repeat(3, 1fr); white-space: normal; }
+  .viz-camera-bar button { padding: 7px 4px; font-size: 9px; }
+  .viz-scene-note { right: 12px; bottom: 8px; font-size: 7px; }
+  .viz-layer-controls { left: 12px; bottom: 25px; gap: 12px; }
+  .viz-layer-controls label { font-size: 9px; }
+  .viz-radio-bubble { left: 12px; transform: none; bottom: 140px; width: calc(100% - 24px); }
+  .viz-page .caption-strip { padding: 8px 12px; max-height: 130px; }
+}
+@media (prefers-reduced-motion: reduce) { .viz-page .viz-flight-rail { transition: none; } }

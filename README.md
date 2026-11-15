@@ -28,7 +28,7 @@ joins both screens to the same server. If venue Wi-Fi blocks device connections,
 use a shared hotspot or open /viz on an extended display.
 
 The foundation view serves the Gatwick map, session and connection status,
-caption feed and typed input. /viz currently shows the same 2D foundation.
+caption feed and typed input. /viz is a separate 3D audience presentation.
 The controller uses a compact EuroScope-inspired workstation: weather and selected
 aircraft on the left, the radar centrally, and flight strips in the right-sliding
 drawer. The lower communications/alerts dock scrolls independently and can be
@@ -114,7 +114,25 @@ The shared caption strip retains the latest three transmissions, updates partial
 in place, and displays parsed chips, plain-English summaries and supplied latency
 metrics. Pilot captions follow the audio engine clock when word timings are available,
 and otherwise display the complete sentence.
-3D and camera controls are subsequent tasks.
+The audience view uses original box-and-wing aircraft geometry with blueprint
+edges, true-altitude stems, a three-minute fading trail history and a runway/ILS
+guide. It uses the same live session, not another simulation. Click a model or a
+flight strip to lock the camera and inspect current versus assigned level,
+heading and IAS. Overview refits active traffic; Follow radio holds a speaking
+pilot for at least six seconds; Chase follows behind the selected aircraft;
+Departure follows an active departure; Free orbit allows manual navigation.
+Drag to pan, right-drag to orbit, scroll to zoom. Manual camera movement releases
+automatic tracking. Camera transitions take 1.8 seconds and respect reduced motion.
+Flights and Flight details toggle the presentation panels; Labels, Trails and
+Airspace control the scene layers. Symbols are enlarged for visibility; the
+altitude values and anchor positions are not exaggerated.
+
+The 3D route is loaded separately from the controller bundle. MapLibre provides
+the offline background and deck.gl renders local airport/airspace data and the
+aircraft; it makes no tile-service or aircraft-model download requests. The
+2D view button is also the fallback if 3D initialization fails. Enable room audio
+is playback-only and requests no microphone. Captions, presenter shortcuts and
+the end-of-session debrief remain available on this view.
 
 Tudor's simulator now runs independently of the radio pipeline. Both views
 show live aircraft, with Pause/Resume and Reset demo controls. /api/health

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { ControlMsg, CaptionMsg, EventMsg, SessionMsg, StateMsg, Report } from "../protocol";
 import { Radar, type Airspace } from "../radar/Radar";
@@ -18,6 +18,8 @@ import { ReportDialog, ReportPage } from "../report/ReportView";
 import { SnapshotPanel } from "../ui/SnapshotPanel";
 import { AlertsEventsPanel } from "../ui/AlertsEventsPanel";
 import "./controller.css";
+import type { SceneAirspace } from "../viz/sceneData";
+const AudienceView = lazy(() => import("../viz/AudienceView"));
 
 interface Health { ready: boolean; simulation_ready: boolean; missing_modules: string[] }
 
@@ -275,6 +277,19 @@ export function App() {
   }
   if (reportPage) return <ReportPage report={report} connectionStatus={status} onDownload={downloadReport} />;
   const reportHref = `/report${session ? `?session=${encodeURIComponent(session.code)}` : ""}`;
+  if (role === "viz") return <Suspense fallback={<div className="viz-loading">Loading audience view…</div>}>
+    <AudienceView state={state} data={data as SceneAirspace | null} session={session} status={status}
+      selected={selected} onSelect={selectAircraft} speakers={speakers} captions={captions} clocks={captionClock}
+      events={events} judge={judge} audio={{ started: audioStarted, enabled: radioStatus.enabled,
+        playback, volume, error: radioStatus.error, enable: enableRadio, disable: stopRadio,
+        setPlayback, setVolume }}
+      presenter={<PresenterConsole enabled={connected && Boolean(health?.simulation_ready) && !reportOpen}
+        radioReady={Boolean(health?.ready)} judge={judge} onJudge={() => setJudge(value => !value)}
+        reportPending={reportPending} reportReady={Boolean(report)} onBeat={presenterBeat} />}
+      reportAction={reportPending ? <span>Generating debrief…</span> : report ? <button onClick={() => setReportOpen(true)}>Review debrief</button> : null}
+      reportOverlay={report && reportOpen && <ReportDialog report={report} open={reportOpen} href={reportHref}
+        onClose={() => setReportOpen(false)} onDownload={downloadReport} />} />
+  </Suspense>;
   const contextPanels = <>
     {role === "radar" && <WeatherPanel metar={state?.metar} connected={connected} />}
     <AircraftDetails aircraft={state?.aircraft.find(ac => ac.callsign === selected)} alerts={state?.alerts ?? []} />
@@ -357,7 +372,6 @@ export function App() {
           <div className="sidebar-content">
           <button className="sidebar-close" onClick={closeSidebar}>Close panels</button>
           <TrafficPanel state={state} selected={selected} onSelect={selectAircraft} />
-          {role === "viz" && <>{contextPanels}<AlertsEventsPanel state={state} events={events} onSelect={selectAircraft} /></>}
           </div>
         </aside>
       </main>
@@ -430,7 +444,7 @@ export function App() {
         </>
       )}
       {error && <p role="alert" className="error">{error}</p>}
-      <footer>{role === "viz" ? "SECOND SCREEN · FOUNDATION VIEW" : "CONTROLLER WORKSTATION"}
+      <footer>CONTROLLER WORKSTATION
         <span>{connected && health?.simulation_ready ? "LIVE SIMULATION" : "AWAITING CONNECTION"}</span></footer>
       {report && reportOpen && <ReportDialog report={report} open={reportOpen} href={reportHref}
         onClose={() => setReportOpen(false)} onDownload={downloadReport} />}
