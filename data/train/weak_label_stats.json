@@ -1,0 +1,15 @@
+{
+ "real_raw": 13201,
+ "real_controller": 5731,
+ "real_kept": 1879,
+ "synthetic": 3000,
+ "train": 4408,
+ "dev": 471,
+ "dev_real": 190,
+ "rejected_reasons": {
+  "contact_without_frequency": 221,
+  "no_instruction": 725,
+  "no_callsign": 1647,
+  "unparsed": 1259
+ }
+}

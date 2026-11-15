@@ -4,3 +4,6 @@ __pycache__/
 .venv/
 web/dist/
 runs/
+# trained parser model + raw training data (CUSTOM_PARSER_MODEL.md)
+models/
+data/train/*.jsonl

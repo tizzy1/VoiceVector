@@ -83,7 +83,7 @@ def parse(text: str, callsigns: Optional[list[CallsignInfo]] = None,
         ambiguities.append("out_of_range")
     if any(i.fix and i.confidence < 1.0 for i in instructions):
         ambiguities.append("fix_fuzzy_match")
-    return Transmission(
+    tx = Transmission(
         tx_id=tx_id, t=t, receiver=receiver, receiver_confidence=round(confidence, 3),
         intent=intent, instructions=instructions, self_corrections=corrections,
         raw_text=text, norm_text=" ".join(tokens),
@@ -94,3 +94,8 @@ def parse(text: str, callsigns: Optional[list[CallsignInfo]] = None,
                  "callsign_s": matched - normalised, "tokens": float(len(tokens)),
                  "clauses": float(len(clauses)), "callsign_score": round(confidence, 3)},
     )
+    # Optional trained span tagger (CUSTOM_PARSER_MODEL.md). ML_PARSER=0 (default): untouched.
+    from server.voice import ml_tagger
+    if ml_tagger.enabled():
+        tx = ml_tagger.decide(tx, callsigns, fixes)
+    return tx

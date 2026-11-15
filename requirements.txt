@@ -11,3 +11,7 @@ python-dotenv
 pytest
 pytest-asyncio
 websockets
+datasets
+sklearn-crfsuite
+pandas
+pyarrow

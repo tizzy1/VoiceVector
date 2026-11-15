@@ -497,8 +497,11 @@ class VoicePipeline:
             n1 = p0 + rt.get("normalise_s", 0.0)
             c1 = n1 + rt.get("callsign_s", 0.0)
             trace.add("normalise", p0, n1, tokens=int(rt.get("tokens", 0)))
+            ml_detail = ({"parser": "ml" if rt.get("parser_ml") else "regex",
+                          "ml_conf": rt.get("ml_conf"), "ml_ms": rt.get("ml_ms")}
+                         if "ml_conf" in rt else {})          # only when ML_PARSER=1
             trace.add("parse", c1, regex_done, path=tx.parse_path, clauses=int(rt.get("clauses", 0)),
-                      unparsed="unparsed_clause" in tx.ambiguities)
+                      unparsed="unparsed_clause" in tx.ambiguities, **ml_detail)
             if llm_used:
                 trace.add("llm_fallback", stamps["t_llm0"], stamps["t_parsed"],
                           "ok" if tx.parse_path != "regex" else "fallback",
