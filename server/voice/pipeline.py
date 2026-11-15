@@ -98,6 +98,10 @@ class VoicePipeline:
         self.stt_fallback = stt_fallback if stt_fallback is not None else WizperSTT.from_env()
         data_dir = getattr(composer, "data_dir", None)
         self.voices = voices or (Voices.load(data_dir, seed) if data_dir else Voices(seed=seed))
+        # Designed voices live in ONE ElevenLabs account. With another account's key they 404, so
+        # pilots fall back to the standard premade voices (present in every account) instead of silence.
+        self.standard_voices = Voices(seed=seed)
+        self.missing_voices: set[str] = set()
         self.freq = FrequencyManager(seed)
         self.metrics = Metrics()
         self.reveal_errors = False
@@ -431,7 +435,7 @@ class VoicePipeline:
 
     async def _produce(self, text: str, voice_id: str, settings: dict, queue: asyncio.Queue,
                        stamps: Stamps, alignment: list, engines: list, meta: dict,
-                       shaped: Optional[tuple[str, dict]] = None) -> None:
+                       shaped: Optional[tuple[str, dict]] = None, fallback: Optional[tuple] = None) -> None:
         """Stream from the first engine that works; fall back only if nothing was produced yet.
 
         ``shaped`` = (text with prosody markup, its settings) for engines that set ``prosody``;
@@ -440,9 +444,12 @@ class VoicePipeline:
         stamps.mark("t_tts_req")
         last_error: Exception = TTSError("no TTS engine")
         plain = (text, settings)
-        for engine in engines:
+        attempts = [(engine, voice_id) for engine in engines]
+        for engine, voice_id in self._with_voice_fallback(attempts, fallback, meta):
             meta["engine"] = engine
             text, settings = shaped if (shaped and getattr(engine, "prosody", False)) else plain
+            if fallback is not None and voice_id == fallback[0].id and "fallback_settings" in meta:
+                settings = {**settings, **meta["fallback_settings"]}   # standard voice: uncalibrated speed
             meta["spoken_text"] = text
             produced = False
             try:
@@ -470,8 +477,34 @@ class VoicePipeline:
                 last_error = error if isinstance(error, TTSError) else TTSError(repr(error))
                 if produced:
                     break                                # mid-stream failure: do not restart the voice
+                if "voice_not_found" in str(error) and fallback is not None and voice_id != fallback[0].id:
+                    meta["voice_missing"] = voice_id     # the generator retries with a standard voice
+                    continue
                 logger.warning("%s failed (%s); trying the next voice engine", type(engine).__name__, error)
         await queue.put(last_error)
+
+    def _with_voice_fallback(self, attempts: list, fallback: Optional[tuple], meta: dict):
+        """Yield (engine, voice_id); after a voice_not_found, retry that engine with a standard voice."""
+        for engine, voice_id in attempts:
+            meta.pop("voice_missing", None)
+            yield engine, voice_id
+            missing = meta.pop("voice_missing", None)
+            if missing and fallback is not None:
+                self._voice_missing(missing)
+                meta["fallback_settings"] = fallback[1]
+                meta["voice_name"] = fallback[0].name
+                yield engine, fallback[0].id
+
+    def _voice_missing(self, voice_id: str) -> None:
+        first = not self.missing_voices
+        self.missing_voices.add(voice_id)
+        if first:
+            logger.warning("ElevenLabs voice %s not found in this account: the designed pilot voices "
+                           "belong to the team account. Using standard voices. Use the team ELEVENLABS_API_KEY.",
+                           voice_id)
+            self.hub.spawn(self._notice(
+                "Pilot voices: the designed voices are not in this ElevenLabs account, so standard voices are "
+                "used. Put the team ELEVENLABS_API_KEY in .env and restart to hear them."))
 
     async def speak(self, resp: PilotResponse) -> None:
         if resp.kind == "silence" or not resp.callsign or resp.plan is None:
@@ -506,6 +539,8 @@ class VoicePipeline:
         persona = resp.plan.persona
         stressed = resp.kind in ("mayday", "pan") or persona == "stressed"
         voice = self.voices.voice_for(cs, persona)
+        if voice.id in self.missing_voices:
+            voice = self.standard_voices.voice_for(cs, persona)
         settings = settings_for(persona, stressed, voice)
         speech = getattr(self.composer, "callsign_speech", None)
         shaped = shape(readback.tts_text, persona, callsign_speech=respell(speech(cs)[1]) if speech else "",
@@ -524,8 +559,10 @@ class VoicePipeline:
         emergency_call = resp.kind in ("mayday", "pan") and self.emergency is not None
         engines = [e for e in ([self.emergency] if emergency_call else []) + [self.tts] if e is not None]
         if engines:
+            standard = self.standard_voices.voice_for(cs, persona)
             producer = asyncio.create_task(self._produce(readback.tts_text, voice.id, settings, queue, stamps,
-                                                         alignment, engines, meta, shaped_pair))
+                                                         alignment, engines, meta, shaped_pair,
+                                                         fallback=(standard, settings_for(persona, stressed))))
             try:
                 first = await asyncio.wait_for(
                     queue.get(), EMERGENCY_FIRST_AUDIO_S if emergency_call else FIRST_AUDIO_TIMEOUT_S)
@@ -541,7 +578,7 @@ class VoicePipeline:
             if "t_tts_first" in stamps:
                 trace.machine_ms = (stamps["t_tts_first"] - trace.anchor) * 1000
                 trace.add("tts_first_audio", stamps["t_tts_req"], stamps["t_tts_first"], model=model,
-                          voice=voice.name, machine_ms=round(trace.machine_ms, 1))
+                          voice=meta.get("voice_name", voice.name), machine_ms=round(trace.machine_ms, 1))
             elif "t_tts_req" in stamps:
                 trace.add("tts_first_audio", stamps["t_tts_req"], time.perf_counter(), "error",
                           model=model, voice=voice.name)

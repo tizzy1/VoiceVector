@@ -380,3 +380,30 @@ async def test_mismatched_alignment_falls_back_to_an_even_spread():
     await type_and_settle(pipe, hub)
     words = hub.captions("pilot_words")[0].words
     assert words and words[0].t0 == 0 and words[-1].t1 == pytest.approx(3 * 490 / 44100, abs=0.01)
+
+
+@pytest.mark.asyncio
+async def test_designed_voice_missing_from_the_account_falls_back_to_a_standard_voice():
+    """Another account's ELEVENLABS_API_KEY: designed voices 404 -> standard voice + one notice, not silence."""
+    from server.tests.voice.fakes import FakeTimedTTS
+    from server.voice.tts import TTSError
+    from server.voice.voices import DEFAULT_POOL
+
+    class AccountTTS(FakeTimedTTS):
+        async def stream_timed(self, text, voice_id, settings=None):
+            if voice_id not in {v.id for v in DEFAULT_POOL}:
+                self.requests.append((text, voice_id, settings or {}))
+                raise TTSError('ElevenLabs TTS 404: {"detail":{"status":"voice_not_found"}}')
+            async for item in super().stream_timed(text, voice_id, settings):
+                yield item
+
+    pipe, world, pilot, hub, bus, _ = make(tts=AccountTTS(chunks=3))
+    assert pipe.voices.pool != DEFAULT_POOL                        # designed voices loaded from data/
+    for _ in range(2):
+        await type_and_settle(pipe, hub)
+    assert len(hub.of("audio_start")) == 2 and len(hub.of("audio_chunk")) == 6
+    ids = [r[1] for r in pipe.tts.requests]
+    assert ids[0] not in {v.id for v in DEFAULT_POOL} and ids[1] in {v.id for v in DEFAULT_POOL}
+    assert ids[2] in {v.id for v in DEFAULT_POOL}, "second call goes straight to the standard voice"
+    notices = [c.text for c in hub.captions("final") if c.speaker == "SYSTEM"]
+    assert len(notices) == 1 and "ELEVENLABS_API_KEY" in notices[0]
