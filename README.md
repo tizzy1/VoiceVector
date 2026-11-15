@@ -246,3 +246,17 @@ PIPELINE (T) opens server-measured transmission stages: a controller drawer with
 traces, or the latest trace in the audience view. Until the voice producer emits
 TraceMsg, the panel explicitly waits for measurements. It never estimates timings.
 See docs/NOV15_HANDOFF.md for outstanding simulator and voice integration work.
+
+## Optional trained parser
+
+The opt-in CRF instruction tagger is trained on weak-labelled controller transcripts
+from [UWB-ATCC](https://huggingface.co/datasets/Jzuluaga/uwb_atcc), credited to Šmídl
+et al., University of West Bohemia, under CC BY-NC-SA 4.0, plus synthetic Gatwick
+examples. Model weights and transcript files stay local and gitignored. Setup and
+enablement instructions: [docs/ML_PARSER.md](docs/ML_PARSER.md).
+
+Real transcripts receive labels from the existing grammar. Reported span F1 measures
+agreement with those labels, rather than independently assessed operational accuracy.
+The feature is disabled by default; the grammar and simulator continue to validate
+instructions when it is enabled. Follow the setup note's rehearsal guidance before
+using it in the live demo.

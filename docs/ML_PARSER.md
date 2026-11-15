@@ -25,7 +25,11 @@ Install the four new packages (they are in `requirements.txt`):
 ```
 (If you use `uv`: `uv pip install --python .venv/bin/python -r requirements.txt`.)
 
-The new packages are `datasets`, `sklearn-crfsuite`, `pandas` and `pyarrow`.
+The training packages are `datasets`, `sklearn-crfsuite`, `pandas`, `pyarrow` and
+`fsspec[http]`. The HTTP extra is required for the transcript-only Parquet download;
+without it, the fetcher reports a download failure and continues without real data.
+
+If this virtual environment has no pip module, use the `uv` command above.
 
 ## 2. Build the model (about 2 minutes)
 Run from the repo root, in this order:
@@ -97,9 +101,19 @@ parser.
 |---|---|
 | Log line `ML parser disabled: cannot load models/crf.pkl` | No model file: do step 2 (or copy the file). The server keeps running on the regex parser. |
 | `ModuleNotFoundError: sklearn_crfsuite` | Step 1 not done in this `.venv`. |
+| `HTTPFileSystem requires "requests" and "aiohttp"` | Reinstall the updated requirements; `fsspec[http]` supplies the missing HTTP client. |
 | `fetch_uwb: download failed …` | No internet or Hugging Face unreachable. It exits cleanly; `weak_label` then trains on synthetic lines only. Re-run later. |
 | Tests show "skipped" | No `models/crf.pkl` in this clone. |
 | Want to switch it off quickly | Restart without `ML_PARSER=1`. Nothing else to undo. |
+
+On this Mac, the HTTP downloader also needs the trusted certificate bundle used by
+the project. If a fetch reports a missing file but the public URL exists, retry with
+certificate verification still enabled:
+```bash
+SSL_CERT_FILE="$(.venv/bin/python -m certifi)" .venv/bin/python -m tools.train.fetch_uwb
+```
+Check that it actually writes `raw.jsonl` and that the newly generated report has
+`real_data_used: true`; a successful process exit alone does not confirm a download.
 
 ## 7. Rules
 - **Don't commit** `models/` or `data/train/*.jsonl` (gitignored on purpose). `data/train/report.json`,
