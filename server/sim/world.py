@@ -26,6 +26,7 @@ TRANSITION_ALT_FT = 6000
 LANDED_REMOVE_S = 30.0
 DEMO_FIRST_SPAWN_S = 300.0      # keep the scripted first minutes of the demo quiet
 ATIS_LETTER = "K"
+FINAL_JOIN_NM = 10.0             # track distance assumes joining final 10 NM out
 EXPECT_APPROACH_ASK_S = 120.0    # arrival asks for the expected approach 2 min after check-in
 CONFLICT_LOS_S = 90.0            # spawn_conflict: loss of separation after ~90 s if untouched
 CONFLICT_POINT_NM = (18.0, 12.0)  # crossing point NE of the airfield, clear of the demo traffic
@@ -431,7 +432,35 @@ class World:
     def edit_strip(self, callsign: str, field: str, value: Any) -> bool:
         """Controller's list edit (control `edit_strip`). A record only: never moves the
         aircraft. Returns False for an unknown callsign/field or an invalid value."""
-        return strips.edit(self, callsign, field, value)
+        ok = strips.edit(self, callsign, field, value)
+        if ok:
+            self.emit("strip_edit", callsign, {"field": field, "by": "controller",
+                                               "value": self.aircraft[callsign].strip.get(field)},
+                      actor="CONTROLLER")
+        return ok
+
+    def _track_distance(self, ac: AircraftState) -> Optional[float]:
+        """Arrival track miles to touchdown: along the localiser when on final, else the
+        remaining route (or the direct line) to a 10 NM final point, plus 10 NM."""
+        if ac.flow != "ARR" or ac.phase == "LANDED":
+            return None
+        along, xte = modes.loc_geometry(self, ac)
+        if ac.lat_mode == "LOC" or (0 < along <= FINAL_JOIN_NM and abs(xte) < 2.0):
+            return round(max(along, 0.0), 1)
+        c = math.radians(self.loc_course)
+        jx = self.thr_xy[0] - FINAL_JOIN_NM * math.sin(c)
+        jy = self.thr_xy[1] - FINAL_JOIN_NM * math.cos(c)
+        x, y, total = ac.x, ac.y, 0.0
+        if ac.lat_mode == "HOLD" and ac.hold:
+            pts = [self.fix_xy(ac.hold["fix"])]
+        elif ac.lat_mode == "LNAV":
+            pts = [self.fix_xy(f) for f in ac.route[ac.route_idx:] if f in self.egkk["fixes"]]
+        else:
+            pts = []
+        for px, py in pts:
+            total += math.hypot(px - x, py - y)
+            x, y = px, py
+        return round(total + math.hypot(jx - x, jy - y) + FINAL_JOIN_NM, 1)
 
     def strip(self, callsign: str) -> dict[str, Any]:
         """What the lists show for this aircraft (strip + flight-plan defaults)."""
@@ -477,6 +506,12 @@ class World:
             established=ac.established, squawk=ac.squawk, on_frequency=ac.on_frequency,
             in_jurisdiction=ac.in_jurisdiction, emergency=ac.emergency,
             transmitting=ac.transmitting, plain_status=self._plain_status(ac),
+            flight_rules=ac.flight_rules if ac.flight_rules in ("I", "V") else "I",
+            adep=ac.adep or None, ades=ac.ades or None, rfl=ac.rfl or None,
+            assigned_squawk=ac.assigned_squawk or None,
+            selected_level=None if ac.vert_mode == "GS" else ac.cleared_alt,
+            distance_to_touchdown_nm=self._track_distance(ac),
+            strip=strips.view(self, ac),
         )
 
     def snapshot(self) -> WorldSnapshot:

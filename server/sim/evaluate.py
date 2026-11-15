@@ -117,9 +117,7 @@ def _fix(w, ac, tx, i, ins: Instruction) -> Evaluation:
         return _no(i, "QUERY", "QUERY_AMBIGUOUS", what="hold_fix")
     if ins.type == "direct" and ins.fix and _passed_on_own_procedure(w, ac, ins.fix):
         # SIM_SPEC §2.1.1: the pilot questions a direct to a fix it has already flown past.
-        # Reason code switches to QUERY_FIX_PASSED once it is in the contract (CONTRACTS §3.2);
-        # until then QUERY_UNKNOWN_FIX gives the reply "confirm the waypoint".
-        return _no(i, "QUERY", "QUERY_UNKNOWN_FIX", fix=ins.fix, what="fix_passed")
+        return _no(i, "QUERY", "QUERY_FIX_PASSED", fix=ins.fix, what="fix_passed")
     return _ok(i)
 
 

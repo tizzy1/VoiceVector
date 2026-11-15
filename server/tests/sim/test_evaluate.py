@@ -107,7 +107,7 @@ def test_direct_to_a_fix_already_passed_on_own_star_is_queried(world):
                           instructions=[Instruction(type="direct", fix=fix)])
         return world.evaluate(tx)[0]
     behind = ev("TUFOZ")
-    assert behind.status == "QUERY" and behind.reason_values.get("what") == "fix_passed"
+    assert behind.status == "QUERY" and behind.reason_code == "QUERY_FIX_PASSED"
     assert ev("WILLO").status == "OK" and ev("HOLLY").status == "OK"
     ac.lat_mode = "HDG"                                      # on vectors: any fix is fine
     assert ev("TUFOZ").status == "OK"
