@@ -104,3 +104,35 @@ def test_check_page_covers_every_letter_navaid_fix_and_point(composer):
         i["file"] = "x.wav"
     html = page(todo, "Sweatbox test", radio=False)
     assert html.count("<audio") == len(todo) and "Export" in html
+
+
+def test_direct_to_a_passed_fix_is_queried_in_words_end_to_end(composer):
+    """Tudor's evaluate (QUERY_UNKNOWN_FIX + what=fix_passed) -> pilot -> "confirm direct TUFOZ, we've passed it"."""
+    from server.contracts import SessionSettings, Transmission
+    from server.pilot.engine import PilotEngine
+    from server.sim.world import World
+    from server.tests.voice.bench_latency import Bus
+    bus = Bus()
+    world = World(bus, DATA)
+    bus.clock = lambda: world.t
+    world.configure(SessionSettings(error_rate="off"))
+    world.inject("spawn_arrival", params={"entry": "DISIT"})
+    ac = next(a for a in world.aircraft.values() if a.route_name == "DISIT1G")
+    ac.route, ac.route_idx = ["KIDLI", "MID", "TUFOZ", "HOLLY", "WILLO"], 3
+    pilot = PilotEngine(world, bus, DATA)
+    pilot.set_error_rate("off")
+    tx = Transmission(tx_id="d", t=0, receiver=ac.callsign, instructions=[Instruction(type="direct", fix="TUFOZ")])
+    responses = pilot.handle_transmission(tx, world.evaluate(tx))
+    plan = next(r.plan for r in responses if r.plan is not None)
+    rb = composer.compose(plan)
+    assert rb.validated and rb.variant_ids == ["query.QUERY_FIX_PASSED"], rb
+    assert "confirm direct TUFOZ" in rb.text or "passed TUFOZ" in rb.text
+    assert "tufoz" in rb.tts_text and ("passed" in rb.tts_text or "past" in rb.tts_text)
+
+
+def test_fix_passed_reply_also_works_with_the_future_contract_code(composer):
+    plan = ReadbackPlan.model_construct(callsign="BAW117", persona="crisp_airline", kind="query",
+                                        reason_code="QUERY_FIX_PASSED", reason_values={"fix": "KKS25"},
+                                        elements=[], report_values={}, seed=1)
+    rb = composer.compose(plan)
+    assert rb.validated and "kilo kilo sierra two five" in rb.tts_text and "KKS25" in rb.text

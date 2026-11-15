@@ -325,6 +325,10 @@ class Composer:
         code = plan.reason_code or plan.report_values.get("reason_code")
         values = {**{k: v for k, v in plan.report_values.items() if isinstance(v, (int, float))},
                   **plan.reason_values}
+        # Interim (Tudor, evaluate.py): QUERY_UNKNOWN_FIX + what=fix_passed until the contract has
+        # QUERY_FIX_PASSED; either way the pilot says "confirm direct TUFOZ, we've passed it".
+        if code == "QUERY_UNKNOWN_FIX" and values.get("what") == "fix_passed" and values.get("fix"):
+            code = "QUERY_FIX_PASSED"
         return code, values
 
     def _reason_template(self, plan: ReadbackPlan, rng: random.Random, canonical: bool,
@@ -333,10 +337,13 @@ class Composer:
         options = REASON_PHRASES.get(code or "", [("say again", ())])
         usable = []
         for tpl, needs in options:
-            if all(isinstance(values.get(n), (int, float)) and values.get(n) for n in needs):
+            if all((isinstance(values.get(n), (int, float)) and values.get(n)) or
+                   (n == "fix" and isinstance(values.get(n), str) and values.get(n)) for n in needs):
                 usable.append(tpl)
         if not usable:
             return None
+        if isinstance(values.get("fix"), str) and values["fix"]:
+            slots["fix"] = self.fix_speech(values["fix"])       # "TUFOZ" / "Seaford" / spelled KKS25
         for key, val in values.items():
             if isinstance(val, (int, float)) and not isinstance(val, bool):
                 speech = (N.altitude_to_speech(int(val)) if key in _ALTITUDE_KEYS

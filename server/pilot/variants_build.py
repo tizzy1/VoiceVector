@@ -204,6 +204,10 @@ REASON_PHRASES: dict[str, list[tuple[str, tuple[str, ...]]]] = {
                               ("confirm that altitude", ()), ("say again the altitude", ())],
     "QUERY_AMBIGUOUS": [("say again", ()), ("say again please", ())],
     "QUERY_UNKNOWN_FIX": [("say again the waypoint", ()), ("confirm the waypoint", ())],
+    # SIM_SPEC §2.1.1: direct to a fix the aircraft has already flown past on its own procedure
+    "QUERY_FIX_PASSED": [("confirm direct {fix}, we've passed it", ("fix",)),
+                         ("confirm direct {fix}, we're already past it", ("fix",)),
+                         ("we've already passed {fix}, confirm direct", ("fix",))],
     "QUERY_UNKNOWN_RUNWAY": [("confirm the runway", ()), ("say again the runway", ())],
     "QUERY_WRONG_POSITION": [("say again that clearance", ()), ("confirm that clearance", ())],
     "QUERY_CALLSIGN": [("was that for {CALLSIGN}", ())],
