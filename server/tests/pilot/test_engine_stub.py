@@ -48,13 +48,16 @@ def test_silence_cases(world, bus, data_dir):
     assert p.handle_transmission(tx(ins=[]), []) == []
 
 
-def test_unable_has_reason_and_no_apply(world, bus, data_dir):
+def test_unable_has_reason_and_applies_only_the_accepted_part(world, bus, data_dir):
+    # 15 Nov (Sanju for Tudor): the accepted heading is read back and flown, the speed is refused
+    # (was: nothing applied, so "turn + ILS" with the ILS refused also lost the turn).
     p = make(world, bus, data_dir)
     evals = [Evaluation(instr_idx=0, status="OK"),
              Evaluation(instr_idx=1, status="UNABLE", reason_code="UNABLE_SPEED_LOW",
                         reason_values={"min_speed": 205})]
     [r] = p.handle_transmission(tx(), evals)
-    assert r.kind == "unable" and r.apply == []
+    assert r.kind == "unable" and [e.type for e in r.apply] == ["heading"]
+    assert [e.type for e in r.plan.elements] == ["heading"]
     assert r.plan.reason_code == "UNABLE_SPEED_LOW" and r.plan.reason_values == {"min_speed": 205}
 
 

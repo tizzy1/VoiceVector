@@ -54,7 +54,7 @@ def mutate(kind: ErrorKind, ins: Instruction, rng: random.Random) -> Optional[In
             nv = (nv - 1) % 360 + 1
         if ins.type in ("altitude", "flight_level") and nv <= 0:
             nv = v + step
-        out.value = int(nv)
+        out.value = float(int(nv))          # float: Instruction.value is float|str
         return out
     if kind == "digit_transposition":
         rng_lim = {"heading": (1, 360), "speed": (140, 300)}.get(ins.type)
@@ -63,13 +63,13 @@ def mutate(kind: ErrorKind, ins: Instruction, rng: random.Random) -> Optional[In
         t = _transpose(int(v), *rng_lim)
         if t is None:
             return None
-        out.value = t
+        out.value = float(t)
         return out
     if kind == "level_type_confusion":
         if ins.type == "altitude" and v >= 3000 and v % 1000 == 0:
-            return out.model_copy(update={"type": "flight_level", "value": int(v // 100)})
+            return out.model_copy(update={"type": "flight_level", "value": float(int(v // 100))})
         if ins.type == "flight_level" and v <= 100:
-            return out.model_copy(update={"type": "altitude", "value": int(v * 100)})
+            return out.model_copy(update={"type": "altitude", "value": float(int(v * 100))})
         return None
     return None
 
@@ -86,6 +86,25 @@ def similar_callsigns(a: str, b: str) -> bool:
 
 
 OMISSION_KINDS: tuple[ErrorKind, ...] = ("omitted_element",)   # slip only -> D3 if not challenged
+
+
+# 15 Nov (Sanju for Tudor): mistakes should mostly be small: an adjacent or swapped number, or a
+# missed instruction. Bigger ones stay possible but rarer. Used to order the kinds tried.
+KIND_WEIGHTS: dict[str, float] = {
+    "wrong_value_adjacent": 5.0, "digit_transposition": 2.0, "omitted_element": 4.0,
+    "wrong_value_flown": 4.0, "turn_direction_swap": 1.0, "level_type_confusion": 0.5,
+    "wrong_turn_direction": 1.0, "level_bust_overshoot": 1.0, "delayed_compliance": 1.5,
+}
+
+
+def weighted_order(kinds: list[ErrorKind], rng) -> list[ErrorKind]:
+    """A random order of ``kinds`` where small mistakes tend to come first."""
+    pool, out = list(kinds), []
+    while pool:
+        pick = rng.choices(pool, weights=[KIND_WEIGHTS.get(k, 1.0) for k in pool])[0]
+        out.append(pick)
+        pool.remove(pick)
+    return out
 
 
 def candidates(mode: ErrorMode, kind: Optional[ErrorKind]) -> list[ErrorKind]:

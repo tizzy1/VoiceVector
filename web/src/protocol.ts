@@ -111,7 +111,7 @@ export interface Report {
 export interface ReportMsg { type: "report"; report: Report }
 
 export interface SessionSettings {
-  scenario: "demo" | "ramp" | "easy" | "medium" | "busy" | "custom"; seed: number; runway: "26L" | "08R";
+  scenario: "demo" | "ramp" | "easy" | "medium" | "busy" | "custom" | "judge"; seed: number; runway: "26L" | "08R";
   arr_per_hr: number; dep_per_hr: number; error_rate: ErrorRate; sim_speed: number; paused: boolean;
   strip_autofill?: boolean;
 }

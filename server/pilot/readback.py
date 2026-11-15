@@ -312,6 +312,29 @@ class Composer:
             b.filler(rng.choice(self.bank["persona_suffix"].get(persona, [""])))
         return b
 
+    def _partial_refusal(self, plan: ReadbackPlan, rng: random.Random, canonical: bool, reason: str,
+                         slots: dict, kind: str) -> Optional[Built]:
+        """ "Speedbird 117, left heading 290, unable, too high for the glideslope": the elements the
+        aircraft accepted, then the refusal with its reason."""
+        persona = plan.persona if plan.persona in PERSONA_STYLE_WEIGHTS else "crisp_airline"
+        b = Built()
+        cs_display, cs_speech = self.callsign_speech(plan.callsign)
+        b.add(V.Piece("callsign", cs_speech, slot_speeches=[cs_speech]), cs_display)
+        b.filler(", ")
+        for idx, el in enumerate(plan.elements):
+            key, el_slots = self.bank_key(el), self.slots_for(el)
+            candidates = [t for t in self.bank["elements"].get(key, []) if _usable(t, el_slots)]
+            if not candidates:
+                return None
+            tpl = candidates[0] if canonical else self._pick_from(candidates, key, persona, plan.callsign, rng)
+            disp, sp, used = self.render_phrase(tpl["t"], el_slots)
+            b.add(V.Piece("element", sp, el, used), disp)
+            b.variant_ids.append(tpl["id"])
+            b.filler(", ")
+        self._build_template(reason, slots, b, plan.callsign)
+        b.variant_ids.append(f"{kind}.{self._reason(plan)[0]}")
+        return b
+
     def _roger(self, plan: ReadbackPlan, rng: random.Random, canonical: bool) -> Built:
         """Only non-critical information (e.g. "expect vectors"): "Roger, Speedbird 117"."""
         b = Built()
@@ -398,6 +421,8 @@ class Composer:
             reason = self._reason_template(plan, rng, canonical, slots)
             if reason is None:
                 return None
+            if plan.elements:                  # accepted part read back first, then the refusal
+                return self._partial_refusal(plan, rng, canonical, reason, slots, kind)
             options = REPLIES[kind]
             template = (options[0] if canonical else rng.choice(options)).replace("{REASON}", reason)
             b.variant_ids.append(f"{kind}.{self._reason(plan)[0]}")

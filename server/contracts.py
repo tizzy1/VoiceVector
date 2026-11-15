@@ -394,7 +394,7 @@ class Report(BaseModel):
 # Session / control / WS messages (owner: Bhavin)
 # =====================================================================================
 class SessionSettings(BaseModel):
-    scenario: Literal["demo", "ramp", "easy", "medium", "busy", "custom"] = "demo"
+    scenario: Literal["demo", "ramp", "easy", "medium", "busy", "custom", "judge"] = "demo"   # judge: added 15 Nov (Sanju)
     seed: int = 42
     runway: Literal["26L", "08R"] = "26L"
     arr_per_hr: float = 12

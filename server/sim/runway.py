@@ -76,6 +76,8 @@ class DepartureGenerator:
         w = self.w
         presets = w.traffic["difficulty_presets"]
         name = w.scenario
+        if name == "judge":                  # one aircraft only (15 Nov, Sanju for Tudor)
+            return 0.0
         if name == "ramp":
             ramp = presets["ramp"]
             lo, hi = presets[ramp["start"]]["dep_per_hr"], presets[ramp["end"]]["dep_per_hr"]

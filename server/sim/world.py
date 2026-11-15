@@ -31,6 +31,8 @@ CONFLICT_LOS_S = 90.0            # spawn_conflict: loss of separation after ~90 
 CONFLICT_POINT_NM = (18.0, 12.0)  # crossing point NE of the airfield, clear of the demo traffic
 CONFLICT_ALT_FT = 7000.0
 CONFLICT_IAS = 250.0
+JUDGE_HOLD_FIX = "TIMBA"           # 13 NM out, 15 NM south of the 26L final: a short vector to land
+JUDGE_ALT_FT = 5000.0
 
 
 class World:
@@ -106,6 +108,9 @@ class World:
         self.last_departure, self.last_takeoff_t, self.last_landing_t = None, None, None
         self.script: list[dict[str, Any]] = []   # timed scenario injects, fired once each
         self.forecaster.reset()
+        if name == "judge":
+            self._load_judge()
+            return
         if name != "demo":
             return                      # other scenarios start empty; the generator fills them
         scenario = self._load("scenario_demo")
@@ -142,6 +147,26 @@ class World:
             self.add_aircraft(dep, checkin=False)
         self.script = sorted((dict(i, fired=False) for i in scenario.get("injects", [])),
                              key=lambda i: float(i["t_s"]))
+
+    def _load_judge(self) -> None:
+        """Judges' scenario (15 Nov, Sanju for Tudor): ONE arrival in the TIMBA hold at 5,000 ft
+        (unrealistically low, on purpose), on frequency, nothing else ever spawns. The judge
+        vectors it off the hold and lands it: e.g. "Speedbird 117, turn left heading 320,
+        descend altitude 3000 feet", then "turn left heading 290, cleared ILS approach runway 26L"."""
+        self.qnh = 1013
+        fix = JUDGE_HOLD_FIX if JUDGE_HOLD_FIX in self.egkk["fixes"] else sorted(self.hold_fixes)[0]
+        fx, fy = self.fix_xy(fix)
+        hdg = norm_hdg(math.degrees(math.atan2(self.thr_xy[0] - fx, self.thr_xy[1] - fy)))
+        ias = 210.0
+        ac = AircraftState(
+            callsign="BAW117", spoken=self.spoken("BAW117"), spoken_plain=self.spoken_plain("BAW117"),
+            actype="A320", wake=self.perf["A320"]["wake"], persona="crisp_airline", flow="ARR",
+            phase="HOLD", lat_mode="HDG", x=fx, y=fy, alt=JUDGE_ALT_FT, hdg=hdg, track=hdg, ias=ias,
+            tas=kinematics.tas_of(ias, JUDGE_ALT_FT), gs=kinematics.tas_of(ias, JUDGE_ALT_FT),
+            tgt_hdg=hdg, cleared_alt=JUDGE_ALT_FT, qnh=self.qnh, spawn_t=0.0,
+        )
+        modes.enter_hold(self, ac, fix)
+        self.add_aircraft(ac, checkin=True)
 
     def add_aircraft(self, ac: AircraftState, checkin: bool) -> None:
         flightplan.assign(self, ac)                     # ADEP/ADES, RFL, ASSR (SIM_SPEC §1.8)
@@ -346,7 +371,7 @@ class World:
         elif kind == "go_around" and ac is not None:
             self.go_around(ac, reason="injected")
         elif kind == "spawn_arrival":
-            self.generator.spawn(entry=params.get("entry"), force=True)
+            self.generator.spawn(entry=params.get("entry"), force=True, stage=params.get("stage"))
         elif kind == "spawn_departure":
             dep = self.dep_generator.spawn(sid=params.get("sid"))
             params = {**params, "spawned": [dep.callsign] if dep else []}
@@ -477,7 +502,29 @@ class World:
             established=ac.established, squawk=ac.squawk, on_frequency=ac.on_frequency,
             in_jurisdiction=ac.in_jurisdiction, emergency=ac.emergency,
             transmitting=ac.transmitting, plain_status=self._plain_status(ac),
+            # flight plan + controller list fields (CONTRACTS §3.2; published 15 Nov by Sanju)
+            flight_rules=ac.flight_rules if ac.flight_rules in ("I", "V") else None,
+            adep=ac.adep or None, ades=ac.ades or None, rfl=ac.rfl or None,
+            assigned_squawk=ac.assigned_squawk or None, selected_level=ac.cleared_alt,
+            distance_to_touchdown_nm=self._track_distance(ac), strip=strips.view(self, ac),
         )
+
+    def _track_distance(self, ac: AircraftState) -> Optional[float]:
+        """Track miles to touchdown for arrivals: along the localiser once on it, else via the
+        remaining route fixes (LNAV) or direct, plus the final from the localiser entry."""
+        if ac.flow != "ARR" or ac.phase == "LANDED":
+            return None
+        along, xte = modes.loc_geometry(self, ac)
+        if ac.established or (ac.lat_mode == "LOC") or (along > 0 and abs(xte) < 0.3):
+            return round(max(along, 0.0), 1)
+        x, y, total = ac.x, ac.y, 0.0
+        if ac.lat_mode == "LNAV":
+            for f in ac.route[ac.route_idx:]:
+                fx, fy = self.fix_xy(f)
+                total += math.hypot(fx - x, fy - y)
+                x, y = fx, fy
+        total += math.hypot(self.thr_xy[0] - x, self.thr_xy[1] - y)
+        return round(total, 1)
 
     def snapshot(self) -> WorldSnapshot:
         return WorldSnapshot(

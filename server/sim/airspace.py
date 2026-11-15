@@ -16,8 +16,9 @@ if TYPE_CHECKING:
 TRANSITION_ALT_FT = 6000
 MIN_ALT_GENERAL_FT = 3000
 MIN_ALT_FINAL_AREA_FT = 2000
-FINAL_AREA_MAX_NM = 15.0        # along the extended centreline from the threshold
-FINAL_AREA_HALF_WIDTH_NM = 3.0
+FINAL_AREA_MAX_NM = 16.0        # along the extended centreline from the threshold
+FINAL_AREA_HALF_WIDTH_NM = 8.0  # 15 Nov (Sanju for Tudor): was 15 NM x +-3 NM, so aircraft vectored
+                                # onto base leg could not be given 2,000 ft ("say again the altitude")
 
 
 def in_final_area(w: "World", ac: "AircraftState") -> bool:

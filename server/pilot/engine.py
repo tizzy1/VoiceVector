@@ -140,8 +140,19 @@ class PilotEngine:
         refused = first_refusal(evaluations)
         if refused is not None:
             kind = "unable" if refused.status == "UNABLE" else "query"
-            return [self._resp(cs, kind, tx, reason_code=refused.reason_code,
-                               reason_values=refused.reason_values)]
+            # 15 Nov (Sanju for Tudor): read back and fly what was accepted, refuse the rest
+            # ("Speedbird 117, left heading 290, unable, too high for the glideslope").
+            ok_idx = {e.instr_idx for e in evaluations if e.status == "OK"}
+            accepted = [ins for k, ins in enumerate(tx.instructions) if k in ok_idx
+                        and ins.type not in ("confirm", "report", "traffic_info")]
+            apply = [ClearanceElement(type=i.type, intended=i.model_copy(), readback=i.model_copy(),
+                                      flown=i.model_copy()) for i in accepted]
+            if apply:
+                self.book.record(cs, [e for e in apply if e.type not in NOT_ERROR_ELIGIBLE
+                                      or e.type in ("contact", "squawk", "qnh")])
+            return [self._resp(cs, kind, tx, apply=apply, reason_code=refused.reason_code,
+                               reason_values=refused.reason_values,
+                               elements=[i.model_copy() for i in accepted])]
         if all(i.type == "traffic_info" for i in tx.instructions):
             return [self._resp(cs, "looking", tx)]
         taken = self._takeover(cs, tx, on_freq)
@@ -257,7 +268,7 @@ class PilotEngine:
         if len(elements) < 2:                       # omitting the only element = no readback
             kinds = [k for k in kinds if k != "omitted_element"]
         for idx in eligible:
-            for k in self._err_rng.sample(kinds, len(kinds)):
+            for k in policy.weighted_order(kinds, self._err_rng):
                 built = policy.build(k, mode, elements[idx], self._err_rng)
                 if built is None:
                     continue

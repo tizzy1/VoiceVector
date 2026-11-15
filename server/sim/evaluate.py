@@ -19,6 +19,8 @@ LOC_MAX_INTERCEPT_DEG = 45.0
 GS_ABOVE_TOL_FT = 200.0
 EXPEDITE_FACTOR = 1.5
 APPROACH_TYPES_MODELLED = (None, "ILS", "LOC")
+APPROACH_CONFIG_BELOW_FT = 5000.0
+APPROACH_MIN_KT = 160
 
 
 def _ok(i: int) -> Evaluation:
@@ -99,7 +101,17 @@ def _speed(w, ac, tx, i, ins: Instruction) -> Evaluation:
     v = float(ins.value)
     p = w.perf[ac.actype]
     configured = ac.established or ac.phase == "FINAL"
-    min_speed = int(p["vapp_kt"]) + 5 if configured else int(p["min_clean_kt"])
+    # 15 Nov (Sanju for Tudor): an aircraft low down or cleared for / intercepting the approach
+    # takes flap and can fly 160-180 kt ("200 kt too slow at 3,000 ft" was wrong). Clean minimum
+    # still applies higher up.
+    approaching = (ac.alt <= APPROACH_CONFIG_BELOW_FT or ac.approach_cleared or ac.loc_armed
+                   or _has(tx, "approach_clearance", "intercept_localiser"))
+    if configured:
+        min_speed = int(p["vapp_kt"]) + 5
+    elif approaching:
+        min_speed = min(int(p["min_clean_kt"]), max(int(p["vapp_kt"]) + 15, APPROACH_MIN_KT))
+    else:
+        min_speed = int(p["min_clean_kt"])
     if v < min_speed and ins.constraint not in ("or_greater", "min"):
         return _no(i, "UNABLE", "UNABLE_SPEED_LOW", speed=int(v), min_speed=min_speed)
     unrestricted = ac.no_speed_restriction or _has(tx, "speed_cancel")
@@ -119,7 +131,7 @@ def _fix(w, ac, tx, i, ins: Instruction) -> Evaluation:
         # SIM_SPEC §2.1.1: the pilot questions a direct to a fix it has already flown past.
         # Reason code switches to QUERY_FIX_PASSED once it is in the contract (CONTRACTS §3.2);
         # until then QUERY_UNKNOWN_FIX gives the reply "confirm the waypoint".
-        return _no(i, "QUERY", "QUERY_UNKNOWN_FIX", fix=ins.fix, what="fix_passed")
+        return _no(i, "QUERY", "QUERY_FIX_PASSED", fix=ins.fix, what="fix_passed")
     return _ok(i)
 
 

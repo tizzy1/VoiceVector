@@ -204,6 +204,12 @@ def _approach(w, ac, ins):
         return False
     ac.approach_cleared = {"type": ins.approach_type or "ILS", "runway": w.runway}
     ac.loc_armed = ac.gs_armed = True
+    if ac.lat_mode in ("HOLD", "LNAV"):
+        # 15 Nov (Sanju for Tudor): cleared for the approach without a new heading = continue on
+        # the present heading until the localiser is captured (a heading in the same call, applied
+        # in the same batch, still wins).
+        ac.lat_mode, ac.tgt_hdg, ac.turn_dir = "HDG", ac.hdg, None
+        ac.hold = ac.hold_fix = None
     if ac.phase in ("STAR", "HOLD", "VECTORS", "GO_AROUND"):
         ac.phase = "APPROACH"
     return True
