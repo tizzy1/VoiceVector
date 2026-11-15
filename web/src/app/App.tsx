@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import type { ControlMsg, CaptionMsg, EventMsg, SessionMsg, StateMsg, Report, PipelineTrace } from "../protocol";
+import type { ControlMsg, CaptionMsg, CoachMsg, EventMsg, SessionMsg, StateMsg, Report, PipelineTrace } from "../protocol";
 import { Radar, type Airspace } from "../radar/Radar";
 import { connect } from "./connection";
 import { createAudioEngine } from "../audio/index";
@@ -12,6 +12,7 @@ import { WeatherPanel } from "../ui/WeatherPanel";
 import { CommunicationsPanel } from "../ui/CommunicationsPanel";
 import { updateResponseSamples, type ResponseSample } from "../ui/communications";
 import { CaptionStrip } from "../ui/CaptionStrip";
+import { CoachCard, mergeCoach } from "../ui/CoachCard";
 import { updateCaptions } from "../ui/captions";
 import { SessionControls, type TrafficConfig } from "../ui/SessionControls";
 import { PresenterConsole } from "../ui/PresenterConsole";
@@ -59,6 +60,7 @@ export function App() {
   const [scenarioChoice, setScenarioChoice] = useState<ScenarioChoice>("demo");
   const clearanceInput = useRef<HTMLInputElement>(null);
   const [traces,setTraces] = useState<PipelineTrace[]>([]);
+  const [coach, setCoach] = useState<CoachMsg | null>(null);   // phraseology coach (15 Nov, Sanju)
   const [pipelineOpen,setPipelineOpen] = useState(false);
   const pipelineToggle = useRef<HTMLButtonElement>(null);
   const sidebarToggle = useRef<HTMLButtonElement>(null);
@@ -97,6 +99,7 @@ export function App() {
     const client = connect(role, message => {
       radio.current?.handle(message);
       if(message.type === "trace") setTraces(previous=>updateTraces(previous,message.trace));
+      if(message.type === "coach") setCoach(previous=>mergeCoach(previous,message));
       if (message.type === "session") {
         if (sessionCode.current && sessionCode.current !== message.code) {
           setTraces([]);
@@ -411,6 +414,7 @@ export function App() {
               <p>The scope will display live aircraft when the simulator is available.</p>
             </div>
           )}
+          {role === "radar" && <CoachCard coach={coach} />}
         </section>
       </main>
       {role === "radar" && <div className="comms-toggle-row">

@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Literal, Optional
 
-from server.contracts import (AudioChunkMsg, AudioEndMsg, AudioStartMsg, CaptionMsg, Event,
+from server.contracts import (CoachMsg, CoachNote, AudioChunkMsg, AudioEndMsg, AudioStartMsg, CaptionMsg, Event,
                               PilotResponse, Transmission)
 from server.voice.captions import (align_display_words, chips_for, estimated_words, plain_english,
                                   spoken_word_times)
@@ -30,6 +30,7 @@ from server.voice.stt_fallback import WizperSTT
 from server.voice.stt_scribe import STATIC_KEYTERMS, ScribeStream, STTError, build_keyterms
 from server.voice.tts import ElevenLabsTTS, TTSError
 from server.voice.pronounce import respell
+from server.voice import coach
 from server.voice import trace as T
 from server.voice.prosody import compensated_speed, restore_word_times, shape
 from server.voice.voices import Voices, settings_for, target_wps
@@ -105,6 +106,7 @@ class VoicePipeline:
         self.freq = FrequencyManager(seed)
         self.metrics = Metrics()
         self.reveal_errors = False
+        self.coach_enabled = True                         # phraseology coach (server/voice/coach.py)
         self._ptt: Optional[_Ptt] = None
         self._tx_stamps: dict[str, Stamps] = {}
         self._ctrl_traces: dict[str, list] = {}       # ctrl tx_id -> [Trace, replies claimed]
@@ -379,7 +381,27 @@ class VoicePipeline:
             if resp.in_reply_to is None:
                 resp.in_reply_to = tx_id
             self.hub.spawn(self.speak(resp))
+        if self.coach_enabled:                           # after the reply is scheduled: never delays it
+            self.hub.spawn(self._coach(tx, text, stamps))
         return tx
+
+    async def _coach(self, tx: Transmission, raw: str, stamps: Stamps) -> None:
+        """Phraseology coach (server/voice/coach.py): rules now, Claude's one-line tip when it lands."""
+        try:
+            ac = getattr(self.world, "aircraft", {}).get(tx.receiver or "")
+            speech = stamps.span("t_ptt_down", "t_ptt_up") if tx.source == "voice" else None
+            rev = coach.review(tx, raw, callsigns=self.world.callsigns(),
+                               aircraft_alt=getattr(ac, "alt", None), speech_s=speech)
+            if not rev.notes:
+                return
+            msg = CoachMsg(tx_id=tx.tx_id, callsign=tx.receiver, score=rev.score,
+                           notes=[CoachNote(**n) for n in rev.notes])
+            await self.hub.send(msg)
+            tip = await coach.claude_tip(raw, rev, client=self.llm_client)
+            if tip:
+                await self.hub.send(msg.model_copy(update={"tip": tip}))
+        except Exception:                                # noqa: BLE001  (coaching must never break radio)
+            logger.exception("coach failed")
 
     def _ctrl_trace(self, tx_id, source, stamps, rt, regex_done, llm_used, tx, evals, responses):
         """Controller-side stages: capture, STT, language, sim check, pilot decision. Never raises."""
