@@ -15,7 +15,7 @@ from server.contracts import (
     EventType, InjectKind, Instruction, SessionSettings, StateMsg, Transmission, WorldSnapshot,
 )
 from server.sim import kinematics, modes, registry, runway as rwy_mgr, stca, weather
-from server.sim import flightplan
+from server.sim import flightplan, strips
 from server.sim.forecast import Forecaster
 from server.sim.aircraft import AircraftState
 from server.sim.geo import Projection, heading_for_track, norm_hdg, wind_vector
@@ -61,6 +61,8 @@ class World:
         self.used_callsigns: set[str] = set()
         self.alerts: dict[tuple[str, ...], Alert] = {}
         self.forecaster = Forecaster()       # advisory conflict probabilities (sim/forecast.py)
+        self.strip_autofill = True           # lists auto-fill from controller transmissions
+        bus.subscribe(self._on_bus_event)
         self.wind: tuple[float, float] = (0.0, 0.0)
         self.qnh = 1013
         self._pending: list[tuple[float, int, str, ClearanceElement]] = []
@@ -414,6 +416,27 @@ class World:
             "imported": [i["callsign"] for i in status["imported"]],
             "skipped": len(status["skipped"])}, actor="INSTRUCTOR")
         return status
+
+    # ---------------------------------------------------- controller strips (§5.5)
+    def _on_bus_event(self, e: Event) -> None:
+        if e.type != "ctrl_transmission":
+            return
+        raw = e.data.get("tx")
+        try:
+            tx = raw if isinstance(raw, Transmission) else Transmission.model_validate(raw)
+        except Exception:
+            return
+        strips.autofill(self, tx)
+
+    def edit_strip(self, callsign: str, field: str, value: Any) -> bool:
+        """Controller's list edit (control `edit_strip`). A record only: never moves the
+        aircraft. Returns False for an unknown callsign/field or an invalid value."""
+        return strips.edit(self, callsign, field, value)
+
+    def strip(self, callsign: str) -> dict[str, Any]:
+        """What the lists show for this aircraft (strip + flight-plan defaults)."""
+        ac = self.aircraft.get(callsign)
+        return strips.view(self, ac) if ac else {}
 
     @property
     def forecasts(self) -> list[dict[str, Any]]:
