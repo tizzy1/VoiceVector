@@ -118,8 +118,8 @@ export default function Scene(props: Props) {
         motion.update(state, now); history.update(state);
         if (rewound || !state) { firstState = true; overviewRevision = -1; }
         lastState = state;
-        if (state) trailLayers = [new LineLayer({ id: "flight-trails", data: history.segments(state, p.data),
-          getSourcePosition: d => d.start, getTargetPosition: d => d.end, getColor: d => d.color, getWidth: 1.5 })];
+        trailLayers = state ? [new LineLayer({ id: "flight-trails", data: history.segments(state, p.data),
+          getSourcePosition: d => d.start, getTargetPosition: d => d.end, getColor: d => d.color, getWidth: 1.5 })] : [];
       }
       const aircraft = activeAircraft(motion.sample(now));
       if (state && (firstState || (p.mode === "overview" && p.revision !== overviewRevision))) {

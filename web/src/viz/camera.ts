@@ -22,7 +22,7 @@ const mix = (a: number, b: number, f: number) => a + (b - a) * f;
 function blend(a: CameraPose, b: CameraPose, f: number): CameraPose {
   return { longitude: mix(a.longitude, b.longitude, f), latitude: mix(a.latitude, b.latitude, f),
     zoom: mix(a.zoom, b.zoom, f), pitch: mix(a.pitch, b.pitch, f),
-    bearing: a.bearing + (((b.bearing - a.bearing + 540) % 360) - 180) * f,
+    bearing: a.bearing + ((((b.bearing - a.bearing + 180) % 360 + 360) % 360) - 180) * f,
     position: a.position.map((v, i) => mix(v, b.position[i], f)) };
 }
 export class CameraDirector {

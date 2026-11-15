@@ -72,6 +72,11 @@ test("camera transitions take 1.8 seconds, cross north by shortest arc, and supp
   near(middle.bearing, 360);
   const reduced = camera.step(goal, "chase:BAW117", 1000, true);
   assert.deepEqual(reduced, goal);
+  for (const bearing of [-730, 710]) {
+    camera.manual({ ...initialPose, bearing });
+    camera.step(goal, "lock:BAW117", 2000, false);
+    near(camera.step(goal, "lock:BAW117", 2900, false).bearing, bearing + 10);
+  }
 });
 test("radio director holds each pilot for six seconds and recovers when a target disappears", () => {
   const camera = new CameraDirector(), aircraft = [ac, { ...ac, callsign: "EZY45AB" }];
