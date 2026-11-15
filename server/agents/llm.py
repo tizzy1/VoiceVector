@@ -11,7 +11,9 @@ logger = logging.getLogger(__name__)
 # Measured on this account: Sonnet 5.5 cannot disable thinking and needs ~5 s for a debrief, which
 # exceeds the 5 s the session gives the writer; Haiku 5.5 with thinking off takes ~2.5 s.
 FAST_MODEL = "claude-haiku-5-5"           # debrief, parser fallback, variant generation
-NARRATIVE_MODEL = os.environ.get("SWEATBOX_NARRATIVE_MODEL", FAST_MODEL)
+NARRATIVE_MODEL = (os.environ.get("VOICEVECTOR_NARRATIVE_MODEL")
+                   or os.environ.get("SWEATBOX_NARRATIVE_MODEL")   # old name, still honoured
+                   or FAST_MODEL)
 DEFAULT_TIMEOUT_S = 4.3
 
 

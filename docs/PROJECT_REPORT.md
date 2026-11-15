@@ -1,4 +1,4 @@
-# SweatboxAI — Project Report
+# VoiceVector — Project Report
 
 **Imperial AI Hackathon · Track 2: Voice, Vision & Generative Media**
 **Sub-bounties targeted: Best use of ElevenLabs (primary) · Best use of fal (secondary)**
@@ -6,7 +6,7 @@
 
 > **One line:** An AI radar simulator where trainee air traffic controllers talk to AI pilots on a live frequency. The pilots listen in real time, read back in their own generated voices, sometimes get it wrong on purpose, and fly the instructions on a real Gatwick radar — while a second screen shows the whole thing as a cinematic 3D picture anyone can follow.
 
-This document supersedes `SWEATBOX_PLAN.md` and `SWEATBOX_PLAN_V2.md`. Detailed specs:
+This document supersedes `VOICEVECTOR_PLAN.md` and `VOICEVECTOR_PLAN_V2.md`. Detailed specs:
 | Doc | Covers |
 |---|---|
 | `VOICE_PIPELINE.md` | PTT → STT → parse → pilot → errors → readback → TTS → corrections, latency |

@@ -1,4 +1,4 @@
-# SweatboxAI — Integration Contracts
+# VoiceVector — Integration Contracts
 
 > Read this before writing any code. It defines **who owns what, how modules call each other, and what goes over the wire**, so three people (and their AI agents) can build in parallel and plug together cleanly.
 > Code is the source of truth: **`server/contracts.py`** (all Python models + interfaces) and **`web/src/protocol.ts`** (client-facing mirror). This doc explains them.
@@ -10,7 +10,7 @@ Team: **Tudor** (aviation: sim, pilot logic, rules, data) · **Sanju** (voice + 
 ## 1. Repository layout & ownership
 
 ```
-sweatbox-ai/
+voicevector/
   CLAUDE.md                         shared agent context                         (Bhavin; everyone may propose)
   docs/                             PROJECT_REPORT, VOICE_PIPELINE, SIM_SPEC, CONTRACTS, ASSIGNMENT_*
   data/                             egkk.json, perf.json, telephony.json,        (Tudor)

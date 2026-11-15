@@ -29,7 +29,7 @@ class SnapshotFetcher:
             async with asyncio.timeout(10):
                 async with httpx.AsyncClient(timeout=8, follow_redirects=False) as client:
                     async with client.stream("GET", VATSIM_URL, headers={
-                        "User-Agent": "SweatboxAI/1.0 (non-commercial flight simulation)",
+                        "User-Agent": "VoiceVector/1.0 (non-commercial flight simulation)",
                     }) as response:
                         response.raise_for_status()
                         body = bytearray()

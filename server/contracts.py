@@ -1,4 +1,4 @@
-"""SweatboxAI shared contracts — SOURCE OF TRUTH for every module boundary.
+"""VoiceVector shared contracts — SOURCE OF TRUTH for every module boundary.
 
 Rules:
   * Do not change anything in this file without telling the whole team (group chat) and

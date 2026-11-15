@@ -61,7 +61,7 @@ export default function AudienceView(props: Props) {
         : `${mode === "chase" ? "Chasing" : "Locked on"} ${focused?.callsign ?? "aircraft"}`;
   return <div className={`viz-page${flightsOpen ? " flights-open" : ""}${detailsOpen ? " details-open" : " details-closed"}${props.judge ? " judge-mode" : ""}${fallback ? " is-fallback" : ""}`}>
     <header className="viz-header">
-      <a className="viz-brand" href="/">SWEATBOX<span>AI</span><small>AIRSPACE / LIVE</small></a>
+      <a className="viz-brand" href="/">VOICE<span>VECTOR</span><small>AIRSPACE / LIVE</small></a>
       <div className="viz-airport"><b>GATWICK</b><span>EGKK / RWY {state?.runway ?? "—"}</span></div>
       <div className="viz-session"><span className={props.status === "Connected" ? "viz-connected" : ""}>● {props.status}</span>
         <span>{Math.floor((state?.t ?? 0) / 60).toString().padStart(2, "0")}:{Math.floor((state?.t ?? 0) % 60).toString().padStart(2, "0")}</span>
