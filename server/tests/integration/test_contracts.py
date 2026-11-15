@@ -2,8 +2,11 @@ import json
 
 from fastapi.testclient import TestClient
 
-from server.contracts import CaptionMsg, SessionMsg, StateMsg, Event
-from server.hub import Client
+from server.contracts import (
+    CaptionMsg, ControlMsg, Evaluation, Event, PipelineTrace, SessionMsg, StateMsg,
+    TraceMsg, TraceStage,
+)
+from server.hub import Client, Hub
 from server.main import create_app
 from server.session import EventLog
 from server.tests.integration.stubs import FACTORIES
@@ -83,3 +86,81 @@ def test_wrong_session_rejected(tmp_path):
         with pytest.raises(WebSocketDisconnect):
             with client.websocket_connect("/ws?role=viz&session=WRONG"):
                 pass
+
+
+def test_aircraft_extensions_preserve_legacy_state_and_explicit_units(tmp_path):
+    with TestClient(create_app(FACTORIES, tmp_path)) as client:
+        with client.websocket_connect("/ws?role=viz") as viewer:
+            viewer.receive_json()
+            state = StateMsg.model_validate(viewer.receive_json())
+    legacy = state.aircraft[0]
+    assert legacy.adep is None and legacy.selected_level is None and legacy.strip == {}
+    raw = legacy.model_dump() | {
+        "flight_rules": "I", "adep": "LEMD", "ades": "EGKK", "rfl": 350,
+        "assigned_squawk": "0421", "selected_level": 8000,
+        "strip": {"cfl": 7000, "rfl": 350, "clr": False},
+    }
+    state.aircraft[0] = type(legacy).model_validate(raw)
+    actual = StateMsg.model_validate_json(state.model_dump_json()).aircraft[0]
+    assert actual.rfl == 350 and actual.selected_level == 8000
+    assert actual.assigned_squawk == "0421"
+    assert actual.strip["cfl"] == 7000 and actual.cleared_alt == legacy.cleared_alt
+
+
+def test_trace_roundtrip_preserves_negative_speech_start_and_partial_final_updates():
+    speech = TraceStage(name="speech", category="capture", t0_ms=-3000, t1_ms=0)
+    provisional = TraceMsg(trace=PipelineTrace(tx_id="tx-1", speaker="CTRL",
+        reply_callsign="BAW117", stages=[speech]))
+    payload = TraceMsg.model_validate_json(provisional.model_dump_json())
+    assert payload.type == "trace" and not payload.trace.final
+    assert payload.trace.stages[0].t0_ms == -3000
+    assert payload.trace.stages[0].status == "ok"
+    assert payload.trace.stages[0].detail == {}
+    final = payload.model_copy(deep=True)
+    final.trace.total_ms = 642
+    final.trace.final = True
+    final.trace.stages.append(TraceStage(name="tts_first_audio", category="voice",
+        t0_ms=200, t1_ms=600, detail={"machine_ms": 600, "model": "test-model"}))
+    restored = TraceMsg.model_validate_json(final.model_dump_json())
+    assert restored.trace.total_ms == 642 and restored.trace.final
+    assert restored.trace.stages[-1].detail["machine_ms"] == 600
+    assert not provisional.trace.final and len(provisional.trace.stages) == 1
+
+
+def test_trace_categories_statuses_and_blocked_transmission_shape():
+    from pydantic import ValidationError
+    import pytest
+    for field, value in [("category", "unknown"), ("status", "invented")]:
+        with pytest.raises(ValidationError):
+            TraceStage.model_validate({"name": "parse", "category": "language",
+                "t0_ms": 0, "t1_ms": 5, field: value})
+    blocked = TraceMsg(trace=PipelineTrace(tx_id="blocked-1", speaker="CTRL", final=True,
+        stages=[TraceStage(name="blocked", category="sim", t0_ms=50, t1_ms=50,
+            status="error")]))
+    assert TraceMsg.model_validate_json(blocked.model_dump_json()).trace.stages[0].name == "blocked"
+
+
+def test_edit_strip_and_fix_passed_reason_are_valid_contract_values():
+    control = ControlMsg.model_validate({"type": "control", "action": "edit_strip",
+        "params": {"callsign": "BAW117", "field": "cfl", "value": "F70"}})
+    assert control.params["value"] == "F70"
+    event = Event(t=1, type="strip_edit", actor="CONTROLLER", callsign="BAW117",
+        data={"field": "cfl", "value": 7000, "by": "controller"})
+    assert Event.model_validate_json(event.model_dump_json()).type == "strip_edit"
+    query = Evaluation(instr_idx=0, status="QUERY", reason_code="QUERY_FIX_PASSED",
+        reason_values={"fix": "TUFOZ"})
+    assert query.reason_values["fix"] == "TUFOZ"
+
+
+async def test_trace_updates_reach_both_roles_in_order_without_displacing_audio():
+    hub = Hub()
+    radar, viz = Client(None, "radar"), Client(None, "viz")
+    hub.clients = {"radar": radar, "viz": viz}
+    await hub.send(TraceMsg(trace=PipelineTrace(tx_id="t", speaker="CTRL")))
+    await hub.send({"type": "audio_chunk", "tx_id": "t", "seq": 0, "data_b64": "AA=="})
+    await hub.send(TraceMsg(trace=PipelineTrace(tx_id="t", speaker="CTRL", final=True)))
+    for client in (radar, viz):
+        messages = list(client.queue)
+        assert [message["type"] for message in messages] == ["trace", "audio_chunk", "trace"]
+        assert messages[0]["trace"]["final"] is False
+        assert messages[-1]["trace"]["final"] is True

@@ -51,7 +51,7 @@ ReasonCode = Literal[
     "UNABLE_SPEED_LOW", "UNABLE_SPEED_HIGH", "UNABLE_CEILING", "UNABLE_RATE",
     "UNABLE_INTERCEPT_ANGLE", "UNABLE_TOO_HIGH_GS", "UNABLE_NOT_MODELLED",
     "QUERY_LEVEL_BELOW_MIN", "QUERY_AMBIGUOUS", "QUERY_UNKNOWN_FIX", "QUERY_UNKNOWN_RUNWAY",
-    "QUERY_WRONG_POSITION", "QUERY_CALLSIGN", "QUERY_LEVEL_TYPE",
+    "QUERY_WRONG_POSITION", "QUERY_CALLSIGN", "QUERY_LEVEL_TYPE", "QUERY_FIX_PASSED",
 ]
 
 ReplyKind = Literal[
@@ -92,7 +92,7 @@ EventType = Literal[
     "pilot_transmission", "pilot_blocked", "overlap",
     # sim
     "spawn", "takeoff", "landing", "handoff", "go_around", "hold_entered", "loc_captured",
-    "gs_captured", "instruction_applied", "level_reached", "inject", "pilot_call",
+    "gs_captured", "instruction_applied", "level_reached", "inject", "pilot_call", "strip_edit",
     # errors
     "error_planned", "error_spoken", "error_caught", "error_missed",
     # safety / rules
@@ -193,6 +193,14 @@ class AircraftPublic(BaseModel):
     source_time: Optional[str] = None
     fetched_at: Optional[str] = None
     source_attribution: Optional[str] = None
+    # Flight-plan/list additions (CONTRACTS §3.2). None means not supplied by the simulator.
+    flight_rules: Optional[Literal["I", "V"]] = None
+    adep: Optional[str] = None
+    ades: Optional[str] = None
+    rfl: Optional[int] = None                  # requested cruise FL, e.g. 350 (not feet)
+    assigned_squawk: Optional[str] = None      # four octal digits; preserve leading zeroes
+    selected_level: Optional[float] = None    # Mode S selected level, feet (not strip CFL)
+    strip: dict[str, Any] = Field(default_factory=dict)  # controller record, never a clearance
 
 
 class CloudLayer(BaseModel):
@@ -419,6 +427,32 @@ class CaptionMsg(BaseModel):
     error_reveal: Optional[str] = None                         # set ONLY when demo "reveal errors" is on
 
 
+TraceCategory = Literal["capture", "stt", "language", "sim", "pilot", "voice", "playback"]
+
+
+class TraceStage(BaseModel):
+    name: str                                  # VOICE_PIPELINE §20.1; includes blocked on failure
+    category: TraceCategory
+    t0_ms: float                               # relative to PTT up or pilot compose start
+    t1_ms: float                               # speech may start before the anchor
+    status: Literal["ok", "fallback", "error", "skipped"] = "ok"
+    detail: dict[str, Any] = Field(default_factory=dict)
+
+
+class PipelineTrace(BaseModel):
+    tx_id: str
+    speaker: Speaker
+    reply_callsign: Optional[str] = None
+    stages: list[TraceStage] = Field(default_factory=list)
+    total_ms: float = 0.0                       # anchor to server playback release, milliseconds
+    final: bool = False                        # provisional updates until audio ends
+
+
+class TraceMsg(BaseModel):
+    type: Literal["trace"] = "trace"
+    trace: PipelineTrace
+
+
 class AudioStartMsg(BaseModel):
     type: Literal["audio_start"] = "audio_start"
     tx_id: str
@@ -463,7 +497,7 @@ class SessionMsg(BaseModel):
 
 ControlAction = Literal["new_session", "pause", "resume", "set_speed", "set_traffic", "set_error_rate",
                         "set_runway", "load_scenario", "inject", "force_error", "beat", "end_session",
-                        "reveal_errors", "import_live"]
+                        "reveal_errors", "import_live", "edit_strip"]
 
 
 class ControlMsg(BaseModel):                   # client -> server
@@ -504,6 +538,7 @@ class WorldAPI(Protocol):                      # owner: Tudor (server/sim/world.
     def snapshot(self) -> WorldSnapshot: ...
     def callsigns(self) -> list[CallsignInfo]: ...
     def fixes(self) -> list[str]: ...
+    def edit_strip(self, callsign: str, field: str, value: Any) -> bool: ...
     def evaluate(self, tx: Transmission) -> list[Evaluation]: ...
     def schedule_apply(self, callsign: str, elements: list[ClearanceElement], at: float) -> None: ...
     def set_transmitting(self, callsign: str, on: bool) -> None: ...

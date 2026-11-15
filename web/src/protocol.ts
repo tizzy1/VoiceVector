@@ -24,6 +24,12 @@ export interface AircraftPublic {
   emergency: boolean; transmitting: boolean; plain_status: string;
   traffic_source?: string | null; source_time?: string | null; fetched_at?: string | null;
   source_attribution?: string | null;
+  // Additive §3.2 fields: absent/null means the simulator has not supplied a value.
+  flight_rules?: "I" | "V" | null; adep?: string | null; ades?: string | null;
+  rfl?: number | null;                       // requested cruise FL, not feet
+  assigned_squawk?: string | null;           // preserve leading zeroes
+  selected_level?: number | null;            // Mode S selected level, feet
+  strip?: Record<string, unknown>;           // controller record; editing never flies a clearance
 }
 
 export interface CloudLayer { cover: string; base_ft: number }
@@ -61,6 +67,17 @@ export interface CaptionMsg {
   text: string; chips: ParsedChip[]; words: CaptionWord[]; plain_english: string;
   latency: Record<string, number>; error_reveal?: string | null;
 }
+
+export type TraceCategory = "capture" | "stt" | "language" | "sim" | "pilot" | "voice" | "playback";
+export interface TraceStage {
+  name: string; category: TraceCategory; t0_ms: number; t1_ms: number;
+  status: "ok" | "fallback" | "error" | "skipped"; detail: Record<string, unknown>;
+}
+export interface PipelineTrace {
+  tx_id: string; speaker: string; reply_callsign?: string | null;
+  stages: TraceStage[]; total_ms: number; final: boolean;
+}
+export interface TraceMsg { type: "trace"; trace: PipelineTrace }
 
 export interface AudioStartMsg {
   type: "audio_start"; tx_id: string; callsign: string; format: "pcm_s16le" | "mp3"; sample_rate: number;
@@ -101,12 +118,12 @@ export interface SessionMsg {
 }
 
 export type ServerMsg = StateMsg | CaptionMsg | AudioStartMsg | AudioChunkMsg | AudioEndMsg
-  | EventMsg | ReportMsg | SessionMsg;
+  | EventMsg | ReportMsg | SessionMsg | TraceMsg;
 
 // ---- client -> server ----
 export type ControlAction = "new_session" | "pause" | "resume" | "set_speed" | "set_traffic"
   | "set_error_rate" | "set_runway" | "load_scenario" | "inject" | "force_error" | "beat"
-  | "end_session" | "reveal_errors" | "import_live";
+  | "end_session" | "reveal_errors" | "import_live" | "edit_strip";
 export interface ControlMsg { type: "control"; action: ControlAction; params: Record<string, unknown> }
 export interface PttMsg { type: "ptt"; state: "down" | "up" }
 export interface TypedMsg { type: "typed"; text: string }

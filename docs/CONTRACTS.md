@@ -142,7 +142,10 @@ all imported tracks subsequently move as simulated aircraft. No raw provider JSO
 | `ConflictForecast` | Simulator forecast engine (Tudor) | `StateMsg`, radar and viz overlays (Bhavin) |
 | `LiveImportMsg` / `LiveImportStatus` | Session/fetcher (Bhavin) after `World.import_live` (Tudor) | Both views |
 
-**Trace shapes (exact; additive, optional).** Bhavin adds these to `server/contracts.py` and mirrors them in `web/src/protocol.ts` (with `TraceMsg` added to `ServerMsg`) in one commit before Sanju emits traces:
+**Trace shapes (exact; additive).** Added to `server/contracts.py` and mirrored in
+`web/src/protocol.ts`, including `TraceMsg` in `ServerMsg`. Sanju can now import and
+emit these shapes. Trace production, persistence and the PIPELINE panel are separate
+integration work; their presence in the contracts does not mean those features run yet.
 ```python
 TraceCategory = Literal["capture", "stt", "language", "sim", "pilot", "voice", "playback"]
 
@@ -167,10 +170,18 @@ class TraceMsg(BaseModel):
     trace: PipelineTrace
 ```
 
-These are roadmap additions, not part of the current wire contract until merged. Before any owner implements them, Bhavin adds the optional/defaulted models and fields to `server/contracts.py` and mirrors the client-visible shapes in `web/src/protocol.ts` in the same commit. Forecast output is informational and never drives aircraft or replaces deterministic evaluation/STCA. Live source data is read-only input to the simulation; the app must not connect to or transmit commands on VATSIM or any real-world network.
+Other roadmap additions still need optional/defaulted models and mirrored client-visible
+shapes in the same commit before implementation. Forecast output is informational and never
+drives aircraft or replaces deterministic evaluation/STCA. Live source data is read-only input
+to the simulation; the app must not connect to or transmit commands on VATSIM or real networks.
 
-### 3.2 Flight plans, editable lists and pronunciation (requested 15 Nov, not yet in the wire contract)
-Additive and optional, added by Bhavin to `server/contracts.py` and `web/src/protocol.ts` in one commit before anyone implements them:
+### 3.2 Flight plans, editable lists and pronunciation (requested 15 Nov)
+The following additive contract definitions are now present. Flight-plan values and
+`selected_level` default to `None` (unknown), and `strip` defaults to an independent empty
+dictionary, so older producers remain valid. RFL is a flight-level number; `selected_level`
+and strip CFL are feet. Assigned squawks are strings, preserving leading zeroes.
+Tudor must populate `World._public`; session routing and the editable-list UI are still
+required before a browser can use `edit_strip`. Adding the action alone does not execute it.
 | Change | Where | Producer → consumer |
 |---|---|---|
 | `AircraftPublic`: `flight_rules`, `adep`, `ades`, `rfl` (FL number), `assigned_squawk`, `selected_level` (Mode S SFL = the aircraft's real cleared level), `strip: dict` (controller-edited list fields: `cfl`, `ahdg`, `aspd`, `dct`, `sts`, `clr`, `rwy`, `sid`/`star`) | `StateMsg` | World (Tudor) → lists and tags (Bhavin) |
