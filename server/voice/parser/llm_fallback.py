@@ -178,9 +178,13 @@ async def warm(client: Any = None) -> None:
     client = client or llm.get_client()
     if client is None:
         return
+    from server.voice import activity
+    span = activity.Span("claude", activity.CLAUDE, "warm-up")
     try:
         await asyncio.wait_for(client.models.list(limit=1), 3.0)
+        span.end("ok")
     except Exception:                                              # noqa: BLE001 - optimisation only
+        span.end("error")
         logger.debug("LLM warm-up failed", exc_info=True)
 
 

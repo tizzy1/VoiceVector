@@ -26,6 +26,7 @@ from server.voice.frequency import FrequencyManager
 from server.voice.metrics import Metrics, Stamps
 from server.voice.parser import default_runways, parse
 from server.voice.parser import llm_fallback
+from server.agents import llm
 from server.voice.stt_fallback import WizperSTT
 from server.voice.stt_scribe import STATIC_KEYTERMS, ScribeStream, STTError, build_keyterms
 from server.voice.tts import ElevenLabsTTS, TTSError
@@ -33,6 +34,7 @@ from server.voice.pronounce import respell
 from server.voice import atis, coach
 from server.voice.replay import ReplayStore
 from server.voice import trace as T
+from server.voice import activity as A
 from server.voice.prosody import compensated_speed, restore_word_times, shape
 from server.voice.voices import Voices, settings_for, target_wps
 
@@ -47,6 +49,12 @@ EST_SPEECH_S_PER_WORD = 0.42      # reading time when there is no audio
 EventTypeName = str
 
 
+def _first_ms(stamps: Stamps) -> Optional[float]:
+    if "t_tts_first" in stamps and "t_tts_req" in stamps:
+        return round((stamps["t_tts_first"] - stamps["t_tts_req"]) * 1000, 1)
+    return None
+
+
 @dataclass
 class _Ptt:
     tx_id: str
@@ -56,6 +64,7 @@ class _Ptt:
     last_partial: float = 0.0
     partials: int = 0                                         # all partials received (trace count)
     audio: bytearray = field(default_factory=bytearray)      # kept for the batch STT fallback
+    spans: dict = field(default_factory=dict)               # live /pipeline activity (mic, stt)
 
 
 @dataclass
@@ -123,6 +132,7 @@ class VoicePipeline:
         if not key and tts is None:
             logger.warning("ELEVENLABS_API_KEY not set: captions only, no speech")
         self.llm_client = None                     # None -> llm.get_client() (key from env)
+        A.attach(hub)                              # live /pipeline feed (server/voice/activity.py)
         try:
             if self.tts is not None:
                 self.hub.spawn(self.tts.warm())
@@ -193,6 +203,7 @@ class VoicePipeline:
             self._ptt = ptt
             self._warm_backup_stt()               # ready by PTT up, in case Scribe fails
             self._emit("ctrl_ptt_down", "CONTROLLER", tx_id=ptt.tx_id)
+            ptt.spans["mic"] = A.Span("mic", "Browser microphone", "push-to-talk", tx_id=ptt.tx_id)
             if stepped_on:
                 self._emit("overlap", "SYSTEM", tx_id=ptt.tx_id, with_ctrl=True,
                            tx_ids=list(stepped_on), callsigns=sorted(set(stepped_on.values())))
@@ -200,6 +211,7 @@ class VoicePipeline:
                 try:
                     ptt.stt = self.stt_factory(self._keyterms(), lambda text: self._on_partial(ptt, text))
                     ptt.stt.start()
+                    ptt.spans["stt"] = A.Span("stt", A.SCRIBE, "live transcription", tx_id=ptt.tx_id)
                 except Exception:                                    # noqa: BLE001
                     logger.exception("could not start speech-to-text")
                     ptt.stt = None
@@ -233,6 +245,16 @@ class VoicePipeline:
         ptt.stamps.mark("t_ptt_up")
         self.freq.ctrl_up()
         self._emit("ctrl_ptt_up", "CONTROLLER", tx_id=ptt.tx_id)
+        if "mic" in ptt.spans:
+            ptt.spans["mic"].end("error" if ptt.stepped_on else "ok",
+                                 audio_s=round(len(ptt.audio) / 32000, 2))
+        try:
+            await self._ptt_up_body(ptt)
+        finally:
+            if "stt" in ptt.spans:                 # every path that did not finish the transcript
+                ptt.spans["stt"].end("error")
+
+    async def _ptt_up_body(self, ptt: _Ptt) -> None:
         if ptt.stepped_on:
             await self._blocked(ptt)
             return
@@ -249,12 +271,17 @@ class VoicePipeline:
         if ptt.stt is not None:
             try:
                 text = await ptt.stt.finish()
+                if "stt" in ptt.spans:              # shown time = PTT release -> final transcript
+                    up = ptt.stamps.get("t_ptt_up")
+                    ptt.spans["stt"].end("ok", ms=(time.perf_counter() - up) * 1000 if up else None,
+                                         partials=ptt.partials, streamed_s=round(len(ptt.audio) / 32000, 2))
             except STTError as error:
                 logger.warning("speech-to-text failed: %s", error)
         if text is None and self.stt_fallback is not None:
             await self._notice("Speech service unavailable; trying the backup transcriber…", ptt.tx_id)
             try:
-                text = await self.stt_fallback.transcribe(bytes(ptt.audio))
+                async with A.call("stt", A.WIZPER, "backup transcription", tx_id=ptt.tx_id):
+                    text = await self.stt_fallback.transcribe(bytes(ptt.audio))
                 ptt.stamps["stt_fallback"] = 1.0
             except STTError as error:
                 logger.warning("backup speech-to-text failed: %s", error)
@@ -340,6 +367,8 @@ class VoicePipeline:
                    tx_id=tx_id, t=float(self.world.t))
         stamps.mark("t_parsed")
         regex_timings, regex_done = dict(tx.timings), stamps["t_parsed"]
+        A.emit("parse", "Python grammar", "parse", ms=(stamps["t_parsed"] - stamps["t_parse0"]) * 1000,
+               tx_id=tx_id, callsign=tx.receiver, source=source)
         parse_s = stamps.span("t_final", "t_parsed")
         self._tx_stamps[tx_id] = stamps
         while len(self._tx_stamps) > 64:
@@ -355,8 +384,13 @@ class VoicePipeline:
         llm_used = llm_fallback.needs_fallback(tx)
         if llm_used:
             stamps.mark("t_llm0")
-            refined = await llm_fallback.refine(tx, callsigns, set(self.world.fixes()), default_runways(),
-                                                client=self.llm_client)
+            if (self.llm_client or llm.get_client()) is not None:
+                async with A.call("claude", A.CLAUDE, "parser fallback", tx_id=tx_id, callsign=tx.receiver):
+                    refined = await llm_fallback.refine(tx, callsigns, set(self.world.fixes()),
+                                                        default_runways(), client=self.llm_client)
+            else:
+                refined = await llm_fallback.refine(tx, callsigns, set(self.world.fixes()), default_runways(),
+                                                    client=self.llm_client)
             stamps.mark("t_parsed")                       # the decision is final only now
             if refined.parse_path != tx.parse_path:
                 latency = {**latency, "llm_s": round(refined.timings.get("llm_s", 0.0), 3)}
@@ -366,11 +400,16 @@ class VoicePipeline:
         stamps.mark("t_eval0")
         evals = self.world.evaluate(tx)
         stamps.mark("t_eval1")
+        A.emit("sim", "Flight simulator", "can it comply?", ms=(stamps["t_eval1"] - stamps["t_eval0"]) * 1000,
+               tx_id=tx_id, callsign=tx.receiver)
         self._emit("ctrl_transmission", "CONTROLLER", tx.receiver, tx_id,
                    tx=tx.model_dump(mode="json"), evals=[e.model_dump(mode="json") for e in evals])
         stamps.mark("t_pd0")
         responses = self.pilot.handle_transmission(tx, evals)
         stamps.mark("t_pd1")
+        A.emit("pilot", "Pilot engine", "decide reply", ms=(stamps["t_pd1"] - stamps["t_pd0"]) * 1000,
+               tx_id=tx_id, callsign=tx.receiver,
+               replies=sum(1 for r in responses if r.kind != "silence"))
         trace = self._ctrl_trace(tx_id, source, stamps, regex_timings, regex_done, llm_used, tx, evals, responses)
         speaking = [r for r in responses if r.kind != "silence" and r.callsign and r.plan is not None]
         if trace is not None:
@@ -396,12 +435,14 @@ class VoicePipeline:
             return ""
         display, speech = atis.build(self.world.metar(), self.world.runway, letter)
         tx_id = self._new_id("atis")
+        span = None
         self._atis_playing = True
         try:
             await self.hub.send(CaptionMsg(tx_id=tx_id, speaker="ATIS", stage="pilot_text", text=display))
             if self.tts is None:
                 return display
             started = False
+            span = A.Span("voice", A.FLASH, "ATIS", tx_id=tx_id, callsign="ATIS")
             async for chunk in self.tts.stream(speech, atis.ATIS_VOICE_ID, atis.ATIS_SETTINGS):
                 if not started:
                     await self.hub.send(AudioStartMsg(tx_id=tx_id, callsign="ATIS", format=self.tts.audio_format,
@@ -409,11 +450,14 @@ class VoicePipeline:
                     started, seq = True, 0
                 await self.hub.send(AudioChunkMsg(tx_id=tx_id, seq=seq, data_b64=base64.b64encode(chunk).decode("ascii")))
                 seq += 1
+            span.end("ok")
             if started:
                 await self.hub.send(AudioEndMsg(tx_id=tx_id))
             return display
         except Exception:                                # noqa: BLE001  (caption already shown)
             logger.exception("ATIS audio failed")
+            if span is not None:
+                span.end("error")
             return display
         finally:
             self._atis_playing = False
@@ -432,7 +476,13 @@ class VoicePipeline:
             await self.hub.send(msg)
             if self.on_coach is not None:
                 self.on_coach(rev.score)
-            tip = await coach.claude_tip(raw, rev, client=self.llm_client)
+            if (self.llm_client or llm.get_client()) is not None:
+                async with A.call("claude", A.CLAUDE, "coach tip", tx_id=tx.tx_id, callsign=tx.receiver) as span:
+                    tip = await coach.claude_tip(raw, rev, client=self.llm_client)
+                    if not tip:
+                        span.end("fallback", reason="no tip")
+            else:
+                tip = await coach.claude_tip(raw, rev, client=self.llm_client)
             if tip:
                 await self.hub.send(msg.model_copy(update={"tip": tip}))
         except Exception:                                # noqa: BLE001  (coaching must never break radio)
@@ -518,6 +568,9 @@ class VoicePipeline:
                 settings = {**settings, **meta["fallback_settings"]}   # standard voice: uncalibrated speed
             meta["spoken_text"] = text
             produced = False
+            act = meta.get("activity") or {}
+            span = A.Span("voice", A.CHATTERBOX if type(engine).__name__ == "ChatterboxVoice" else A.FLASH,
+                          act.get("op", "speech"), tx_id=act.get("tx_id"), callsign=act.get("callsign"))
             try:
                 timed = getattr(engine, "stream_timed", None)
                 if timed is not None:                   # word-synced captions (ElevenLabs timestamps)
@@ -536,10 +589,13 @@ class VoicePipeline:
                             stamps.mark("t_tts_first")
                         await queue.put(chunk)
                 await queue.put(None)
+                span.end("ok", first_audio_ms=_first_ms(stamps))
                 return
             except asyncio.CancelledError:
+                span.end("error" if not produced else "ok", first_audio_ms=_first_ms(stamps))
                 raise
             except Exception as error:                               # noqa: BLE001
+                span.end("error", voice_missing=True if "voice_not_found" in str(error) else None)
                 last_error = error if isinstance(error, TTSError) else TTSError(repr(error))
                 if produced:
                     break                                # mid-stream failure: do not restart the voice
@@ -599,6 +655,12 @@ class VoicePipeline:
                       attempts=int(st.get("attempts", 0)), fallback=bool(readback.fallback_used))
             trace.total_ms = (stamps["t_composed"] - trace.anchor) * 1000
             await T.send(self.hub, trace, False, self._trace_dir)          # provisional, after validate
+        A.emit("readback", "Readback composer", "compose + check",
+               ms=(stamps["t_composed"] - stamps["t_plan"]) * 1000 if "t_plan" in stamps else None,
+               status="fallback" if readback.fallback_used else "ok", tx_id=tx_id, callsign=cs)
+        if resp.kind in ("mayday", "pan"):
+            A.emit("pilot", "Pilot engine", "MAYDAY" if resp.kind == "mayday" else "PAN PAN",
+                   status="emergency", tx_id=tx_id, callsign=cs)
         if not readback.tts_text:
             return
         parent = self._tx_stamps.get(resp.in_reply_to or "", Stamps())
@@ -619,7 +681,8 @@ class VoicePipeline:
 
         queue: asyncio.Queue = asyncio.Queue()
         alignment: list[dict] = []
-        meta: dict = {}
+        meta: dict = {"activity": {"tx_id": tx_id, "callsign": cs,
+                                   "op": resp.kind if resp.kind in ("mayday", "pan") else "readback"}}
         producer = None
         first: Any = None
         emergency_call = resp.kind in ("mayday", "pan") and self.emergency is not None
@@ -657,6 +720,8 @@ class VoicePipeline:
                 await self.freq.wait_turn(resp.priority, not_before)
             self.freq.begin(tx_id, cs)
             on_air = True
+            air = A.Span("radio", "Radio (Web Audio)", "on air", tx_id=tx_id, callsign=cs,
+                         emergency=True if stressed and resp.kind in ("mayday", "pan") else None)
             stamps.mark("t_release")
             started = stamps.mark("t_play")
             if trace is not None:
@@ -722,6 +787,7 @@ class VoicePipeline:
             if on_air:
                 self.world.set_transmitting(cs, False)
                 blocked = self.freq.end(tx_id) or group is not None
+                air.end("error" if blocked else "ok", stepped_on=True if blocked else None)
             else:
                 blocked = False
                 self.freq.cancel_reservation()

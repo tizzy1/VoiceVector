@@ -35,6 +35,7 @@ const SCENARIOS: [ScenarioChoice, string][] = [
 // Contact frequencies (display; the simulator accepts any frequency on "contact")
 const FREQUENCIES: [string, string][] = [["DIR", "126.825"], ["TWR", "124.225"], ["LON", "134.125"]];
 function vizHref(code?: string) { return `/viz${code ? `?session=${encodeURIComponent(code)}` : ""}`; }
+function pipelineHref(code?: string) { return `/pipeline${code ? `?session=${encodeURIComponent(code)}` : ""}`; }
 function readFlag(key: string): boolean { try { return localStorage.getItem(key) === "1"; } catch { return false; } }
 function writeFlag(key: string, on: boolean) { try { localStorage.setItem(key, on ? "1" : "0"); } catch { /* private mode */ } }
 
@@ -345,6 +346,7 @@ export function App() {
       <p className={health?.ready ? "success" : "muted"}>{health?.ready ? "Radio ready" : "Radio pipeline pending"}</p>
       {health?.missing_modules.map(module => <code key={module}>{module}</code>)}
       <p>Open on the same network:</p>{session && <a className="join" href={session.join_url}>{session.join_url}</a>}
+      {session && <><p>Live pipeline (e.g. on a laptop):</p><a className="join" href={session.join_url.replace("/viz", "/pipeline")}>{session.join_url.replace("/viz", "/pipeline")}</a></>}
     </details>
   </>;
   return (
@@ -356,7 +358,7 @@ export function App() {
           <a href={vizHref(session?.code)} onClick={event => {
             // 15 Nov (Sanju for Bhavin): the second screen opens in its own window (drag it to the projector)
             if (window.open(vizHref(session?.code), "sweatbox-second-screen", "popup,width=1280,height=800")) event.preventDefault();
-          }}>Second screen ↗</a><a href={reportHref}>Report</a></nav>
+          }}>Second screen ↗</a><a href={pipelineHref(session?.code)} target="sweatbox-pipeline">Pipeline ↗</a><a href={reportHref}>Report</a></nav>
         <div className="connection"><i className={connected ? "online" : ""} />{status}</div>
       </header>
       <div className="session-bar">

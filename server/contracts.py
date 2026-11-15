@@ -495,6 +495,27 @@ class ChallengeMsg(BaseModel):
     leaderboard: list[ChallengeEntry] = Field(default_factory=list)
 
 
+ActivityNode = Literal["mic", "stt", "parse", "claude", "sim", "pilot", "readback", "voice", "radio", "apply"]
+
+
+class ActivityMsg(BaseModel):
+    """Live pipeline activity for the /pipeline screen (added 15 Nov by Sanju; additive).
+    One message per mic key / release, API call start and end, local stage, mayday and on-air change.
+    Never carries audio, transcript text or keys."""
+    type: Literal["activity"] = "activity"
+    id: str                                    # start and end of one call share the id
+    node: ActivityNode
+    service: str                               # "ElevenLabs Scribe v2 Realtime", "Claude Haiku 5.5", ...
+    op: str                                    # "transcribe", "coach tip", "readback", "MAYDAY", ...
+    phase: Literal["start", "end", "instant"] = "instant"
+    status: Literal["ok", "error", "fallback", "emergency"] = "ok"
+    ms: Optional[float] = None                 # duration (end / instant), server-measured
+    tx_id: Optional[str] = None
+    callsign: Optional[str] = None
+    at_ms: int = 0                             # server wall clock, epoch ms
+    detail: dict[str, Any] = Field(default_factory=dict)
+
+
 class TraceMsg(BaseModel):
     type: Literal["trace"] = "trace"
     trace: PipelineTrace

@@ -125,6 +125,9 @@ class Narrative:
         text, coaching = deterministic(report)
         client = self._client or llm.get_client()
         if client is not None:
+            from server.voice import activity
+            span = activity.Span("claude", activity.CLAUDE if self.model == llm.FAST_MODEL else self.model,
+                                 "debrief")
             try:
                 response = await asyncio.wait_for(client.messages.create(
                     model=self.model, max_tokens=500, system=SYSTEM,
@@ -132,10 +135,12 @@ class Narrative:
                     **llm.model_kwargs(self.model)), DEADLINE_S)
                 output = llm.json_output(response)
                 problem = validate(output, source)
+                span.end("ok" if problem is None else "fallback")
                 if problem is None:
                     text, coaching = output["narrative"].strip(), [str(c).strip() for c in output["coaching"]]
                 else:
                     logger.warning("debrief rejected (%s); using deterministic summary", problem)
             except Exception:                                        # noqa: BLE001 - never block the report
+                span.end("error")
                 logger.exception("debrief generation failed; using deterministic summary")
         return report.model_copy(update={"narrative": text, "coaching": coaching})

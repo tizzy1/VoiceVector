@@ -79,14 +79,19 @@ class WizperSTT:
         self._warming = True
         self.warmups += 1
         started = time.monotonic()
+        from server.voice import activity
+        span = activity.Span("stt", activity.WIZPER, "warm-up")
         try:
             await asyncio.wait_for(self._run(b"\x00\x00" * 4800, 16000, WARM_FILE), WARM_TIMEOUT_S)
+            span.end("ok")
             self.last_used = time.monotonic()
             logger.info("Wizper warm in %.1f s", self.last_used - started)
             return True
         except asyncio.CancelledError:
+            span.end("error")
             raise
         except Exception as error:                                   # noqa: BLE001
+            span.end("error")
             logger.info("Wizper warm-up failed (%s); the backup will be cold if needed", error)
             return False
         finally:

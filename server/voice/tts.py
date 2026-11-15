@@ -69,9 +69,13 @@ class ElevenLabsTTS:
 
     async def warm(self) -> None:
         """Open the HTTP/2 connection ahead of the first transmission (no characters billed)."""
+        from server.voice import activity
+        span = activity.Span("voice", activity.FLASH, "warm-up")
         try:
             await self.client.get("/v1/models", headers={"xi-api-key": self.api_key})
+            span.end("ok")
         except httpx.HTTPError:
+            span.end("error")
             logger.warning("TTS warm-up failed; the first transmission will pay the handshake")
 
     async def stream(self, text: str, voice_id: str,

@@ -148,6 +148,7 @@ def create_app(factories: dict | None = None, runs_dir: Path | None = None) -> F
 
     @app.get("/")
     @app.get("/viz")
+    @app.get("/pipeline")                     # live signal path for another device (15 Nov, Sanju)
     @app.get("/report")
     async def index():
         if not (dist / "index.html").is_file():

@@ -79,6 +79,13 @@ export interface PipelineTrace {
   stages: TraceStage[]; total_ms: number; final: boolean;
 }
 export interface TraceMsg { type: "trace"; trace: PipelineTrace }
+// Live pipeline activity for /pipeline (15 Nov, Sanju; additive). Start and end of one call share `id`.
+export type ActivityNode = "mic" | "stt" | "parse" | "claude" | "sim" | "pilot" | "readback" | "voice" | "radio" | "apply";
+export interface ActivityMsg {
+  type: "activity"; id: string; node: ActivityNode; service: string; op: string;
+  phase: "start" | "end" | "instant"; status: "ok" | "error" | "fallback" | "emergency";
+  ms: number | null; tx_id: string | null; callsign: string | null; at_ms: number; detail: Record<string, unknown>;
+}
 // Phraseology coach (added 15 Nov, Sanju): rules first, then the same tx_id again with Claude's tip
 export interface CoachNote { level: "good" | "tip" | "fix"; text: string }
 // Judge challenge (added 15 Nov, Sanju)
@@ -126,7 +133,7 @@ export interface SessionMsg {
 }
 
 export type ServerMsg = StateMsg | CaptionMsg | AudioStartMsg | AudioChunkMsg | AudioEndMsg
-  | EventMsg | ReportMsg | SessionMsg | TraceMsg | CoachMsg | ChallengeMsg;
+  | EventMsg | ReportMsg | SessionMsg | TraceMsg | CoachMsg | ChallengeMsg | ActivityMsg;
 
 // ---- client -> server ----
 export type ControlAction = "new_session" | "pause" | "resume" | "set_speed" | "set_traffic"
