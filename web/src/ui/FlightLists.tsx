@@ -36,12 +36,14 @@ function List({props,dep}:{props:Props;dep:boolean}) {
  const aircraft=orderedTraffic(props.state?.aircraft??[],dep,query,sort),columns=dep?departureColumns:arrivalColumns;
  useEffect(()=>{
   if(props.selected && !props.selected.toUpperCase().includes(query.trim().toUpperCase()))setQuery('');
+ },[props.selected]);
+ useEffect(()=>{
   const row=host.current?.querySelector<HTMLElement>('[aria-selected="true"]');
   const scroller=host.current?.querySelector<HTMLElement>('.strip-scroll');
   if(row&&scroller) {const r=row.getBoundingClientRect(),s=scroller.getBoundingClientRect();
    if(r.bottom>s.bottom)scroller.scrollTop+=r.bottom-s.bottom;
    if(r.top<s.top+24)scroller.scrollTop+=r.top-s.top-24;}
- },[props.selected,query]);
+ },[props.selected,query,collapsed,closed]);
  const title=dep?'Departure List':'Arrival List';
  return <section className={`strip-list${closed?' strip-closed':''}`} aria-label={title}>
   <div className="strip-title"><button title="Show all" onClick={()=>{setQuery('');setFilter(false);setSort(false);}}>0</button>

@@ -9,11 +9,13 @@ export function TracePanel({traces,audience,onClose}:{traces:readonly PipelineTr
  const ticks=Array.from({length:Math.min(240,Math.floor(span/250)+1)},(_,i)=>Math.ceil(domain[0]/250)*250+i*250).filter(v=>v<=domain[1]);
  const parse=trace?.stages.find(s=>s.name==='parse');
  const detail=parse?.detail.path;
+ const blocked=trace?.stages.some(s=>s.name==='blocked');
+ const released=trace?.final || trace?.stages.some(s=>s.name==='reaction_hold'||s.name==='playback');
  return <section className={`trace-panel ${audience?'trace-audience':'trace-controller'}`} aria-label="Pipeline trace">
   <header><strong>PIPELINE <small>SERVER MEASUREMENTS</small></strong><button aria-label="Close pipeline" onClick={onClose}>×</button></header>
   {!trace?<p role="status">Waiting for pipeline traces. The voice pipeline has not supplied measurements yet.</p>:<>
    <div className="trace-heading"><span>{trace.speaker} → {trace.reply_callsign??'—'} · {trace.stages.length} stages · {typeof detail==='string'?`${detail} path`:'path not supplied'}</span>
-    <b>{trace.total_ms.toFixed(0)} ms <small>to first audio release</small></b>
+    <b>{blocked?'Blocked':released?`${trace.total_ms.toFixed(0)} ms`:'Pending release'} <small>{!blocked&&'to first audio release'}</small></b>
     <span>{trace.final?'Final':'Provisional'} · TX {trace.tx_id}</span></div>
    {!audience&&<nav aria-label="Trace history">{traces.map(t=><button key={t.tx_id} aria-pressed={t.tx_id===trace.tx_id} onClick={()=>setSelected(t.tx_id)}>{t.reply_callsign??t.speaker} · {t.tx_id.slice(-6)}</button>)}</nav>}
    <div className="trace-waterfall" role="img" aria-label="Measured pipeline stage durations in milliseconds">
