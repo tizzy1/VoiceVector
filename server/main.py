@@ -6,7 +6,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import TypeAdapter, ValidationError
 
@@ -56,6 +56,16 @@ def create_app(factories: dict | None = None, runs_dir: Path | None = None) -> F
         if name not in allowed:
             raise HTTPException(404, "Unknown data file")
         return FileResponse(ROOT / "data" / f"{name}.json")
+
+    @app.get("/api/replay/{error_id}")
+    async def replay(error_id: str):
+        """WAV of the pilot readback that carried planted error `error_id` (15 Nov, Sanju)."""
+        voice = getattr(app.state.session, "voice", None)
+        store = getattr(voice, "replays", None)
+        wav = store.wav(error_id) if store is not None and len(error_id) <= 64 else None
+        if wav is None:
+            raise HTTPException(status_code=404, detail="No recording for that error in this session")
+        return Response(content=wav, media_type="audio/wav", headers={"Cache-Control": "no-store"})
 
     @app.websocket("/ws")
     async def websocket_endpoint(websocket: WebSocket):

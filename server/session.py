@@ -6,6 +6,7 @@ import secrets
 from collections import Counter
 from pathlib import Path
 
+from server.challenge import Challenge
 from server.contracts import (
     CaptionMsg, ControlMsg, Event, ReportMsg, SessionMsg, SessionSettings, StateMsg, LiveImportStatus,
 )
@@ -87,6 +88,8 @@ class Session:
         self.live_import = None
         self.import_provenance = {}
         self.importing = False
+        # judge challenge (server/challenge.py, 15 Nov Sanju); leaderboard survives restarts
+        self.challenge = Challenge(self.runs_dir / "leaderboard.json")
 
     @property
     def ready(self) -> bool:
@@ -151,6 +154,10 @@ class Session:
             self.narrative = f["narrative"]()
         self.bus.subscribe(self.hub.on_event)
         self.bus.subscribe(self.on_sim_event)
+        self.challenge.start(self.settings.scenario)
+        self.bus.subscribe(self.challenge.on_event)
+        if self.voice is not None:
+            self.voice.on_coach = self.challenge.on_coach
         self.world.configure(self.settings)
         self.world.load_scenario(self.settings.scenario, self.settings.seed)
         if hasattr(self.world, "strip_autofill"):
@@ -188,6 +195,9 @@ class Session:
                 if self.rules is not None:
                     self.rules.on_tick(self.world.snapshot())
                 await self.hub.send(self.state())
+                if self.challenge.active:
+                    self.challenge.tick(self.world.t)
+                    await self.hub.send(self.challenge.message())
 
     async def notice(self, text: str) -> None:
         await self.hub.send(CaptionMsg(
@@ -213,7 +223,11 @@ class Session:
             if not self.simulation_ready:
                 raise ValueError("Waiting for simulator module")
             action, params = message.action, message.params
-            if action == "edit_strip":
+            if action == "challenge_name":
+                if not self.challenge.set_name(str(params.get("name", ""))):
+                    raise ValueError("Land the aircraft first, then enter a name")
+                await self.hub.send(self.challenge.message())
+            elif action == "edit_strip":
                 edit = getattr(self.world, "edit_strip", None)
                 if not callable(edit):
                     raise ValueError("Strip editing is unavailable in this simulator")

@@ -74,6 +74,7 @@ export function ReportView({ report, onDownload }: Props) {
             {typeof finding.evidence.transcript === "string" && finding.evidence.transcript &&
               <blockquote>{finding.evidence.transcript}</blockquote>}
             {finding.correct_practice && <p className="report-practice"><b>Correct practice</b> · {finding.correct_practice}</p>}
+            <MissedReplay report={report} errorId={finding.evidence.error_id} />
             {Object.keys(finding.evidence).length > 0 && <details className="report-evidence"><summary>Recorded evidence</summary>
               <pre>{JSON.stringify(finding.evidence, null, 2)}</pre></details>}
           </article>)}
@@ -140,5 +141,19 @@ export function ReportPage({ report, connectionStatus, onDownload }: {
       <h1>Session report</h1><p>No completed report is available for this session.</p>
       <p>End the session from the controller or presenter controls to generate its debrief.</p>
     </section>}
+  </div>;
+}
+
+
+// "Hear what you missed" (15 Nov, Sanju): the pilot readback that carried this planted error,
+// played through the same radio sound. Served by GET /api/replay/<error_id> while the session lives.
+function MissedReplay({ report, errorId }: { report: Report; errorId: unknown }) {
+  if (typeof errorId !== "string") return null;
+  const error = report.errors.find(e => e.id === errorId);
+  if (!error || error.mode === "execution_only") return null;
+  const fmt = (v: unknown) => typeof v === "number" ? Math.round(v).toLocaleString("en-GB") : String(v);
+  return <div className="report-replay">
+    <p><b>Hear what the pilot said</b> · read back {fmt(error.readback_value)}, you cleared {fmt(error.intended)}</p>
+    <audio controls preload="none" src={`/api/replay/${encodeURIComponent(errorId)}`}>Audio not supported.</audio>
   </div>;
 }

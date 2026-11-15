@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import type { ControlMsg, CaptionMsg, CoachMsg, EventMsg, SessionMsg, StateMsg, Report, PipelineTrace } from "../protocol";
+import type { ChallengeMsg, ControlMsg, CaptionMsg, CoachMsg, EventMsg, SessionMsg, StateMsg, Report, PipelineTrace } from "../protocol";
 import { Radar, type Airspace } from "../radar/Radar";
 import { connect } from "./connection";
 import { createAudioEngine } from "../audio/index";
@@ -13,6 +13,7 @@ import { CommunicationsPanel } from "../ui/CommunicationsPanel";
 import { updateResponseSamples, type ResponseSample } from "../ui/communications";
 import { CaptionStrip } from "../ui/CaptionStrip";
 import { CoachCard, mergeCoach } from "../ui/CoachCard";
+import { ChallengeBoard, ChallengeCard } from "../ui/Challenge";
 import { updateCaptions } from "../ui/captions";
 import { SessionControls, type TrafficConfig } from "../ui/SessionControls";
 import { PresenterConsole } from "../ui/PresenterConsole";
@@ -58,9 +59,14 @@ export function App() {
   const [contextOpen, setContextOpen] = useState(false);
   const [commsOpen, setCommsOpen] = useState(() => readFlag("sweatbox.commsOpen"));
   const [scenarioChoice, setScenarioChoice] = useState<ScenarioChoice>("demo");
+  const activeScenario = session?.settings.scenario;
+  useEffect(() => {      // follow the session's real scenario (it may be changed from another screen)
+    if (activeScenario && SCENARIOS.some(([value]) => value === activeScenario)) setScenarioChoice(activeScenario as ScenarioChoice);
+  }, [activeScenario]);
   const clearanceInput = useRef<HTMLInputElement>(null);
   const [traces,setTraces] = useState<PipelineTrace[]>([]);
-  const [coach, setCoach] = useState<CoachMsg | null>(null);   // phraseology coach (15 Nov, Sanju)
+  const [coach, setCoach] = useState<CoachMsg | null>(null);
+  const [challenge, setChallenge] = useState<ChallengeMsg | null>(null);   // judge challenge (15 Nov, Sanju)   // phraseology coach (15 Nov, Sanju)
   const [pipelineOpen,setPipelineOpen] = useState(false);
   const pipelineToggle = useRef<HTMLButtonElement>(null);
   const sidebarToggle = useRef<HTMLButtonElement>(null);
@@ -100,6 +106,7 @@ export function App() {
       radio.current?.handle(message);
       if(message.type === "trace") setTraces(previous=>updateTraces(previous,message.trace));
       if(message.type === "coach") setCoach(previous=>mergeCoach(previous,message));
+      if(message.type === "challenge") setChallenge(message);
       if (message.type === "session") {
         if (sessionCode.current && sessionCode.current !== message.code) {
           setTraces([]);
@@ -312,7 +319,7 @@ export function App() {
   }
   if (reportPage) return <ReportPage report={report} connectionStatus={status} onDownload={downloadReport} />;
   const reportHref = `/report${session ? `?session=${encodeURIComponent(session.code)}` : ""}`;
-  if (role === "viz") return <Suspense fallback={<div className="viz-loading">Loading audience view…</div>}>
+  if (role === "viz") return <><ChallengeBoard challenge={challenge} /><Suspense fallback={<div className="viz-loading">Loading audience view…</div>}>
     <AudienceView state={state} data={data as SceneAirspace | null} session={session} status={status}
       selected={selected} onSelect={selectAircraft} speakers={speakers} captions={captions} clocks={captionClock}
       pipeline={pipeline} events={events} judge={judge} audio={{ started: audioStarted, enabled: radioStatus.enabled,
@@ -324,7 +331,7 @@ export function App() {
       reportAction={reportPending ? <span>Generating debrief…</span> : report ? <button onClick={() => setReportOpen(true)}>Review debrief</button> : null}
       reportOverlay={report && reportOpen && <ReportDialog report={report} open={reportOpen} href={reportHref}
         onClose={() => setReportOpen(false)} onDownload={downloadReport} />} />
-  </Suspense>;
+  </Suspense></>;
   const contextPanels = <>
     {role === "radar" && <WeatherPanel metar={state?.metar} connected={connected} />}
     <AircraftDetails aircraft={state?.aircraft.find(ac => ac.callsign === selected)} alerts={state?.alerts ?? []} />
@@ -415,6 +422,7 @@ export function App() {
             </div>
           )}
           {role === "radar" && <CoachCard coach={coach} />}
+          {role === "radar" && <ChallengeCard challenge={challenge} send={sendControl} />}
         </section>
       </main>
       {role === "radar" && <div className="comms-toggle-row">

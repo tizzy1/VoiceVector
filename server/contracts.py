@@ -466,6 +466,35 @@ class CoachMsg(BaseModel):
     tip: Optional[str] = None                  # one sentence from Claude Haiku, when available
 
 
+class ChallengeEntry(BaseModel):
+    id: Optional[str] = None
+    name: str = ""
+    score: int = 0
+    time_s: int = 0
+    phraseology: Optional[int] = None
+    go_arounds: int = 0
+    calls: int = 0
+    at: str = ""
+
+
+class ChallengeMsg(BaseModel):
+    """Judge challenge (added 15 Nov by Sanju; additive): live timer/score + leaderboard."""
+    type: Literal["challenge"] = "challenge"
+    active: bool = False
+    status: Literal["off", "waiting", "running", "landed"] = "off"
+    elapsed_s: float = 0.0                    # sim seconds since the judge's first call
+    calls: int = 0
+    phraseology: Optional[int] = None          # coach average
+    go_arounds: int = 0
+    alerts: int = 0
+    caught: int = 0
+    missed: int = 0
+    score: Optional[int] = None
+    rank: Optional[int] = None
+    entry_id: Optional[str] = None
+    leaderboard: list[ChallengeEntry] = Field(default_factory=list)
+
+
 class TraceMsg(BaseModel):
     type: Literal["trace"] = "trace"
     trace: PipelineTrace
@@ -515,7 +544,8 @@ class SessionMsg(BaseModel):
 
 ControlAction = Literal["new_session", "pause", "resume", "set_speed", "set_traffic", "set_error_rate",
                         "set_runway", "load_scenario", "inject", "force_error", "beat", "end_session",
-                        "reveal_errors", "import_live", "edit_strip", "set_strip_autofill"]
+                        "reveal_errors", "import_live", "edit_strip", "set_strip_autofill",
+                        "challenge_name"]   # challenge_name: added 15 Nov (Sanju)
 
 
 class ControlMsg(BaseModel):                   # client -> server

@@ -81,6 +81,9 @@ export interface PipelineTrace {
 export interface TraceMsg { type: "trace"; trace: PipelineTrace }
 // Phraseology coach (added 15 Nov, Sanju): rules first, then the same tx_id again with Claude's tip
 export interface CoachNote { level: "good" | "tip" | "fix"; text: string }
+// Judge challenge (added 15 Nov, Sanju)
+export interface ChallengeEntry { id: string | null; name: string; score: number; time_s: number; phraseology: number | null; go_arounds: number; calls: number; at: string }
+export interface ChallengeMsg { type: "challenge"; active: boolean; status: "off" | "waiting" | "running" | "landed"; elapsed_s: number; calls: number; phraseology: number | null; go_arounds: number; alerts: number; caught: number; missed: number; score: number | null; rank: number | null; entry_id: string | null; leaderboard: ChallengeEntry[] }
 export interface CoachMsg { type: "coach"; tx_id: string; callsign: string | null; score: number; notes: CoachNote[]; tip: string | null }
 
 export interface AudioStartMsg {
@@ -123,12 +126,12 @@ export interface SessionMsg {
 }
 
 export type ServerMsg = StateMsg | CaptionMsg | AudioStartMsg | AudioChunkMsg | AudioEndMsg
-  | EventMsg | ReportMsg | SessionMsg | TraceMsg | CoachMsg;
+  | EventMsg | ReportMsg | SessionMsg | TraceMsg | CoachMsg | ChallengeMsg;
 
 // ---- client -> server ----
 export type ControlAction = "new_session" | "pause" | "resume" | "set_speed" | "set_traffic"
   | "set_error_rate" | "set_runway" | "load_scenario" | "inject" | "force_error" | "beat"
-  | "end_session" | "reveal_errors" | "import_live" | "edit_strip" | "set_strip_autofill";
+  | "end_session" | "reveal_errors" | "import_live" | "edit_strip" | "set_strip_autofill" | "challenge_name";
 export interface ControlMsg { type: "control"; action: ControlAction; params: Record<string, unknown> }
 export interface PttMsg { type: "ptt"; state: "down" | "up" }
 export interface TypedMsg { type: "typed"; text: string }

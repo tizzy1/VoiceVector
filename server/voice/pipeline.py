@@ -31,6 +31,7 @@ from server.voice.stt_scribe import STATIC_KEYTERMS, ScribeStream, STTError, bui
 from server.voice.tts import ElevenLabsTTS, TTSError
 from server.voice.pronounce import respell
 from server.voice import coach
+from server.voice.replay import ReplayStore
 from server.voice import trace as T
 from server.voice.prosody import compensated_speed, restore_word_times, shape
 from server.voice.voices import Voices, settings_for, target_wps
@@ -107,6 +108,8 @@ class VoicePipeline:
         self.metrics = Metrics()
         self.reveal_errors = False
         self.coach_enabled = True                         # phraseology coach (server/voice/coach.py)
+        self.replays = ReplayStore()                      # "hear what you missed" (server/voice/replay.py)
+        self.on_coach: Optional[Callable[[int], None]] = None   # judge challenge hook (session sets it)
         self._ptt: Optional[_Ptt] = None
         self._tx_stamps: dict[str, Stamps] = {}
         self._ctrl_traces: dict[str, list] = {}       # ctrl tx_id -> [Trace, replies claimed]
@@ -397,6 +400,8 @@ class VoicePipeline:
             msg = CoachMsg(tx_id=tx.tx_id, callsign=tx.receiver, score=rev.score,
                            notes=[CoachNote(**n) for n in rev.notes])
             await self.hub.send(msg)
+            if self.on_coach is not None:
+                self.on_coach(rev.score)
             tip = await coach.claude_tip(raw, rev, client=self.llm_client)
             if tip:
                 await self.hub.send(msg.model_copy(update={"tip": tip}))
@@ -651,16 +656,25 @@ class VoicePipeline:
                 tx_id=tx_id, speaker=cs, stage="pilot_text", text=readback.text, latency=latency,
                 error_reveal=self.error_reveal_text(resp) if self.reveal_errors else None))
             audio_bytes = 0
+            spoken_pcm = bytearray() if resp.errors else None      # kept only for "hear what you missed"
             if tts_ok:
                 seq, item = 0, first
                 while item is not None and not isinstance(item, Exception):
                     audio_bytes += len(item)
+                    if spoken_pcm is not None:
+                        spoken_pcm += item
                     await self.hub.send(AudioChunkMsg(tx_id=tx_id, seq=seq, data_b64=base64.b64encode(item).decode("ascii")))
                     seq += 1
                     item = await queue.get()
                 if isinstance(item, Exception):
                     logger.warning("TTS stream broke for %s: %s", cs, item)
                 await self.hub.send(AudioEndMsg(tx_id=tx_id))
+                if spoken_pcm:
+                    try:
+                        self.replays.keep(resp, bytes(spoken_pcm), meta["engine"].sample_rate,
+                                          meta["engine"].audio_format, readback.text)
+                    except Exception:                                    # noqa: BLE001
+                        logger.exception("replay not kept")
             words = readback.text.split()
             if tts_ok and audio_bytes:
                 engine = meta["engine"]
