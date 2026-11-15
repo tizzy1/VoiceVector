@@ -29,6 +29,7 @@ export interface AircraftPublic {
   rfl?: number | null;                       // requested cruise FL, not feet
   assigned_squawk?: string | null;           // preserve leading zeroes
   selected_level?: number | null;            // Mode S selected level, feet
+  distance_to_touchdown_nm?: number | null;  // simulator track distance
   strip?: Record<string, unknown>;           // controller record; editing never flies a clearance
 }
 
@@ -112,6 +113,7 @@ export interface ReportMsg { type: "report"; report: Report }
 export interface SessionSettings {
   scenario: "demo" | "ramp" | "easy" | "medium" | "busy" | "custom"; seed: number; runway: "26L" | "08R";
   arr_per_hr: number; dep_per_hr: number; error_rate: ErrorRate; sim_speed: number; paused: boolean;
+  strip_autofill?: boolean;
 }
 export interface SessionMsg {
   type: "session"; code: string; settings: SessionSettings; clients: Record<string, number>; join_url: string;
@@ -123,7 +125,7 @@ export type ServerMsg = StateMsg | CaptionMsg | AudioStartMsg | AudioChunkMsg | 
 // ---- client -> server ----
 export type ControlAction = "new_session" | "pause" | "resume" | "set_speed" | "set_traffic"
   | "set_error_rate" | "set_runway" | "load_scenario" | "inject" | "force_error" | "beat"
-  | "end_session" | "reveal_errors" | "import_live" | "edit_strip";
+  | "end_session" | "reveal_errors" | "import_live" | "edit_strip" | "set_strip_autofill";
 export interface ControlMsg { type: "control"; action: ControlAction; params: Record<string, unknown> }
 export interface PttMsg { type: "ptt"; state: "down" | "up" }
 export interface TypedMsg { type: "typed"; text: string }

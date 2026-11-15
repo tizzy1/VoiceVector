@@ -200,6 +200,7 @@ class AircraftPublic(BaseModel):
     rfl: Optional[int] = None                  # requested cruise FL, e.g. 350 (not feet)
     assigned_squawk: Optional[str] = None      # four octal digits; preserve leading zeroes
     selected_level: Optional[float] = None    # Mode S selected level, feet (not strip CFL)
+    distance_to_touchdown_nm: Optional[float] = None  # simulator track distance, never UI estimate
     strip: dict[str, Any] = Field(default_factory=dict)  # controller record, never a clearance
 
 
@@ -401,6 +402,7 @@ class SessionSettings(BaseModel):
     error_rate: ErrorRate = "low"
     sim_speed: float = 1.0
     paused: bool = False
+    strip_autofill: bool = True
 
 
 class CaptionWord(BaseModel):
@@ -497,7 +499,7 @@ class SessionMsg(BaseModel):
 
 ControlAction = Literal["new_session", "pause", "resume", "set_speed", "set_traffic", "set_error_rate",
                         "set_runway", "load_scenario", "inject", "force_error", "beat", "end_session",
-                        "reveal_errors", "import_live", "edit_strip"]
+                        "reveal_errors", "import_live", "edit_strip", "set_strip_autofill"]
 
 
 class ControlMsg(BaseModel):                   # client -> server
