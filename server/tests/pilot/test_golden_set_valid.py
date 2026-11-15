@@ -17,7 +17,7 @@ def test_golden_set_is_valid(world):
     scope = {c.icao for c in world.callsigns()}
     assert set(meta["scope"]) == scope
     fixes, runways = set(world.fixes()), set(world.egkk["runways"])
-    assert 60 <= len(cases) <= 100
+    assert len(cases) == 100
     assert len({c["id"] for c in cases}) == len(cases)
     assert len({c["text"] for c in cases}) == len(cases)
     for c in cases:

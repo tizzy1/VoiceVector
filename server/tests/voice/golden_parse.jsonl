@@ -98,3 +98,4 @@
 {"id": "g097", "text": "all stations gatwick q n h one zero one two", "receiver": null, "intent": "broadcast", "instructions": [{"type": "qnh", "value": 1012}], "tags": ["broadcast"]}
 {"id": "g098", "text": "ryanair four two descend altitude four thousand feet", "receiver": null, "intent": "instruction", "instructions": [{"type": "altitude", "value": 4000, "verb": "descend"}], "tags": ["unknown_callsign"]}
 {"id": "g099", "text": "turn left heading two four zero", "receiver": null, "intent": "instruction", "instructions": [{"type": "heading", "value": 240, "turn_dir": "L"}], "tags": ["missing_callsign"]}
+{"id": "g100", "text": "emirates one five proceed direct seaford", "receiver": "UAE15", "intent": "instruction", "instructions": [{"type": "direct", "fix": "SFD"}], "tags": ["direct", "navaid_name"]}

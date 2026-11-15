@@ -115,7 +115,24 @@ def _fix(w, ac, tx, i, ins: Instruction) -> Evaluation:
         return _no(i, "QUERY", "QUERY_UNKNOWN_FIX", fix=ins.fix)
     if ins.type == "hold" and not ins.fix and not ac.route:
         return _no(i, "QUERY", "QUERY_AMBIGUOUS", what="hold_fix")
+    if ins.type == "direct" and ins.fix and _passed_on_own_procedure(w, ac, ins.fix):
+        # SIM_SPEC §2.1.1: the pilot questions a direct to a fix it has already flown past.
+        # Reason code switches to QUERY_FIX_PASSED once it is in the contract (CONTRACTS §3.2);
+        # until then QUERY_UNKNOWN_FIX gives the reply "confirm the waypoint".
+        return _no(i, "QUERY", "QUERY_UNKNOWN_FIX", fix=ins.fix, what="fix_passed")
     return _ok(i)
+
+
+def _passed_on_own_procedure(w, ac, fix: str) -> bool:
+    """True if `fix` is on the SID/STAR the aircraft is flying and lies behind its next fix."""
+    if ac.lat_mode != "LNAV" or not ac.route_name or ac.route_idx >= len(ac.route):
+        return False
+    kind = "STAR" if ac.flow == "ARR" else "SID"
+    proc = w.egkk["procedures"][kind].get(w.runway, {}).get(ac.route_name, {}).get("route", [])
+    nxt = ac.route[ac.route_idx]
+    if fix not in proc or nxt not in proc:
+        return False
+    return proc.index(fix) < proc.index(nxt)
 
 
 def _resume(w, ac, tx, i, ins: Instruction) -> Evaluation:

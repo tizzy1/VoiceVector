@@ -95,3 +95,19 @@ def test_evaluate_is_pure_and_unknown_receiver_is_ok(world):
     ev(world, "T1", I(type="altitude", value=2000), I(type="speed", value=100))
     assert world.snapshot().model_dump() == before
     assert ev(world, "NOPE", I(type="speed", value=100))[0][0] == "OK"
+
+
+def test_direct_to_a_fix_already_passed_on_own_star_is_queried(world):
+    from server.contracts import Instruction, Transmission
+    world.inject("spawn_arrival", params={"entry": "DISIT"})
+    ac = next(a for a in world.aircraft.values() if a.route_name == "DISIT1G")
+    ac.route, ac.route_idx = ["KIDLI", "MID", "TUFOZ", "HOLLY", "WILLO"], 3   # next fix HOLLY
+    def ev(fix):
+        tx = Transmission(tx_id="d", t=0, receiver=ac.callsign,
+                          instructions=[Instruction(type="direct", fix=fix)])
+        return world.evaluate(tx)[0]
+    behind = ev("TUFOZ")
+    assert behind.status == "QUERY" and behind.reason_values.get("what") == "fix_passed"
+    assert ev("WILLO").status == "OK" and ev("HOLLY").status == "OK"
+    ac.lat_mode = "HDG"                                      # on vectors: any fix is fine
+    assert ev("TUFOZ").status == "OK"
