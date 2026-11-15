@@ -58,6 +58,7 @@ def tokenize(text: str) -> list[str]:
     """Lowercase, strip punctuation, keep decimal points inside numbers, drop thousands commas."""
     t = text.lower()
     t = re.sub(r"(?<=\d),(?=\d)", "", t)
+    t = re.sub(r"\b((?:[a-z]\.){2,}[a-z]?)", lambda m: m.group(1).replace(".", ""), t)   # "i.l.s." -> "ils"
     t = re.sub(r"[^a-z0-9.]+", " ", t)
     return [w for w in (w.strip(".") for w in t.split()) if w]
 

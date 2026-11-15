@@ -36,6 +36,18 @@ logger = logging.getLogger(__name__)
 
 _SLOT = re.compile(r"\{(\w+)\}")
 _ELEMENT_KINDS = ("full", "partial_correction")
+ROGER_ONLY = ("roger", "roger", "copied")          # acknowledgement when nothing needs reading back
+
+
+def needs_readback(el: Instruction) -> bool:
+    """Tudor 15 Nov: an "expect" with critical content (approach/runway, a level) is read back in
+    full; non-critical ones ("expect vectors", or no detail heard) are not read back at all: the
+    pilot says "roger" (alone) or just leaves it out. Never a bare "expecting"."""
+    if el.type != "expect":
+        return True
+    what = (el.expect_what or "").strip().lower()
+    return bool(what) and what != "vectors"
+
 _VERBS = {"climb": ("climb", "climbing"), "descend": ("descend", "descending"),
           "maintain": ("maintain", "maintaining")}
 Slots = dict[str, tuple[str, str]]
@@ -253,7 +265,9 @@ class Composer:
     def _build_elements(self, plan: ReadbackPlan, rng: random.Random, canonical: bool,
                         skip_ids: set[str]) -> Optional[Built]:
         persona = plan.persona if plan.persona in PERSONA_STYLE_WEIGHTS else "crisp_airline"
-        elements = list(plan.elements)
+        if plan.elements and not any(needs_readback(e) for e in plan.elements):
+            return self._roger(plan, rng, canonical)
+        elements = [e for e in plan.elements if needs_readback(e)]
         if not elements:
             return None
         if not canonical and len(elements) > 1 and rng.random() < 0.3:
@@ -296,6 +310,20 @@ class Composer:
             callsign_piece()
         if not canonical:
             b.filler(rng.choice(self.bank["persona_suffix"].get(persona, [""])))
+        return b
+
+    def _roger(self, plan: ReadbackPlan, rng: random.Random, canonical: bool) -> Built:
+        """Only non-critical information (e.g. "expect vectors"): "Roger, Speedbird 117"."""
+        b = Built()
+        cs_display, cs_speech = self.callsign_speech(plan.callsign)
+        word = ROGER_ONLY[0] if canonical else rng.choice(ROGER_ONLY)
+        if canonical or rng.random() < 0.85:
+            b.filler(word + ", ")
+            b.add(V.Piece("callsign", cs_speech, slot_speeches=[cs_speech]), cs_display)
+        else:
+            b.add(V.Piece("callsign", cs_speech, slot_speeches=[cs_speech]), cs_display)
+            b.filler(", " + word)
+        b.variant_ids.append("roger")
         return b
 
     def _pick_from(self, candidates: list[dict], key: str, persona: str, callsign: str,
@@ -343,6 +371,11 @@ class Composer:
                 usable.append(tpl)
         if not usable:
             return None
+        # Tudor 15 Nov: when the sim gives the numbers behind a refusal, the pilot says why
+        # ("unable altitude 2000, minimum altitude is 3000"), never just "say again the altitude".
+        reasoned = [tpl for tpl, needs in options if needs and tpl in usable]
+        if reasoned:
+            usable = reasoned
         if isinstance(values.get("fix"), str) and values["fix"]:
             slots["fix"] = self.fix_speech(values["fix"])       # "TUFOZ" / "Seaford" / spelled KKS25
         for key, val in values.items():
@@ -469,7 +502,7 @@ class Composer:
             if b.callsigns < 1:
                 problems.append("callsign missing")
             spoken = [p.element for p in b.pieces if p.role == "element"]
-            if len(spoken) != len(plan.elements):
+            if len(spoken) != len([e for e in plan.elements if needs_readback(e)]):
                 problems.append("element count differs from plan")
         return problems
 

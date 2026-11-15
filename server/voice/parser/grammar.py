@@ -121,7 +121,25 @@ def _turn_dir(toks: list[str]) -> Optional[str]:
     return None
 
 
-def _runway(toks: list[str]) -> Optional[str]:
+def _runway(toks: list[str], after: tuple[str, ...] = ()) -> Optional[str]:
+    """Runway designator: "26L", "runway two six left", or a number right after one of ``after``
+    ("cleared ILS 26 left", "expect ILS two six left")."""
+    found = _runway_token(toks)
+    if found or not after:
+        return found
+    for idx, t in enumerate(toks):
+        if t in after:
+            nxt = idx + 1 + (1 if idx + 1 < len(toks) and toks[idx + 1] == "approach" else 0)
+            run = parse_run(toks, nxt)
+            if run:
+                _, digits, end = run
+                if 1 <= int(digits) <= 36:
+                    side = SIDE.get(toks[end], "") if end < len(toks) else ""
+                    return digits.zfill(2) + side
+    return None
+
+
+def _runway_token(toks: list[str]) -> Optional[str]:
     for idx, t in enumerate(toks):
         m = RUNWAY_TOKEN.match(t)
         if m:
@@ -240,7 +258,9 @@ def classify(clause: Clause, fixes: set[str], last_verb: Optional[str]) -> list[
         direction = _turn_dir(toks[:k])
         # A relative turn needs a direction ("turn left 20 degrees"). "heading 120 degrees"
         # or "turn 120 degrees" with no left/right is an absolute heading (shortest turn).
-        relative = "degrees" in toks and direction is not None and "heading" not in toks
+        # Scribe writes "turn left 240 degrees" for "turn left two four zero": over 90 is a heading.
+        relative = ("degrees" in toks and direction is not None and "heading" not in toks
+                    and 0 < run[0] <= MAX_RELATIVE_TURN)
         kind = "turn_by" if relative else "heading"
         return [Instruction(type=kind, value=run[0], turn_dir=direction)]
     if fam == "speed":
@@ -269,7 +289,7 @@ def classify(clause: Clause, fixes: set[str], last_verb: Optional[str]) -> list[
                            ("rnp", "RNP"), ("visual", "VISUAL")):
             if word in toks:
                 return [Instruction(type="approach_clearance", approach_type=kind,
-                                    runway=_runway(toks))]
+                                    runway=_runway(toks, after=("ils", "loc", "localiser", "rnp", "visual")))]
         return []
     if fam == "clearland":
         return [Instruction(type="cleared_to_land", runway=_runway(toks))]
@@ -282,7 +302,7 @@ def classify(clause: Clause, fixes: set[str], last_verb: Optional[str]) -> list[
     if fam == "goaround":
         return [Instruction(type="go_around")]
     if fam == "expect":
-        rwy = _runway(toks)
+        rwy = _runway(toks, after=("ils", "loc", "localiser", "rnp", "visual"))
         what = None
         if "ils" in toks:
             what = f"ILS {rwy}" if rwy else "ILS"
@@ -310,7 +330,9 @@ def classify(clause: Clause, fixes: set[str], last_verb: Optional[str]) -> list[
     return []
 
 
-_TYPE_FAMILY = {"heading": "heading", "turn_by": "heading", "altitude": "level",
+MAX_RELATIVE_TURN = 90          # "turn left 30 degrees" is relative; "turn left 240 degrees" is heading 240
+
+_TYPE_FAMILY = {"heading": "heading", "turn_by": "heading", "present_heading": "heading", "altitude": "level",
                 "flight_level": "level", "maintain_level": "level", "speed": "speed"}
 
 

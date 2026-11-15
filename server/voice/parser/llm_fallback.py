@@ -19,7 +19,8 @@ from pydantic import ValidationError
 
 from server.agents import llm
 from server.contracts import CallsignInfo, Instruction, InstrType, Intent, Transmission
-from server.voice.parser.grammar import out_of_range
+from server.voice.parser.grammar import _TYPE_FAMILY, out_of_range
+from server.voice.parser.intent import acknowledgement
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,8 @@ Reply with ONLY a JSON object:
 def needs_fallback(tx: Transmission) -> bool:
     if tx.intent == "broadcast":
         return False
+    if not tx.instructions and acknowledgement(tx.norm_text.split()):
+        return False                # "readback correct" is complete as it is
     if any(a in tx.ambiguities for a in TRIGGERS):
         return True
     if any(i.confidence < LOW_CONFIDENCE for i in tx.instructions):
@@ -142,7 +145,10 @@ def merge(tx: Transmission, output: dict, callsigns: list[CallsignInfo], fixes: 
         receiver, confidence = llm_receiver.upper(), 0.85
     instructions = list(tx.instructions)
     regex_types = {i.type for i in instructions}
-    added = [i for i in llm_instrs if i.type not in regex_types and not any(_same(i, r) for r in instructions)]
+    # One instruction per family: a regex "turn_by" and an LLM "heading" are the same turn, read back twice.
+    regex_families = {_TYPE_FAMILY.get(i.type, i.type) for i in instructions}
+    added = [i for i in llm_instrs if i.type not in regex_types and _TYPE_FAMILY.get(i.type, i.type) not in regex_families
+             and not any(_same(i, r) for r in instructions)]
     instructions += added
     intent = tx.intent
     llm_intent = output.get("intent")

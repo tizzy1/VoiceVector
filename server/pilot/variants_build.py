@@ -201,6 +201,7 @@ REASON_PHRASES: dict[str, list[tuple[str, tuple[str, ...]]]] = {
                            ("unable, too high for the glideslope", ())],
     "UNABLE_NOT_MODELLED": [("unable", ()), ("unable that", ())],
     "QUERY_LEVEL_BELOW_MIN": [("confirm altitude, minimum altitude is {min_alt}", ("min_alt",)),
+                              ("unable altitude {alt}, minimum altitude here is {min_alt}", ("alt", "min_alt")),
                               ("confirm that altitude", ()), ("say again the altitude", ())],
     "QUERY_AMBIGUOUS": [("say again", ()), ("say again please", ())],
     "QUERY_UNKNOWN_FIX": [("say again the waypoint", ()), ("confirm the waypoint", ())],

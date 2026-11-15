@@ -30,6 +30,21 @@ def default_runways() -> list[str]:
     return sorted(_egkk()["runways"])
 
 
+def _dedupe(instructions: list) -> list:
+    """The same instruction said twice in one call ("heading 240 … I say again heading 240") is one."""
+    out: list = []
+    for i in instructions:
+        key = (i.type, i.value, i.fix, i.runway, i.frequency, i.unit, i.expect_what)
+        twin = next((k for k, o in enumerate(out)
+                     if (o.type, o.value, o.fix, o.runway, o.frequency, o.unit, o.expect_what) == key
+                     and (o.turn_dir is None or i.turn_dir is None or o.turn_dir == i.turn_dir)), None)
+        if twin is None:
+            out.append(i)
+        elif out[twin].turn_dir is None and i.turn_dir is not None:     # keep the fuller one
+            out[twin] = i
+    return out
+
+
 def parse(text: str, callsigns: Optional[list[CallsignInfo]] = None,
           fixes: Optional[set[str]] = None, source: str = "voice",
           tx_id: str = "tx", t: float = 0.0) -> Transmission:
@@ -58,6 +73,7 @@ def parse(text: str, callsigns: Optional[list[CallsignInfo]] = None,
     rest = join_spelled_points(rest, fixes)
     clauses = build_clauses(rest, fixes)
     instructions, corrections, unparsed = build_instructions(clauses, fixes)
+    instructions = _dedupe(instructions)
     intent = detect_intent(rest, [c.family for c in clauses], bool(instructions))
     if receiver is None and instructions and intent != "broadcast":
         ambiguities.append("callsign_unresolved")
