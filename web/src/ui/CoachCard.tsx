@@ -17,6 +17,6 @@ export function CoachCard({ coach }: { coach: CoachMsg | null }) {
       <button aria-label="Hide coach" onClick={() => setHidden(true)}>×</button>
     </header>
     <ul>{coach.notes.map((n, i) => <li key={i} className={`coach-note coach-${n.level}`}>{n.text}</li>)}</ul>
-    <p className="coach-tip">{coach.tip ? <><b>Claude</b> {coach.tip}</> : <span className="coach-wait">Claude is reviewing…</span>}</p>
+    <p className="coach-tip">{coach.tip ? <><b>Tip</b> {coach.tip}</> : <span className="coach-wait">Reviewing…</span>}</p>
   </aside>;
 }
